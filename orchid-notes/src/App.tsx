@@ -3,6 +3,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { TaskEditor } from './components/TaskEditor';
 import { useStore } from './hooks/useStore';
 import { useReminders } from './hooks/useReminders';
+import { useImageProcessor } from './hooks/useImageProcessor';
 import type { Task, Reminder, ReminderSound } from './types';
 import orchidFrame from './assets/orchid.png';
 import './App.css';
@@ -91,15 +92,19 @@ export default function App() {
     };
   }, []);
 
+  const processedFrameParams = useImageProcessor(orchidFrame);
+
   return (
     <div className="frame-container">
-      {/* Orchid frame image — mix-blend-mode:multiply makes white areas transparent */}
-      <img
-        src={orchidFrame}
-        className="orchid-frame"
-        alt=""
-        draggable={false}
-      />
+      {/* Orchid frame image — white pixels stripped by Canvas */}
+      {processedFrameParams && (
+        <img
+          src={processedFrameParams}
+          className="orchid-frame"
+          alt=""
+          draggable={false}
+        />
+      )}
 
       {/* Drag region — top 80px, over the circular ornament */}
       <div className="drag-region" data-tauri-drag-region />

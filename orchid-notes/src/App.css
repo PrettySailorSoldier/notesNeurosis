@@ -52,8 +52,7 @@ html, body {
 }
 
 /* ── Orchid Frame Image ──
-   mix-blend-mode: multiply makes white pixels show the desktop through.
-   Black and coloured areas (frame, orchids) render normally.
+   The white background is made transparent dynamically using Canvas in App.tsx.
 */
 .orchid-frame {
   position: absolute;
@@ -63,7 +62,6 @@ html, body {
   pointer-events: none;
   z-index: 0;
   object-fit: fill;
-  mix-blend-mode: multiply;
 }
 
 /* ── Drag Region ── */
