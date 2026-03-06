@@ -1,0 +1,213 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+}
+
+.modal {
+  position: fixed;
+  z-index: 100;
+  width: 220px;
+  background: rgba(18, 12, 28, 0.94);
+  border: 1px solid rgba(180, 130, 220, 0.45);
+  border-radius: 12px;
+  padding: 14px 16px 12px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(180, 130, 220, 0.12) inset;
+  backdrop-filter: blur(12px);
+  animation: modalIn 0.15s ease-out;
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.headerIcon {
+  font-size: 13px;
+}
+
+.headerTitle {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 13px;
+  color: rgba(220, 200, 255, 0.9);
+  letter-spacing: 0.04em;
+  flex: 1;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: rgba(180, 140, 220, 0.5);
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 2px;
+  transition: color 0.15s;
+}
+.closeBtn:hover { color: rgba(220, 160, 255, 0.9); }
+
+.taskPreview {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 11px;
+  color: rgba(200, 180, 230, 0.55);
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(180, 130, 220, 0.15);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.label {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(180, 140, 220, 0.6);
+  margin-bottom: 6px;
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.presetBtn {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 11px;
+  padding: 3px 8px;
+  background: rgba(100, 60, 180, 0.2);
+  border: 1px solid rgba(180, 130, 220, 0.25);
+  border-radius: 8px;
+  color: rgba(210, 185, 245, 0.8);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.presetBtn:hover {
+  background: rgba(130, 80, 210, 0.35);
+  border-color: rgba(180, 130, 220, 0.5);
+  color: #ede8f5;
+}
+.presetActive {
+  background: rgba(140, 90, 220, 0.45) !important;
+  border-color: rgba(180, 130, 220, 0.75) !important;
+  color: #ede8f5 !important;
+}
+
+.customRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.customRow .label { margin-bottom: 0; }
+
+.customInput {
+  width: 54px;
+  background: rgba(80, 40, 140, 0.3);
+  border: 1px solid rgba(180, 130, 220, 0.3);
+  border-radius: 6px;
+  color: #ede8f5;
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 12px;
+  padding: 3px 6px;
+  outline: none;
+}
+.customInput:focus {
+  border-color: rgba(180, 130, 220, 0.65);
+  background: rgba(100, 55, 170, 0.35);
+}
+.customInput::-webkit-inner-spin-button,
+.customInput::-webkit-outer-spin-button { opacity: 0.4; }
+
+.unitLabel {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 10px;
+  color: rgba(180, 140, 220, 0.5);
+}
+
+.soundRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.soundRow .label { margin-bottom: 0; white-space: nowrap; }
+
+.soundSelect {
+  flex: 1;
+  background: rgba(80, 40, 140, 0.3);
+  border: 1px solid rgba(180, 130, 220, 0.3);
+  border-radius: 6px;
+  color: #ede8f5;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 11px;
+  padding: 3px 6px;
+  outline: none;
+  cursor: pointer;
+}
+.soundSelect:focus {
+  border-color: rgba(180, 130, 220, 0.65);
+}
+.soundSelect option {
+  background: #1a0e2e;
+  color: #ede8f5;
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+}
+
+.setBtn, .clearBtn, .cancelBtn {
+  flex: 1;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1px solid;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.setBtn {
+  background: rgba(140, 90, 220, 0.4);
+  border-color: rgba(180, 130, 220, 0.5);
+  color: #ede8f5;
+}
+.setBtn:hover {
+  background: rgba(160, 110, 240, 0.55);
+  border-color: rgba(200, 160, 255, 0.7);
+}
+
+.clearBtn {
+  background: rgba(180, 60, 80, 0.2);
+  border-color: rgba(220, 100, 120, 0.3);
+  color: rgba(255, 160, 180, 0.8);
+}
+.clearBtn:hover {
+  background: rgba(200, 70, 90, 0.35);
+  border-color: rgba(240, 120, 140, 0.5);
+}
+
+.cancelBtn {
+  background: rgba(60, 40, 90, 0.3);
+  border-color: rgba(120, 90, 160, 0.3);
+  color: rgba(180, 150, 220, 0.6);
+}
+.cancelBtn:hover {
+  background: rgba(80, 55, 120, 0.4);
+  color: rgba(210, 180, 250, 0.8);
+}

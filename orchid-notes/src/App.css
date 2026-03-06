@@ -1,0 +1,164 @@
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Cormorant+Garamond:wght@300;400&display=swap');
+
+/* ── Design Tokens ── */
+:root {
+  --orchid-purple: rgba(180, 130, 220, 1);
+  --orchid-blue:   rgba(110, 160, 220, 1);
+  --orchid-glow:   rgba(200, 160, 255, 0.15);
+  --text-primary:  #ede8f5;
+  --text-muted:    rgba(220, 200, 240, 0.6);
+  --checkbox-border: rgba(180, 140, 220, 0.5);
+  --reminder-pill: rgba(140, 100, 200, 0.3);
+  --scrollbar:     rgba(180, 140, 220, 0.2);
+
+  /* Writing zone geometry — eyeballed to the grey paper area of orchid.png */
+  --zone-top:    195px;
+  --zone-left:   72px;
+  --zone-width:  385px;
+  --zone-height: 370px;
+
+  /* Window controls position */
+  --ctrl-top:  42px;
+  --ctrl-right: 36px;
+}
+
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 520px;
+  height: 680px;
+  overflow: hidden;
+  background: transparent !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#root {
+  width: 520px;
+  height: 680px;
+  overflow: hidden;
+  background: transparent;
+}
+
+/* ── Frame Container ── */
+.frame-container {
+  position: relative;
+  width: 520px;
+  height: 680px;
+  overflow: hidden;
+}
+
+/* ── Orchid Frame Image ──
+   mix-blend-mode: multiply makes white pixels show the desktop through.
+   Black and coloured areas (frame, orchids) render normally.
+*/
+.orchid-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  object-fit: fill;
+  mix-blend-mode: multiply;
+}
+
+/* ── Drag Region ── */
+.drag-region {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  z-index: 10;
+  cursor: grab;
+}
+.drag-region:active { cursor: grabbing; }
+
+/* ── Window Controls ── */
+.window-controls {
+  position: absolute;
+  top: var(--ctrl-top);
+  right: var(--ctrl-right);
+  display: flex;
+  gap: 6px;
+  z-index: 20;
+}
+
+.win-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(180, 130, 220, 0.4);
+  background: rgba(30, 15, 55, 0.75);
+  color: rgba(200, 170, 240, 0.8);
+  font-size: 13px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  padding: 0;
+  backdrop-filter: blur(4px);
+}
+.win-btn:hover {
+  background: rgba(60, 30, 100, 0.9);
+  border-color: rgba(200, 160, 255, 0.7);
+  color: #fff;
+}
+.win-close:hover {
+  background: rgba(160, 50, 80, 0.8);
+  border-color: rgba(220, 100, 130, 0.7);
+}
+
+/* ── Writing Zone ── */
+.writing-zone {
+  position: absolute;
+  top: var(--zone-top);
+  left: var(--zone-left);
+  width: var(--zone-width);
+  height: var(--zone-height);
+  z-index: 5;
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  /* Subtle inner glow to define the writing area */
+  background: transparent;
+
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text-primary);
+
+  padding: 10px 14px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(180, 140, 220, 0.25) transparent;
+
+  /* Let the user select text in the writing zone */
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.writing-zone::-webkit-scrollbar { width: 4px; }
+.writing-zone::-webkit-scrollbar-track { background: transparent; }
+.writing-zone::-webkit-scrollbar-thumb {
+  background: rgba(180, 140, 220, 0.22);
+  border-radius: 2px;
+}
+
+/* ── Loading indicator ── */
+.loading-hint {
+  color: rgba(180, 140, 220, 0.35);
+  font-size: 20px;
+  text-align: center;
+  padding-top: 40px;
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; }
+  50%       { opacity: 0.8; }
+}
