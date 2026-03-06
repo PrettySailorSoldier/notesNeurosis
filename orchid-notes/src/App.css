@@ -11,15 +11,15 @@
   --reminder-pill: rgba(140, 100, 200, 0.3);
   --scrollbar:     rgba(180, 140, 220, 0.2);
 
-  /* Writing zone geometry — eyeballed to the grey paper area of orchid.png */
-  --zone-top:    195px;
-  --zone-left:   72px;
-  --zone-width:  385px;
-  --zone-height: 370px;
+  /* Writing zone geometry — relative mapping to track resize events securely */
+  --zone-top:    28.6%;
+  --zone-left:   13.8%;
+  --zone-width:  74%;
+  --zone-height: 54.4%;
 
   /* Window controls position */
-  --ctrl-top:  42px;
-  --ctrl-right: 36px;
+  --ctrl-top:  6%;
+  --ctrl-right: 7%;
 }
 
 /* ── Reset ── */
@@ -28,8 +28,8 @@
 html, body {
   margin: 0;
   padding: 0;
-  width: 520px;
-  height: 680px;
+  width: 100vw;
+  height: 100vh;
   overflow: hidden;
   background: transparent !important;
   user-select: none;
@@ -37,8 +37,8 @@ html, body {
 }
 
 #root {
-  width: 520px;
-  height: 680px;
+  width: 100vw;
+  height: 100vh;
   overflow: hidden;
   background: transparent;
 }
@@ -46,8 +46,8 @@ html, body {
 /* ── Frame Container ── */
 .frame-container {
   position: relative;
-  width: 520px;
-  height: 680px;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
 }
 

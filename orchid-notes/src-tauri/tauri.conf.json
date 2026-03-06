@@ -16,7 +16,7 @@
         "title": "Orchid Notes",
         "width": 520,
         "height": 680,
-        "resizable": false,
+        "resizable": true,
         "decorations": false,
         "transparent": true,
         "shadow": false,
@@ -37,9 +37,5 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
-  },
-  "plugins": {
-    "store": {},
-    "notification": {}
   }
 }

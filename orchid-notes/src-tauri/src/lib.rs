@@ -1,6 +1,8 @@
 // Prevents additional console window on Windows in release
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use tauri::Manager;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -10,7 +12,7 @@ pub fn run() {
         .setup(|app| {
             // Set transparent WebView2 background on Windows
             if let Some(win) = app.get_webview_window("main") {
-                let _ = win.set_background_color(Some(tauri::Color(0, 0, 0, 0)));
+                let _ = win.set_background_color(Some(tauri::window::Color(0, 0, 0, 0)));
             }
             Ok(())
         })

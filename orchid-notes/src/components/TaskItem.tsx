@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import type { Task, TaskType, ReminderSound } from '../types';
 import { TimerModal } from './TimerModal';
+import { ContextMenu } from './ContextMenu';
 import styles from './TaskItem.module.css';
 
 interface Props {
@@ -12,6 +13,9 @@ interface Props {
   onMergePrev: (id: string) => void;
   onSetReminder: (taskId: string, intervalMinutes: number, sound: ReminderSound) => void;
   onClearReminder: (taskId: string) => void;
+  onDragStart: (id: string) => void;
+  onDragEnter: (id: string) => void;
+  onDragEnd: () => void;
   autoFocus?: boolean;
 }
 
@@ -24,11 +28,15 @@ export const TaskItem: React.FC<Props> = ({
   onMergePrev,
   onSetReminder,
   onClearReminder,
+  onDragStart,
+  onDragEnter,
+  onDragEnd,
   autoFocus,
 }) => {
   const contentRef = useRef<HTMLSpanElement>(null);
   const [showModal, setShowModal] = useState(false);
   const [modalAnchor, setModalAnchor] = useState<DOMRect | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
   const [hovered, setHovered] = useState(false);
   const composingRef = useRef(false);
 
@@ -138,6 +146,11 @@ export const TaskItem: React.FC<Props> = ({
     setShowModal(true);
   }
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
   const prefix = task.type === 'bullet' ? '•' : null;
 
   return (
@@ -145,7 +158,30 @@ export const TaskItem: React.FC<Props> = ({
       className={`${styles.taskItem} ${styles[task.type]} ${task.completed ? styles.completed : ''} ${hovered ? styles.hovered : ''}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onContextMenu={handleContextMenu}
+      onDragEnter={() => onDragEnter(task.id)}
     >
+      {/* Drag handle */}
+      <div
+        className={`${styles.dragHandle} ${hovered ? styles.dragVisible : ''}`}
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.effectAllowed = 'move';
+          onDragStart(task.id);
+        }}
+        onDragEnd={onDragEnd}
+        title="Drag to reorder"
+      >
+        <svg viewBox="0 0 10 14" fill="currentColor">
+          <circle cx="3" cy="3" r="1.5" />
+          <circle cx="7" cy="3" r="1.5" />
+          <circle cx="3" cy="7" r="1.5" />
+          <circle cx="7" cy="7" r="1.5" />
+          <circle cx="3" cy="11" r="1.5" />
+          <circle cx="7" cy="11" r="1.5" />
+        </svg>
+      </div>
+
       {/* Checkbox */}
       {task.type === 'checkbox' && (
         <button
@@ -218,6 +254,26 @@ export const TaskItem: React.FC<Props> = ({
           onClose={() => setShowModal(false)}
         />
       )}
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          options={[
+            { label: 'Add Reminder', icon: '⏱', onClick: openModal },
+            { divider: true, label: '', onClick: () => {} },
+            { label: 'Plain Text', icon: 'T', onClick: () => onUpdate({ ...task, type: 'plain' }) },
+            { label: 'Checklist', icon: '☑', onClick: () => onUpdate({ ...task, type: 'checkbox' }) },
+            { label: 'Bullet Point', icon: '•', onClick: () => onUpdate({ ...task, type: 'bullet' }) },
+            { label: 'Heading', icon: 'H', onClick: () => onUpdate({ ...task, type: 'heading' }) },
+            { divider: true, label: '', onClick: () => {} },
+            { label: 'Delete Task', icon: '✕', danger: true, onClick: () => onDelete(task.id) },
+          ]}
+        />
+      )}
     </div>
   );
 };
+
