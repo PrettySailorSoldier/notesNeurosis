@@ -155,7 +155,7 @@ export const TaskItem: React.FC<Props> = ({
 
   return (
     <div
-      className={`${styles.taskItem} ${styles[task.type]} ${task.completed ? styles.completed : ''} ${hovered ? styles.hovered : ''}`}
+      className={`${styles.taskItem} ${styles[`type_${task.type}`]} ${task.completed ? styles.completed : ''} ${hovered ? styles.hovered : ''}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onContextMenu={handleContextMenu}

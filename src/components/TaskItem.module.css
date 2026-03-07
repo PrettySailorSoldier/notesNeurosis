@@ -22,7 +22,9 @@
 .taskItem.hovered {
   background: rgba(180, 130, 220, 0.04);
 }
-.taskItem.heading .content {
+
+/* Task type styles */
+.type_heading .content {
   font-size: 24px;
   font-weight: 600;
   color: #1a1a1a;
