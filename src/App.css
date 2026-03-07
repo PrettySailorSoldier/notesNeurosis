@@ -14,14 +14,14 @@
   --scrollbar:     rgba(180, 140, 220, 0.2);
 
   /* Writing zone geometry — relative mapping to track resize events securely */
-  --zone-top:    28.6%;
-  --zone-left:   13.8%;
-  --zone-width:  74%;
-  --zone-height: 54.4%;
+  --zone-top:    25%;
+  --zone-left:   18%;
+  --zone-width:  64%;
+  --zone-height: 65%;
 
   /* Window controls position */
-  --ctrl-top:  6%;
-  --ctrl-right: 7%;
+  --ctrl-top:  4%;
+  --ctrl-right: 5%;
 }
 
 /* ── Reset ── */
