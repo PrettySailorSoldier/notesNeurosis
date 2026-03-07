@@ -31,3 +31,22 @@ export interface Page {
   tasks: Task[];
   createdAt: number;
 }
+
+export interface PlannerBlock {
+  id: string;
+  date: string;            // ISO date string e.g. "2026-03-07"
+  startTime: string;       // "HH:MM" 24-hour format
+  endTime: string;         // "HH:MM" 24-hour format
+  label: string;           
+  notes: string;           
+  color: PlannerBlockColor;
+  completed: boolean;
+}
+
+export type PlannerBlockColor = 
+  | 'violet'
+  | 'indigo'
+  | 'rose'
+  | 'amber'
+  | 'teal'
+  | 'ghost';

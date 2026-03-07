@@ -203,3 +203,233 @@ html, body {
   font-size: 14px;
   padding: 3px 10px;
 }
+
+/* ── Planner ── */
+.planner-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 0;
+}
+
+.planner-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 2px 10px;
+  flex-shrink: 0;
+}
+
+.planner-nav-btn {
+  background: none;
+  border: none;
+  color: rgba(200, 170, 255, 0.7);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.12s;
+}
+.planner-nav-btn:hover {
+  background: rgba(180, 130, 220, 0.15);
+  color: rgba(220, 200, 255, 1);
+}
+
+.planner-nav-date {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 15px;
+  color: rgba(230, 210, 255, 0.9);
+  letter-spacing: 0.02em;
+}
+
+.planner-today-btn {
+  background: rgba(140, 100, 210, 0.2);
+  border: 1px solid rgba(180, 130, 220, 0.3);
+  border-radius: 6px;
+  color: rgba(200, 170, 255, 0.8);
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 10px;
+  transition: all 0.12s;
+}
+.planner-today-btn:hover, .planner-today-btn.is-today {
+  background: rgba(140, 100, 210, 0.4);
+  border-color: rgba(200, 160, 255, 0.6);
+  color: #fff;
+}
+
+.planner-blocks {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(180, 140, 220, 0.25) transparent;
+}
+
+.planner-block {
+  position: relative;
+  border-radius: 8px;
+  padding: 8px 10px 8px 14px;
+  border-left: 3px solid transparent;
+  background: rgba(255, 255, 255, 0.04);
+  transition: background 0.15s, opacity 0.15s;
+  cursor: default;
+}
+.planner-block:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+.planner-block.completed {
+  opacity: 0.5;
+}
+
+/* Color variants — left border + subtle bg */
+.planner-block.color-violet  { border-left-color: #a78bfa; background: rgba(167,139,250,0.08); }
+.planner-block.color-indigo  { border-left-color: #818cf8; background: rgba(129,140,248,0.08); }
+.planner-block.color-rose    { border-left-color: #fb7185; background: rgba(251,113,133,0.08); }
+.planner-block.color-amber   { border-left-color: #fbbf24; background: rgba(251,191,36,0.08); }
+.planner-block.color-teal    { border-left-color: #2dd4bf; background: rgba(45,212,191,0.08); }
+.planner-block.color-ghost   { border-left-color: rgba(180,140,220,0.2); background: rgba(255,255,255,0.03); }
+
+.planner-block-time {
+  font-size: 11px;
+  color: rgba(180, 150, 220, 0.7);
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.planner-time-input {
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(180, 140, 220, 0.3);
+  color: rgba(180, 150, 220, 0.9);
+  font-size: 11px;
+  width: 52px;
+  padding: 0 2px;
+  outline: none;
+  font-family: inherit;
+}
+.planner-time-input:focus {
+  border-bottom-color: rgba(200, 160, 255, 0.7);
+}
+
+.planner-block-label {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 16px;
+  color: rgba(240, 230, 255, 0.95);
+  background: none;
+  border: none;
+  width: 100%;
+  padding: 0;
+  outline: none;
+  font-weight: 500;
+}
+.planner-block-label::placeholder {
+  color: rgba(180, 150, 220, 0.35);
+}
+.completed .planner-block-label {
+  text-decoration: line-through;
+}
+
+.planner-block-notes {
+  font-size: 12px;
+  color: rgba(180, 160, 220, 0.65);
+  background: none;
+  border: none;
+  width: 100%;
+  padding: 2px 0 0;
+  outline: none;
+  resize: none;
+  font-family: inherit;
+  min-height: 0;
+}
+.planner-block-notes::placeholder {
+  color: rgba(160, 130, 200, 0.25);
+}
+
+.planner-block-actions {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.planner-block:hover .planner-block-actions { opacity: 1; }
+
+.planner-action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  color: rgba(180, 150, 220, 0.6);
+  transition: all 0.1s;
+  line-height: 1;
+}
+.planner-action-btn:hover { color: rgba(220, 200, 255, 1); background: rgba(180, 130, 220, 0.15); }
+.planner-action-btn.done { color: rgba(100, 220, 150, 0.6); }
+.planner-action-btn.done:hover { color: rgba(100, 240, 160, 1); }
+.planner-action-btn.delete:hover { color: rgba(240, 100, 120, 1); background: rgba(200, 60, 80, 0.15); }
+
+.planner-color-picker {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+  opacity: 0;
+  height: 0;
+  overflow: hidden;
+  transition: opacity 0.15s, height 0.15s;
+}
+.planner-block:focus-within .planner-color-picker,
+.planner-block:hover .planner-color-picker {
+  opacity: 1;
+  height: 14px;
+}
+
+.planner-color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 1px solid rgba(0,0,0,0.2);
+  transition: transform 0.1s;
+}
+.planner-color-dot:hover { transform: scale(1.3); }
+.planner-color-dot.active { outline: 2px solid rgba(255,255,255,0.5); outline-offset: 1px; }
+
+.planner-add-btn {
+  background: none;
+  border: 1px dashed rgba(180, 130, 220, 0.25);
+  border-radius: 8px;
+  color: rgba(180, 150, 220, 0.5);
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 14px;
+  padding: 8px;
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.planner-add-btn:hover {
+  border-color: rgba(180, 130, 220, 0.55);
+  color: rgba(210, 185, 255, 0.85);
+  background: rgba(180, 130, 220, 0.06);
+}
+
+.planner-empty {
+  text-align: center;
+  color: rgba(180, 150, 220, 0.3);
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 15px;
+  padding: 32px 0;
+}

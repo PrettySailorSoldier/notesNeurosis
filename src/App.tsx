@@ -5,6 +5,7 @@ import { usePages } from './hooks/usePages';
 import { useReminders } from './hooks/useReminders';
 import { useSettings } from './hooks/useSettings';
 import { OptionsModal } from './components/OptionsModal';
+import { PlannerView } from './components/PlannerView';
 
 import { ClockDisplay } from './components/ClockDisplay';
 import type { Task, Reminder, ReminderSound } from './types';
@@ -32,6 +33,7 @@ export default function App() {
 
   const { settings, addCustomTone, removeCustomTone, setVolume } = useSettings();
   const [showOptions, setShowOptions] = useState(false);
+  const [showPlanner, setShowPlanner] = useState(false);
 
   const handleUpdateReminder = useCallback((taskId: string, pageId: string, reminder: Reminder | undefined) => {
     const pageToUpdate = pages.find(p => p.id === pageId);
@@ -137,11 +139,18 @@ export default function App() {
       {/* Page Tabs */}
       {ready && pages.length > 0 && (
         <div className="page-tabs">
+          <button
+            className={`tab-btn ${showPlanner ? 'active' : ''}`}
+            onClick={() => setShowPlanner(true)}
+          >
+            📅 Planner
+          </button>
+          
           {pages.map(page => (
             <button
               key={page.id}
-              className={`tab-btn ${page.id === currentPageId ? 'active' : ''}`}
-              onClick={() => switchPage(page.id)}
+              className={`tab-btn ${!showPlanner && page.id === currentPageId ? 'active' : ''}`}
+              onClick={() => { setShowPlanner(false); switchPage(page.id); }}
               onDoubleClick={() => {
                 const newName = prompt('Rename page:', page.name);
                 if (newName) renamePage(page.id, newName);
@@ -156,13 +165,14 @@ export default function App() {
               {page.name}
             </button>
           ))}
-          <button className="tab-btn tab-btn-add" onClick={() => addPage()}>+</button>
+          <button className="tab-btn tab-btn-add" onClick={() => { setShowPlanner(false); addPage(); }}>+</button>
         </div>
       )}
 
       {/* Writing zone */}
       <div className="writing-zone">
-        {ready && currentPage && (
+        {ready && showPlanner && <PlannerView />}
+        {ready && !showPlanner && currentPage && (
           <TaskEditor
             tasks={currentPage.tasks}
             onChange={handleTasksChange}
