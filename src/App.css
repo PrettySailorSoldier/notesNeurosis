@@ -15,8 +15,8 @@
 
   /* Writing zone geometry — relative mapping to track resize events securely */
   --zone-top:    28%;
-  --zone-left:   22.5%;
-  --zone-width:  60%;
+  --zone-left:   26%;
+  --zone-width:  52%;
   --zone-height: 60%;
 
   /* Window controls position */
@@ -166,7 +166,7 @@ html, body {
 .page-tabs {
   position: absolute;
   top: calc(var(--zone-top) - 34px);
-  right: calc(100% - var(--zone-width) - var(--zone-left));
+  left: var(--zone-left);
   display: flex;
   gap: 4px;
   z-index: 20;

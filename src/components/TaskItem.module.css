@@ -9,6 +9,7 @@
   border-radius: 4px;
   transition: background 0.1s;
   animation: taskIn 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  width: 100%;
 }
 
 @keyframes taskIn {
@@ -92,10 +93,11 @@
 
 /* Editable content */
 .content {
+  display: block;
   flex: 1;
   outline: none;
-  min-width: 20px;
-  word-break: break-word;
+  min-width: 0;
+  overflow-wrap: break-word; /* Prevents splitting words letter-by-letter but allows wrapping at boundaries */
   caret-color: rgba(180, 140, 220, 0.9);
   line-height: 1.7;
   color: var(--text-primary);
