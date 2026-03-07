@@ -15,8 +15,8 @@
 
   /* Writing zone geometry — relative mapping to track resize events securely */
   --zone-top:    28%;
-  --zone-left:   26%;
-  --zone-width:  52%;
+  --zone-left:   28%;
+  --zone-width:  50%;
   --zone-height: 60%;
 
   /* Window controls position */
