@@ -4,9 +4,9 @@
 :root {
   --font-primary: 'Crimson Pro', 'Cormorant Garamond', ui-serif, 'Georgia', 'Cambria', 'Times New Roman', Times, serif;
 
-  --orchid-purple: rgba(180, 130, 220, 1);
-  --orchid-blue:   rgba(110, 160, 220, 1);
-  --orchid-glow:   rgba(200, 160, 255, 0.15);
+  --app-purple: rgba(180, 130, 220, 1);
+  --app-blue:   rgba(110, 160, 220, 1);
+  --app-glow:   rgba(200, 160, 255, 0.15);
   --text-primary:  #161616;
   --text-muted:    #555;
   --checkbox-border: rgba(180, 140, 220, 0.5);
@@ -53,10 +53,8 @@ html, body {
   overflow: hidden;
 }
 
-/* ── Orchid Frame Image ──
-   The white background is made transparent dynamically using Canvas in App.tsx.
-*/
-.orchid-frame {
+/* ── App Frame Image ── */
+.app-frame {
   position: absolute;
   inset: 0;
   width: 100%;

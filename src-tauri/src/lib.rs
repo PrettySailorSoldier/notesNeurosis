@@ -17,14 +17,14 @@ pub fn run() {
             }
 
             // --- System Tray ---
-            let show_i = MenuItemBuilder::with_id("show", "Open Orchid Notes").build(app)?;
+            let show_i = MenuItemBuilder::with_id("show", "Open Notes Neurosis").build(app)?;
             let quit_i = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
             let menu = MenuBuilder::new(app).items(&[&show_i, &quit_i]).build()?;
             
             let _tray = TrayIconBuilder::new()
                 .menu(&menu)
                 .icon(app.default_window_icon().unwrap().clone())
-                .tooltip("Orchid Notes")
+                .tooltip("Notes Neurosis")
                 .on_menu_event(|app: &tauri::AppHandle, event| match event.id.as_ref() {
                     "quit" => app.exit(0),
                     "show" => {
@@ -40,5 +40,5 @@ pub fn run() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("error while running Orchid Notes");
+        .expect("error while running Notes Neurosis");
 }

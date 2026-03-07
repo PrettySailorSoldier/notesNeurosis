@@ -6,7 +6,7 @@ import { useReminders } from './hooks/useReminders';
 
 import { ClockDisplay } from './components/ClockDisplay';
 import type { Task, Reminder, ReminderSound } from './types';
-import orchidFrame from './assets/orchid.png';
+import appFrame from './assets/orchid.png';
 import './App.css';
 
 const appWindow = getCurrentWindow();
@@ -91,10 +91,10 @@ export default function App() {
 
   return (
     <div className="frame-container">
-      {/* Orchid frame image */}
+      {/* Application frame image */}
       <img
-        src={orchidFrame}
-        className="orchid-frame"
+        src={appFrame}
+        className="app-frame"
         alt=""
         draggable={false}
       />
