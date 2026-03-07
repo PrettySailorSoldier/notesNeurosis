@@ -166,9 +166,8 @@ html, body {
 /* ── Page Tabs UI ── */
 .page-tabs {
   position: absolute;
-  top: calc(var(--zone-top) - 46px);
-  left: var(--zone-left);
-  width: var(--zone-width);
+  top: calc(var(--zone-top) - 34px);
+  right: calc(100% - var(--zone-width) - var(--zone-left));
   display: flex;
   gap: 4px;
   z-index: 20;
