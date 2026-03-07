@@ -21,7 +21,7 @@
 .taskItem.heading .content {
   font-size: 17px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #1a1a1a;
   letter-spacing: 0.01em;
 }
 
@@ -97,10 +97,11 @@
   word-break: break-word;
   caret-color: rgba(180, 140, 220, 0.9);
   line-height: 1.7;
+  color: var(--text-primary);
 }
 .content:empty::before {
   content: attr(data-placeholder);
-  color: rgba(180, 140, 220, 0.25);
+  color: rgba(180, 140, 220, 0.6);
   pointer-events: none;
 }
 

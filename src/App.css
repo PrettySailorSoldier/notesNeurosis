@@ -7,21 +7,21 @@
   --orchid-purple: rgba(180, 130, 220, 1);
   --orchid-blue:   rgba(110, 160, 220, 1);
   --orchid-glow:   rgba(200, 160, 255, 0.15);
-  --text-primary:  #ede8f5;
-  --text-muted:    rgba(220, 200, 240, 0.6);
+  --text-primary:  #161616;
+  --text-muted:    #555;
   --checkbox-border: rgba(180, 140, 220, 0.5);
   --reminder-pill: rgba(140, 100, 200, 0.3);
   --scrollbar:     rgba(180, 140, 220, 0.2);
 
   /* Writing zone geometry — relative mapping to track resize events securely */
-  --zone-top:    25%;
-  --zone-left:   18%;
-  --zone-width:  64%;
-  --zone-height: 65%;
+  --zone-top:    28%;
+  --zone-left:   23%;
+  --zone-width:  54%;
+  --zone-height: 60%;
 
   /* Window controls position */
-  --ctrl-top:  4%;
-  --ctrl-right: 5%;
+  --ctrl-top:  5%;
+  --ctrl-right: 6.5%;
 }
 
 /* ── Reset ── */
@@ -166,7 +166,7 @@ html, body {
 /* ── Page Tabs UI ── */
 .page-tabs {
   position: absolute;
-  top: calc(var(--zone-top) - 26px);
+  top: calc(var(--zone-top) - 46px);
   left: var(--zone-left);
   width: var(--zone-width);
   display: flex;
