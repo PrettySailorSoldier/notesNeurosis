@@ -19,7 +19,7 @@ export interface Reminder {
   active: boolean;
 }
 
-export type ReminderSound = 'chime' | 'bell' | 'blip' | 'soft_ding' | 'none';
+export type ReminderSound = 'chime' | 'bell' | 'blip' | 'soft_ding' | 'none' | string;
 
 export type ReminderInterval =
   | { type: 'interval'; minutes: number }

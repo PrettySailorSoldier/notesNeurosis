@@ -2,16 +2,15 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
+  gap: 6px;
+  padding: 4px 4px;
   position: relative;
-  min-height: 32px;
+  min-height: 28px;
   border-radius: 4px;
   transition: background 0.1s;
   animation: taskIn 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
   width: 100%;
   box-sizing: border-box;
-  overflow: hidden;
 }
 
 @keyframes taskIn {
@@ -56,8 +55,8 @@
 /* Checkbox */
 .checkbox {
   flex-shrink: 0;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border: 1.5px solid rgba(180, 140, 220, 0.5);
   border-radius: 3px;
   background: transparent;
@@ -92,8 +91,10 @@
 
 /* Editable content */
 .content {
-  flex: 1 1 0;
-  min-width: 0;
+  flex-grow: 1;
+  flex-shrink: 1;
+  flex-basis: 0;
+  min-width: 50px;
   outline: none;
   overflow-wrap: break-word;
   word-break: break-word;

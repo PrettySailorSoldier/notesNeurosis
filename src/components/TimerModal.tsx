@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Reminder, ReminderSound } from '../types';
+import { useSettings } from '../hooks/useSettings';
 import styles from './TimerModal.module.css';
 
 interface Props {
@@ -30,6 +31,7 @@ export const TimerModal: React.FC<Props> = ({
   onClear,
   onClose,
 }) => {
+  const { settings } = useSettings();
   const [minutes, setMinutes] = useState<number>(existing?.intervalMinutes ?? 30);
   const [sound, setSound] = useState<ReminderSound>(existing?.sound ?? 'chime');
   const [custom, setCustom] = useState<string>('');
@@ -121,6 +123,9 @@ export const TimerModal: React.FC<Props> = ({
           >
             {SOUNDS.map(s => (
               <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+            {settings.customTones.map(tone => (
+              <option key={tone.id} value={tone.id}>🔈 {tone.name}</option>
             ))}
           </select>
         </div>

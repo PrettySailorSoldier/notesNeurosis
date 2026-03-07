@@ -1,8 +1,10 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { TaskEditor } from './components/TaskEditor';
 import { usePages } from './hooks/usePages';
 import { useReminders } from './hooks/useReminders';
+import { useSettings } from './hooks/useSettings';
+import { OptionsModal } from './components/OptionsModal';
 
 import { ClockDisplay } from './components/ClockDisplay';
 import type { Task, Reminder, ReminderSound } from './types';
@@ -28,6 +30,9 @@ export default function App() {
     updateTasksForPage 
   } = usePages();
 
+  const { settings, addCustomTone, removeCustomTone, setVolume } = useSettings();
+  const [showOptions, setShowOptions] = useState(false);
+
   const handleUpdateReminder = useCallback((taskId: string, pageId: string, reminder: Reminder | undefined) => {
     const pageToUpdate = pages.find(p => p.id === pageId);
     if (!pageToUpdate) return;
@@ -38,7 +43,7 @@ export default function App() {
     updateTasksForPage(pageId, nextTasks);
   }, [pages, updateTasksForPage]);
 
-  useReminders(pages, handleUpdateReminder);
+  const { ringingIds, stopRinging } = useReminders(pages, handleUpdateReminder, settings.customTones, settings.volume);
 
   const handleTasksChange = useCallback((updated: Task[]) => {
     if (currentPageId) updateTasksForPage(currentPageId, updated);
@@ -108,6 +113,11 @@ export default function App() {
       {/* Window controls — close & minimize */}
       <div className="window-controls">
         <button
+          className="win-btn win-options"
+          onClick={() => setShowOptions(true)}
+          title="Options"
+        >⚙</button>
+        <button
           className="win-btn win-minimize"
           onClick={() => appWindow.minimize()}
           title="Minimize"
@@ -164,6 +174,26 @@ export default function App() {
           <div className="loading-hint">✦</div>
         )}
       </div>
+
+      {/* Options Modal */}
+      {showOptions && (
+        <OptionsModal
+          pages={pages}
+          ringingIds={ringingIds}
+          settings={settings}
+          onClose={() => setShowOptions(false)}
+          onStopRinging={stopRinging}
+          onClearReminder={(taskId, pageId) => {
+            const pageToUpdate = pages.find(p => p.id === pageId);
+            if (!pageToUpdate) return;
+            const nextTasks = pageToUpdate.tasks.map(t => t.id === taskId ? { ...t, reminder: undefined } : t);
+            updateTasksForPage(pageId, nextTasks);
+          }}
+          onAddCustomTone={addCustomTone}
+          onRemoveCustomTone={removeCustomTone}
+          onSetVolume={setVolume}
+        />
+      )}
     </div>
   );
 }
