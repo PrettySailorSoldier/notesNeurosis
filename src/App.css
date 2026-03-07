@@ -15,8 +15,8 @@
 
   /* Writing zone geometry — relative mapping to track resize events securely */
   --zone-top:    28%;
-  --zone-left:   23%;
-  --zone-width:  54%;
+  --zone-left:   22.5%;
+  --zone-width:  60%;
   --zone-height: 60%;
 
   /* Window controls position */
@@ -119,6 +119,7 @@ html, body {
   top: var(--zone-top);
   left: var(--zone-left);
   width: var(--zone-width);
+  min-width: 400px;
   height: var(--zone-height);
   z-index: 5;
   overflow-y: auto;
@@ -128,7 +129,7 @@ html, body {
   background: transparent;
 
   font-family: var(--font-primary);
-  font-size: 15px;
+  font-size: 19px;
   line-height: 1.7;
   color: var(--text-primary);
 
