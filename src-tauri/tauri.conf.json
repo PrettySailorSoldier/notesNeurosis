@@ -14,8 +14,8 @@
     "windows": [
       {
         "title": "Orchid Notes",
-        "width": 1236,
-        "height": 1520,
+        "width": 820,
+        "height": 820,
         "resizable": true,
         "decorations": false,
         "transparent": true,

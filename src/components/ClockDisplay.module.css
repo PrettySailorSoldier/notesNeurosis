@@ -1,6 +1,6 @@
 .clockDisplay {
   position: absolute;
-  top: 10.5%;
+  top: 8.5%;
   left: 50%;
   transform: translateX(-50%);
   width: 140px;
