@@ -1,16 +1,17 @@
 .taskItem {
   display: flex;
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: center;
   gap: 8px;
-  padding: 2px 0;
-  padding-left: 15px;
+  padding: 6px 8px;
   position: relative;
-  min-height: 30px;
+  min-height: 32px;
   border-radius: 4px;
   transition: background 0.1s;
   animation: taskIn 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
   width: 100%;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 @keyframes taskIn {
@@ -37,7 +38,6 @@
   opacity: 0;
   transition: opacity 0.15s, color 0.15s;
   flex-shrink: 0;
-  margin-top: 11px; /* Align with text center */
   display: flex;
   align-items: center;
 }
@@ -66,7 +66,6 @@
   padding: 0;
   transition: all 0.15s ease;
   color: rgba(180, 140, 220, 0.9);
-  margin-top: 9px; /* Align with 19px font, 1.7 line-height */
 }
 .checkbox:hover {
   border-color: rgba(180, 140, 220, 0.85);
@@ -86,23 +85,20 @@
   color: rgba(180, 140, 220, 0.6);
   font-size: 13px;
   flex-shrink: 0;
-  line-height: 1.7;
   user-select: none;
-  margin-top: 9px; /* Align with text baseline */
 }
 
 /* Editable content */
 .content {
-  flex: 1 1 0%;
+  flex: 1 1 0;
+  min-width: 0;
   outline: none;
-  min-width: 200px;
   overflow-wrap: break-word;
-  word-break: normal;
+  word-break: break-word;
   caret-color: rgba(180, 140, 220, 0.9);
-  line-height: 1.7;
+  line-height: 1.6;
   color: var(--text-primary);
-  min-height: 1.7em;
-  padding: 2px 0;
+  min-height: 1.4em;
 }
 .content:empty::before {
   content: attr(data-placeholder);
@@ -133,8 +129,6 @@
   transition: background 0.15s;
   flex-shrink: 0;
   white-space: nowrap;
-  margin-top: 9px; /* Align with text */
-  align-self: flex-start;
 }
 .reminderPill:hover {
   background: rgba(140, 100, 200, 0.45);
@@ -151,8 +145,6 @@
   padding: 1px 3px;
   transition: opacity 0.15s;
   flex-shrink: 0;
-  margin-top: 9px; /* Align with text */
-  align-self: flex-start;
 }
 .bellVisible {
   opacity: 0.7 !important;
