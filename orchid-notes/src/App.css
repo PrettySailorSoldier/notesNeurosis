@@ -2,6 +2,8 @@
 
 /* ── Design Tokens ── */
 :root {
+  --font-primary: 'Crimson Pro', 'Cormorant Garamond', ui-serif, 'Georgia', 'Cambria', 'Times New Roman', Times, serif;
+
   --orchid-purple: rgba(180, 130, 220, 1);
   --orchid-blue:   rgba(110, 160, 220, 1);
   --orchid-glow:   rgba(200, 160, 255, 0.15);
@@ -127,7 +129,7 @@ html, body {
   /* Subtle inner glow to define the writing area */
   background: transparent;
 
-  font-family: 'Crimson Pro', Georgia, serif;
+  font-family: var(--font-primary);
   font-size: 15px;
   line-height: 1.7;
   color: var(--text-primary);
@@ -159,4 +161,46 @@ html, body {
 @keyframes pulse {
   0%, 100% { opacity: 0.3; }
   50%       { opacity: 0.8; }
+}
+
+/* ── Page Tabs UI ── */
+.page-tabs {
+  position: absolute;
+  top: calc(var(--zone-top) - 26px);
+  left: var(--zone-left);
+  width: var(--zone-width);
+  display: flex;
+  gap: 4px;
+  z-index: 20;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.page-tabs::-webkit-scrollbar { display: none; }
+
+.tab-btn {
+  flex-shrink: 0;
+  padding: 3px 12px;
+  border-radius: 8px 8px 0 0;
+  border: 1px solid rgba(180, 130, 220, 0.2);
+  border-bottom: none;
+  background: rgba(15, 5, 28, 0.5);
+  color: rgba(180, 150, 220, 0.5);
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tab-btn.active {
+  background: rgba(30, 10, 55, 0.75);
+  color: rgba(220, 195, 255, 0.95);
+  border-color: rgba(180, 130, 220, 0.4);
+}
+.tab-btn:hover:not(.active) {
+  background: rgba(40, 20, 70, 0.6);
+  color: rgba(210, 180, 255, 0.8);
+}
+.tab-btn-add {
+  font-weight: bold;
+  font-size: 14px;
+  padding: 3px 10px;
 }

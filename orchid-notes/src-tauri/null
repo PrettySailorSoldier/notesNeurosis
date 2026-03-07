@@ -1,0 +1,61 @@
+ Downloading crates ...
+  Downloaded gethostname v1.1.0
+  Downloaded os_info v3.14.0
+  Downloaded sys-locale v0.3.2
+  Downloaded tauri-plugin-os v2.3.2
+   Compiling windows-sys v0.61.2
+   Compiling tauri-plugin-os v2.3.2
+   Compiling gethostname v1.1.0
+   Compiling sys-locale v0.3.2
+   Compiling orchid-notes v0.1.0 (W:\Sarah\Ex Nihilo\notes&neurosis\orchid-notes\src-tauri)
+   Compiling winapi-util v0.1.11
+   Compiling softbuffer v0.4.8
+   Compiling dirs-sys v0.5.0
+   Compiling os_info v3.14.0
+   Compiling dirs v6.0.0
+   Compiling same-file v1.0.6
+   Compiling walkdir v2.5.0
+   Compiling tauri-utils v2.8.3
+   Compiling tauri-runtime v2.10.1
+   Compiling tauri-runtime-wry v2.10.1
+   Compiling tauri v2.10.3
+   Compiling tauri-plugin-store v2.4.2
+   Compiling tauri-plugin-notification v2.3.3
+   Compiling tauri-plugin-opener v2.5.3
+error[E0432]: unresolved import `tauri::tray`
+   --> src\lib.rs:4:60
+    |
+  4 | use tauri::{Manager, menu::{MenuBuilder, MenuItemBuilder}, tray::TrayIconBuilder};
+    |                                                            ^^^^ could not find `tray` in `tauri`
+    |
+note: found an item that was configured out
+   --> C:\Users\xfore\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tauri-2.10.3\src\lib.rs:113:9
+    |
+111 | #[cfg(all(desktop, feature = "tray-icon"))]
+    |                    --------------------- the item is gated behind the `tray-icon` feature
+112 | #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
+113 | pub mod tray;
+    |         ^^^^
+
+error[E0282]: type annotations needed
+  --> src\lib.rs:28:33
+   |
+28 |                 .on_menu_event(|app, event| match event.id.as_ref() {
+   |                                 ^^^
+29 |                     "quit" => app.exit(0),
+   |                               --- type must be known at this point
+   |
+help: consider giving this closure parameter an explicit type
+   |
+28 |                 .on_menu_event(|app: /* Type */, event| match event.id.as_ref() {
+   |                                    ++++++++++++
+
+error[E0282]: type annotations needed
+  --> src\lib.rs:32:29
+   |
+32 | ...                   window.show().unwrap();
+   |                       ^^^^^^ cannot infer type
+
+Some errors have detailed explanations: E0282, E0432.
+For more information about an error, try `rustc --explain E0282`.
+error: could not compile `orchid-notes` (lib) due to 3 previous errors

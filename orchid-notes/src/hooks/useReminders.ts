@@ -1,18 +1,16 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
-import type { Task, Reminder } from '../types';
+import type { Task, Reminder, Page } from '../types';
 import { useAudio } from './useAudio';
 
 type TimerHandle = ReturnType<typeof setTimeout>;
 
 export function useReminders(
-  tasks: Task[],
-  onUpdateReminder: (taskId: string, reminder: Reminder | undefined) => void
+  pages: Page[],
+  onUpdateReminder: (taskId: string, pageId: string, reminder: Reminder | undefined) => void
 ) {
   const handles = useRef<Map<string, TimerHandle>>(new Map());
   const { playTone } = useAudio();
-  const tasksRef = useRef(tasks);
-  tasksRef.current = tasks;
 
   const cancelReminder = useCallback((reminderId: string) => {
     const handle = handles.current.get(reminderId);
@@ -22,7 +20,7 @@ export function useReminders(
     }
   }, []);
 
-  const scheduleReminder = useCallback((reminder: Reminder, task: Task) => {
+  const scheduleReminder = useCallback((reminder: Reminder, task: Task, pageName: string, pageId: string) => {
     cancelReminder(reminder.id);
 
     const msUntilFire = Math.max(0, reminder.fireAt - Date.now());
@@ -41,7 +39,7 @@ export function useReminders(
         if (granted) {
           await sendNotification({
             title: 'Orchid Notes',
-            body: task.content.slice(0, 80) || 'Reminder',
+            body: `[${pageName}] ${task.content.slice(0, 80) || 'Reminder'}`,
           });
         }
       } catch (err) {
@@ -56,51 +54,47 @@ export function useReminders(
           fireAt: nextFire,
           label: `every ${reminder.intervalMinutes}m`,
         };
-        onUpdateReminder(task.id, updated);
-        scheduleReminder(updated, task);
+        onUpdateReminder(task.id, pageId, updated);
+        scheduleReminder(updated, task, pageName, pageId);
       } else {
         // One-shot: deactivate
-        onUpdateReminder(task.id, undefined);
+        onUpdateReminder(task.id, pageId, undefined);
       }
     }, msUntilFire);
 
     handles.current.set(reminder.id, handle);
   }, [cancelReminder, onUpdateReminder, playTone]);
 
-  // On mount and whenever tasks change: sync reminder schedules
+  // Sync reminder schedules for all tasks across all pages
   useEffect(() => {
     const now = Date.now();
+    const activeIds = new Set<string>();
 
-    tasks.forEach(task => {
-      if (!task.reminder?.active) return;
-      const r = task.reminder;
+    pages.forEach(page => {
+      page.tasks.forEach(task => {
+        if (!task.reminder?.active) return;
+        const r = task.reminder;
+        activeIds.add(r.id);
 
-      if (!handles.current.has(r.id)) {
-        if (r.fireAt > now) {
-          // Future: schedule normally
-          scheduleReminder(r, task);
-        } else if (r.intervalMinutes > 0) {
-          // Missed interval: reschedule from now
-          const nextFire = now + r.intervalMinutes * 60 * 1000;
-          const updated: Reminder = { ...r, fireAt: nextFire };
-          onUpdateReminder(task.id, updated);
-          scheduleReminder(updated, task);
+        if (!handles.current.has(r.id)) {
+          if (r.fireAt > now) {
+            scheduleReminder(r, task, page.name, page.id);
+          } else if (r.intervalMinutes > 0) {
+            const nextFire = now + r.intervalMinutes * 60 * 1000;
+            const updated: Reminder = { ...r, fireAt: nextFire };
+            onUpdateReminder(task.id, page.id, updated);
+            scheduleReminder(updated, task, page.name, page.id);
+          }
         }
-        // Missed one-shot: skip (better UX)
-      }
+      });
     });
 
-    // Cancel handles for removed/deactivated reminders
-    const activeIds = new Set(
-      tasks.filter(t => t.reminder?.active).map(t => t.reminder!.id)
-    );
     handles.current.forEach((_, id) => {
       if (!activeIds.has(id)) cancelReminder(id);
     });
 
-  }, [tasks, scheduleReminder, cancelReminder, onUpdateReminder]);
+  }, [pages, scheduleReminder, cancelReminder, onUpdateReminder]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       handles.current.forEach(h => clearTimeout(h));

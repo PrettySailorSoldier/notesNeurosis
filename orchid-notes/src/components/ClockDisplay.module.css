@@ -1,0 +1,28 @@
+.clockDisplay {
+  position: absolute;
+  top: 3.5%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 110px;
+  text-align: center;
+  z-index: 20;
+  pointer-events: none;
+}
+.clockTime {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 19px;
+  font-weight: 300;
+  color: rgba(220, 195, 255, 0.92);
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-shadow: 0 0 12px rgba(180, 130, 220, 0.5);
+}
+.clockDate {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 9px;
+  font-weight: 300;
+  color: rgba(180, 150, 220, 0.65);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}

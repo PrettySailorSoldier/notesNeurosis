@@ -1,78 +1,75 @@
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { TaskEditor } from './components/TaskEditor';
-import { useStore } from './hooks/useStore';
+import { usePages } from './hooks/usePages';
 import { useReminders } from './hooks/useReminders';
 import { useImageProcessor } from './hooks/useImageProcessor';
+import { ClockDisplay } from './components/ClockDisplay';
 import type { Task, Reminder, ReminderSound } from './types';
 import orchidFrame from './assets/orchid.png';
 import './App.css';
 
 const appWindow = getCurrentWindow();
 
-let saveTimer: ReturnType<typeof setTimeout> | null = null;
-function debouncedSave(fn: () => void) {
-  if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(fn, 500);
-}
-
 function makeId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
 export default function App() {
-  const { tasks, setTasks, saveTasks, ready } = useStore();
-  const tasksRef = useRef(tasks);
-  tasksRef.current = tasks;
+  const { 
+    pages, 
+    currentPageId, 
+    currentPage, 
+    ready, 
+    addPage, 
+    renamePage, 
+    deletePage, 
+    switchPage,
+    updateTasksForPage 
+  } = usePages();
 
-  const handleUpdateReminder = useCallback((taskId: string, reminder: Reminder | undefined) => {
-    setTasks(prev => {
-      const next = prev.map(t => {
-        if (t.id !== taskId) return t;
-        return { ...t, reminder };
-      });
-      debouncedSave(() => saveTasks(next));
-      return next;
+  const handleUpdateReminder = useCallback((taskId: string, pageId: string, reminder: Reminder | undefined) => {
+    const pageToUpdate = pages.find(p => p.id === pageId);
+    if (!pageToUpdate) return;
+    const nextTasks = pageToUpdate.tasks.map(t => {
+      if (t.id !== taskId) return t;
+      return { ...t, reminder };
     });
-  }, [setTasks, saveTasks]);
+    updateTasksForPage(pageId, nextTasks);
+  }, [pages, updateTasksForPage]);
 
-  useReminders(tasks, handleUpdateReminder);
+  useReminders(pages, handleUpdateReminder);
 
   const handleTasksChange = useCallback((updated: Task[]) => {
-    setTasks(updated);
-    debouncedSave(() => saveTasks(updated));
-  }, [setTasks, saveTasks]);
+    if (currentPageId) updateTasksForPage(currentPageId, updated);
+  }, [currentPageId, updateTasksForPage]);
 
   const handleSetReminder = useCallback((taskId: string, intervalMinutes: number, sound: ReminderSound) => {
-    setTasks(prev => {
-      const next = prev.map(t => {
-        if (t.id !== taskId) return t;
-        const reminder: Reminder = {
-          id: makeId(),
-          taskId,
-          intervalMinutes,
-          fireAt: Date.now() + intervalMinutes * 60 * 1000,
-          label: `every ${intervalMinutes}m`,
-          sound,
-          active: true,
-        };
-        return { ...t, reminder };
-      });
-      debouncedSave(() => saveTasks(next));
-      return next;
+    if (!currentPage) return;
+    const nextTasks = currentPage.tasks.map(t => {
+      if (t.id !== taskId) return t;
+      const reminder: Reminder = {
+        id: makeId(),
+        taskId,
+        intervalMinutes,
+        fireAt: Date.now() + intervalMinutes * 60 * 1000,
+        label: `every ${intervalMinutes}m`,
+        sound,
+        active: true,
+      };
+      return { ...t, reminder };
     });
-  }, [setTasks, saveTasks]);
+    updateTasksForPage(currentPageId, nextTasks);
+  }, [currentPage, currentPageId, updateTasksForPage]);
 
   const handleClearReminder = useCallback((taskId: string) => {
-    setTasks(prev => {
-      const next = prev.map(t => {
-        if (t.id !== taskId) return t;
-        return { ...t, reminder: undefined };
-      });
-      debouncedSave(() => saveTasks(next));
-      return next;
+    if (!currentPage) return;
+    const nextTasks = currentPage.tasks.map(t => {
+      if (t.id !== taskId) return t;
+      return { ...t, reminder: undefined };
     });
-  }, [setTasks, saveTasks]);
+    updateTasksForPage(currentPageId, nextTasks);
+  }, [currentPage, currentPageId, updateTasksForPage]);
 
   // Unlock AudioContext on first user interaction
   useEffect(() => {
@@ -109,6 +106,9 @@ export default function App() {
       {/* Drag region — top 80px, over the circular ornament */}
       <div className="drag-region" data-tauri-drag-region />
 
+      {/* Clock display placed inside the top circular ornament */}
+      <ClockDisplay />
+
       {/* Window controls — close & minimize */}
       <div className="window-controls">
         <button
@@ -128,11 +128,37 @@ export default function App() {
         >×</button>
       </div>
 
+      {/* Page Tabs */}
+      {ready && pages.length > 0 && (
+        <div className="page-tabs">
+          {pages.map(page => (
+            <button
+              key={page.id}
+              className={`tab-btn ${page.id === currentPageId ? 'active' : ''}`}
+              onClick={() => switchPage(page.id)}
+              onDoubleClick={() => {
+                const newName = prompt('Rename page:', page.name);
+                if (newName) renamePage(page.id, newName);
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                if (confirm(`Delete page "${page.name}"?`)) {
+                  deletePage(page.id);
+                }
+              }}
+            >
+              {page.name}
+            </button>
+          ))}
+          <button className="tab-btn tab-btn-add" onClick={() => addPage()}>+</button>
+        </div>
+      )}
+
       {/* Writing zone */}
       <div className="writing-zone">
-        {ready && (
+        {ready && currentPage && (
           <TaskEditor
-            tasks={tasks}
+            tasks={currentPage.tasks}
             onChange={handleTasksChange}
             onSetReminder={handleSetReminder}
             onClearReminder={handleClearReminder}

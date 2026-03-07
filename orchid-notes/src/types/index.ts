@@ -24,3 +24,10 @@ export type ReminderSound = 'chime' | 'bell' | 'blip' | 'soft_ding' | 'none';
 export type ReminderInterval =
   | { type: 'interval'; minutes: number }
   | { type: 'once'; at: number };
+
+export interface Page {
+  id: string;
+  name: string;
+  tasks: Task[];
+  createdAt: number;
+}
