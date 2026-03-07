@@ -93,16 +93,15 @@
 
 /* Editable content */
 .content {
-  flex: 1 1 auto;
+  flex: 1 1 0%;
   outline: none;
-  min-width: 0; /* Allow flex shrinking when needed */
-  width: 100%;
+  min-width: 200px;
   overflow-wrap: break-word;
-  word-break: normal; /* Better for standard sentence wrapping */
+  word-break: normal;
   caret-color: rgba(180, 140, 220, 0.9);
   line-height: 1.7;
   color: var(--text-primary);
-  min-height: 1.7em; /* Match line-height to ensure consistent height */
+  min-height: 1.7em;
   padding: 2px 0;
 }
 .content:empty::before {
