@@ -179,25 +179,26 @@ html, body {
 
 .tab-btn {
   flex-shrink: 0;
-  padding: 3px 12px;
+  padding: 4px 14px;
   border-radius: 8px 8px 0 0;
-  border: 1px solid rgba(180, 130, 220, 0.2);
+  border: 1px solid rgba(180, 130, 220, 0.4);
   border-bottom: none;
-  background: rgba(15, 5, 28, 0.5);
-  color: rgba(180, 150, 220, 0.5);
+  background: rgba(40, 20, 60, 0.85);
+  color: rgba(240, 230, 255, 0.9);
   font-family: 'Cormorant Garamond', serif;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
   transition: all 0.15s;
 }
 .tab-btn.active {
-  background: rgba(30, 10, 55, 0.75);
-  color: rgba(220, 195, 255, 0.95);
-  border-color: rgba(180, 130, 220, 0.4);
+  background: rgba(70, 30, 100, 0.95);
+  color: rgba(255, 255, 255, 1);
+  border-color: rgba(210, 160, 255, 0.8);
+  box-shadow: 0 -2px 8px rgba(180, 130, 220, 0.3);
 }
 .tab-btn:hover:not(.active) {
-  background: rgba(40, 20, 70, 0.6);
-  color: rgba(210, 180, 255, 0.8);
+  background: rgba(60, 25, 80, 0.9);
+  color: rgba(255, 255, 255, 0.95);
 }
 .tab-btn-add {
   font-weight: bold;
