@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   workflow_dispatch:  # lets you trigger it manually from GitHub's UI
 
+  permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
