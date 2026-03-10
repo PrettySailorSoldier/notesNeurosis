@@ -14,10 +14,10 @@
   --scrollbar:     rgba(180, 140, 220, 0.2);
 
   /* Writing zone geometry — wide frame */
-  --zone-top:    22%;
-  --zone-left:   9%;
-  --zone-width:  82%;
-  --zone-height: 57%;
+  --zone-top:    32%;
+  --zone-left:   12%;
+  --zone-width:  76%;
+  --zone-height: 55%;
 
   /* Window controls — top right, clear of orchid cluster */
   --ctrl-top:  3.5%;
@@ -165,7 +165,7 @@ html, body {
 /* ── Page Tabs UI ── */
 .page-tabs {
   position: absolute;
-  top: calc(var(--zone-top) - 30px);
+  top: calc(var(--zone-top) + var(--zone-height) + 12px);
   left: var(--zone-left);
   display: flex;
   gap: 4px;
@@ -234,7 +234,7 @@ html, body {
   font-family: 'Cormorant Garamond', serif;
   font-size: 18px;
   font-weight: 600;
-  color: rgba(240, 230, 255, 0.95);
+  color: #661A4E;
   margin: 0;
 }
 
@@ -245,9 +245,9 @@ html, body {
 }
 
 .planner-nav-btn {
-  background: rgba(180, 130, 220, 0.08);
+  background: rgba(90, 142, 252, 0.1);
   border: 1px solid transparent;
-  color: rgba(200, 170, 255, 0.8);
+  color: #5A8EFC;
   font-size: 16px;
   cursor: pointer;
   padding: 0 6px;
@@ -259,16 +259,16 @@ html, body {
   justify-content: center;
 }
 .planner-nav-btn:hover {
-  background: rgba(180, 130, 220, 0.15);
-  border-color: rgba(180, 130, 220, 0.3);
-  color: rgba(220, 200, 255, 1);
+  background: rgba(90, 142, 252, 0.2);
+  border-color: rgba(90, 142, 252, 0.3);
+  color: #1A5EED;
 }
 
 .planner-today-btn {
-  background: rgba(140, 100, 210, 0.15);
-  border: 1px solid rgba(180, 130, 220, 0.2);
+  background: rgba(181, 95, 124, 0.15);
+  border: 1px solid rgba(181, 95, 124, 0.3);
   border-radius: 4px;
-  color: rgba(200, 170, 255, 0.8);
+  color: #B55F7C;
   font-family: 'Cormorant Garamond', serif;
   font-size: 13px;
   cursor: pointer;
@@ -277,9 +277,9 @@ html, body {
   transition: all 0.12s;
 }
 .planner-today-btn:hover, .planner-today-btn.is-today {
-  background: rgba(140, 100, 210, 0.35);
-  border-color: rgba(200, 160, 255, 0.5);
-  color: #fff;
+  background: rgba(181, 95, 124, 0.35);
+  border-color: rgba(181, 95, 124, 0.5);
+  color: #661A4E;
 }
 
 /* Week Strip */
@@ -301,25 +301,25 @@ html, body {
   position: relative;
 }
 .planner-day-btn:hover {
-  background: rgba(180, 130, 220, 0.1);
+  background: rgba(181, 95, 124, 0.1);
 }
 .planner-day-btn.active {
-  background: rgba(180, 130, 220, 0.2);
+  background: rgba(90, 142, 252, 0.15);
 }
 .planner-day-btn.today .day-num {
-  color: #fff;
+  color: #5A8EFC;
   font-weight: bold;
 }
 
 .day-name {
   font-size: 10px;
   text-transform: uppercase;
-  color: rgba(180, 160, 220, 0.6);
+  color: #B55F7C;
   margin-bottom: 2px;
 }
 .day-num {
   font-size: 14px;
-  color: rgba(220, 200, 255, 0.85);
+  color: #661A4E;
 }
 
 .day-indicator {
@@ -328,7 +328,7 @@ html, body {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: rgba(200, 170, 255, 0.9);
+  background: #FD8D79;
 }
 
 /* Day Summary */
@@ -336,14 +336,14 @@ html, body {
   margin-top: 4px;
   padding: 12px;
   border-radius: 8px;
-  background: rgba(30, 20, 45, 0.4);
-  border: 1px solid rgba(180, 130, 220, 0.1);
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(102, 26, 78, 0.15);
 }
 
 .summary-title {
   font-family: 'Cormorant Garamond', serif;
   font-size: 16px;
-  color: rgba(230, 210, 255, 0.9);
+  color: #661A4E;
   margin: 0 0 10px 0;
   font-weight: 500;
 }
@@ -357,24 +357,24 @@ html, body {
 }
 
 .stat-label {
-  color: rgba(180, 160, 220, 0.7);
+  color: #B55F7C;
 }
 
 .stat-value {
-  color: rgba(220, 200, 255, 0.9);
+  color: #661A4E;
   font-weight: 500;
 }
 
 .summary-progress {
   height: 4px;
-  background: rgba(180, 130, 220, 0.15);
+  background: rgba(181, 95, 124, 0.2);
   border-radius: 2px;
   margin-top: 8px;
   overflow: hidden;
 }
 .progress-bar {
   height: 100%;
-  background: rgba(167, 139, 250, 0.8);
+  background: #B55F7C;
   border-radius: 2px;
   transition: width 0.3s ease;
 }
@@ -396,9 +396,9 @@ html, body {
   font-family: 'Cormorant Garamond', serif;
   font-size: 20px;
   font-weight: 600;
-  color: rgba(240, 230, 255, 0.95);
+  color: #661A4E;
   margin: 0;
-  border-bottom: 1px dashed rgba(180, 130, 220, 0.2);
+  border-bottom: 1px dashed rgba(102, 26, 78, 0.2);
   padding-bottom: 6px;
 }
 
@@ -431,16 +431,32 @@ html, body {
 }
 
 /* Color variants — left border + subtle bg */
+.planner-block.color-plum   { border-left-color: #661A4E; background: rgba(102, 26, 78, 0.08); }
+.planner-block.color-rose   { border-left-color: #B55F7C; background: rgba(181, 95, 124, 0.08); }
+.planner-block.color-peach  { border-left-color: #FD8D79; background: rgba(253, 141, 121, 0.08); }
+.planner-block.color-orange { border-left-color: #FCA324; background: rgba(252, 163, 36, 0.08); }
+.planner-block.color-yellow { border-left-color: #FCCD38; background: rgba(252, 205, 56, 0.08); }
+.planner-block.color-blue   { border-left-color: #5A8EFC; background: rgba(90, 142, 252, 0.08); }
+
+/* legacy fallbacks */
 .planner-block.color-violet  { border-left-color: #a78bfa; background: rgba(167,139,250,0.08); }
 .planner-block.color-indigo  { border-left-color: #818cf8; background: rgba(129,140,248,0.08); }
-.planner-block.color-rose    { border-left-color: #fb7185; background: rgba(251,113,133,0.08); }
 .planner-block.color-amber   { border-left-color: #fbbf24; background: rgba(251,191,36,0.08); }
 .planner-block.color-teal    { border-left-color: #2dd4bf; background: rgba(45,212,191,0.08); }
-.planner-block.color-ghost   { border-left-color: rgba(180,140,220,0.2); background: rgba(255,255,255,0.03); }
+.planner-block.color-ghost   { border-left-color: rgba(102, 26, 78, 0.15); background: rgba(102, 26, 78, 0.03); }
+
+/* Task Text Color Variants */
+.text-color-plum { color: #E288CE !important; text-shadow: 0 0 10px rgba(226,136,206,0.1); }
+.text-color-rose { color: #F098B4 !important; text-shadow: 0 0 10px rgba(240,152,180,0.1); }
+.text-color-peach { color: #FFAB97 !important; text-shadow: 0 0 10px rgba(255,171,151,0.1); }
+.text-color-orange { color: #FDBB59 !important; text-shadow: 0 0 10px rgba(253,187,89,0.1); }
+.text-color-yellow { color: #FDD559 !important; text-shadow: 0 0 10px rgba(253,213,89,0.1); }
+.text-color-blue { color: #8AAEFF !important; text-shadow: 0 0 10px rgba(138,174,255,0.1); }
+.text-color-ghost { color: inherit !important; }
 
 .planner-block-time {
   font-size: 11px;
-  color: rgba(180, 150, 220, 0.7);
+  color: #5A8EFC;
   margin-bottom: 3px;
   display: flex;
   align-items: center;
@@ -450,8 +466,8 @@ html, body {
 .planner-time-input {
   background: none;
   border: none;
-  border-bottom: 1px solid rgba(180, 140, 220, 0.3);
-  color: rgba(180, 150, 220, 0.9);
+  border-bottom: 1px solid rgba(90, 142, 252, 0.3);
+  color: #5A8EFC;
   font-size: 11px;
   width: 52px;
   padding: 0 2px;
@@ -460,13 +476,13 @@ html, body {
   transition: border-color 0.1s;
 }
 .planner-time-input:focus {
-  border-bottom-color: rgba(200, 160, 255, 0.7);
+  border-bottom-color: #5A8EFC;
 }
 
 .planner-block-label {
   font-family: 'Cormorant Garamond', serif;
   font-size: 16px;
-  color: rgba(240, 230, 255, 0.95);
+  color: #661A4E;
   background: none;
   border: none;
   width: 100%;
@@ -475,16 +491,16 @@ html, body {
   font-weight: 500;
 }
 .planner-block-label::placeholder {
-  color: rgba(180, 150, 220, 0.35);
+  color: rgba(102, 26, 78, 0.35);
 }
 .completed .planner-block-label {
   text-decoration: line-through;
-  opacity: 0.8;
+  opacity: 0.6;
 }
 
 .planner-block-notes {
   font-size: 12px;
-  color: rgba(180, 160, 220, 0.65);
+  color: #B55F7C;
   background: none;
   border: none;
   width: 100%;
@@ -495,7 +511,7 @@ html, body {
   min-height: 0;
 }
 .planner-block-notes::placeholder {
-  color: rgba(160, 130, 200, 0.25);
+  color: rgba(181, 95, 124, 0.4);
 }
 
 .planner-block-actions {
@@ -517,14 +533,14 @@ html, body {
   font-size: 13px;
   padding: 2px 4px;
   border-radius: 4px;
-  color: rgba(180, 150, 220, 0.6);
+  color: #B55F7C;
   transition: all 0.1s;
   line-height: 1;
 }
-.planner-action-btn:hover { color: rgba(220, 200, 255, 1); background: rgba(180, 130, 220, 0.15); }
-.planner-action-btn.done { color: rgba(100, 220, 150, 0.6); }
-.planner-action-btn.done:hover { color: rgba(100, 240, 160, 1); }
-.planner-action-btn.delete:hover { color: rgba(240, 100, 120, 1); background: rgba(200, 60, 80, 0.15); }
+.planner-action-btn:hover { color: #661A4E; background: rgba(181, 95, 124, 0.15); }
+.planner-action-btn.done { color: #5A8EFC; }
+.planner-action-btn.done:hover { color: #1A5EED; }
+.planner-action-btn.delete:hover { color: #E74C3C; background: rgba(231, 76, 60, 0.15); }
 
 .planner-color-picker {
   display: flex;
@@ -550,13 +566,13 @@ html, body {
   transition: transform 0.1s;
 }
 .planner-color-dot:hover { transform: scale(1.3); }
-.planner-color-dot.active { outline: 2px solid rgba(255,255,255,0.5); outline-offset: 1px; }
+.planner-color-dot.active { outline: 2px solid rgba(102, 26, 78, 0.6); outline-offset: 1px; }
 
 .planner-add-btn {
-  background: rgba(180, 130, 220, 0.03);
-  border: 1px dashed rgba(180, 130, 220, 0.25);
+  background: rgba(181, 95, 124, 0.05);
+  border: 1px dashed rgba(181, 95, 124, 0.3);
   border-radius: 8px;
-  color: rgba(180, 150, 220, 0.6);
+  color: #B55F7C;
   font-family: 'Cormorant Garamond', serif;
   font-size: 14px;
   padding: 8px;
@@ -567,14 +583,14 @@ html, body {
   flex-shrink: 0;
 }
 .planner-add-btn:hover {
-  border-color: rgba(180, 130, 220, 0.55);
-  color: rgba(210, 185, 255, 0.85);
-  background: rgba(180, 130, 220, 0.08);
+  border-color: rgba(181, 95, 124, 0.6);
+  color: #661A4E;
+  background: rgba(181, 95, 124, 0.15);
 }
 
 .planner-empty {
   text-align: center;
-  color: rgba(180, 150, 220, 0.3);
+  color: #B55F7C;
   font-family: 'Cormorant Garamond', serif;
   font-size: 15px;
   padding: 32px 0;

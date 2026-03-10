@@ -12,9 +12,12 @@ interface Props {
     danger?: boolean;
     divider?: boolean;
   }[];
+  colors?: { name: string; hex: string }[];
+  activeColor?: string;
+  onColorSelect?: (name: string) => void;
 }
 
-export const ContextMenu: React.FC<Props> = ({ x, y, onClose, options }) => {
+export const ContextMenu: React.FC<Props> = ({ x, y, onClose, options, colors, activeColor, onColorSelect }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close when clicking outside
@@ -59,6 +62,24 @@ export const ContextMenu: React.FC<Props> = ({ x, y, onClose, options }) => {
             {opt.label}
           </button>
         )
+      )}
+
+      {colors && onColorSelect && (
+        <div className={styles.colorRow}>
+          {colors.map(c => (
+            <button
+              key={c.name}
+              className={`${styles.colorDot} ${activeColor === c.name ? styles.activeDot : ''}`}
+              style={{ background: c.hex }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onColorSelect(c.name);
+                onClose();
+              }}
+              title={c.name}
+            />
+          ))}
+        </div>
       )}
     </div>
   );

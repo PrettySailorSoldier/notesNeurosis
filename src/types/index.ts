@@ -7,6 +7,7 @@ export interface Task {
   completed: boolean;
   createdAt: number;
   reminder?: Reminder;
+  color?: AccentColor;
 }
 
 export interface Reminder {
@@ -39,14 +40,21 @@ export interface PlannerBlock {
   endTime: string;         // "HH:MM" 24-hour format
   label: string;           
   notes: string;           
-  color: PlannerBlockColor;
+  color: AccentColor;
   completed: boolean;
 }
 
-export type PlannerBlockColor = 
+export type AccentColor = 
+  | 'plum'
+  | 'rose'
+  | 'peach'
+  | 'orange'
+  | 'yellow'
+  | 'blue'
+  | 'ghost'
+  
+  // legacy for backward compatibility
   | 'violet'
   | 'indigo'
-  | 'rose'
   | 'amber'
-  | 'teal'
-  | 'ghost';
+  | 'teal';

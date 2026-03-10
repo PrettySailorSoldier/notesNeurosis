@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import type { Task, TaskType, ReminderSound } from '../types';
+import type { Task, TaskType, ReminderSound, AccentColor } from '../types';
 import { TimerModal } from './TimerModal';
 import { ContextMenu } from './ContextMenu';
 import styles from './TaskItem.module.css';
@@ -206,7 +206,7 @@ export const TaskItem: React.FC<Props> = ({
         ref={contentRef}
         contentEditable
         suppressContentEditableWarning
-        className={styles.content}
+        className={`${styles.content} ${task.color && task.color !== 'ghost' ? 'text-color-' + task.color : ''}`}
         onInput={handleInput}
         onKeyDown={handleKeyDown}
         onCompositionStart={handleCompositionStart}
@@ -261,6 +261,17 @@ export const TaskItem: React.FC<Props> = ({
           x={contextMenu.x}
           y={contextMenu.y}
           onClose={() => setContextMenu(null)}
+          colors={[
+            { name: 'plum', hex: '#661A4E' },
+            { name: 'rose', hex: '#B55F7C' },
+            { name: 'peach', hex: '#FD8D79' },
+            { name: 'orange', hex: '#FCA324' },
+            { name: 'yellow', hex: '#FCCD38' },
+            { name: 'blue', hex: '#5A8EFC' },
+            { name: 'ghost', hex: 'rgba(180,140,220,0.2)' }
+          ]}
+          activeColor={task.color || 'ghost'}
+          onColorSelect={(c) => onUpdate({ ...task, color: c as AccentColor })}
           options={[
             { label: 'Add Reminder', icon: '⏱', onClick: openModal },
             { divider: true, label: '', onClick: () => {} },

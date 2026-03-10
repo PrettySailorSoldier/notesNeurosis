@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { usePlanner } from '../hooks/usePlanner';
-import type { PlannerBlockColor, PlannerBlock } from '../types';
+import type { AccentColor, PlannerBlock } from '../types';
 
-const COLORS: PlannerBlockColor[] = ['violet', 'indigo', 'rose', 'amber', 'teal', 'ghost'];
+const COLORS: AccentColor[] = ['plum', 'rose', 'peach', 'orange', 'yellow', 'blue', 'ghost'];
 
 function formatDate(date: Date) {
   const year = date.getFullYear();
@@ -30,7 +30,7 @@ function getDayOfWeek(dateStr: string) {
 }
 
 function getDayNumber(dateStr: string) {
-  const [y, m, d] = dateStr.split('-').map(Number);
+  const [, , d] = dateStr.split('-').map(Number);
   return d;
 }
 
@@ -269,11 +269,16 @@ export function PlannerView() {
   );
 }
 
-function getColorHex(color: PlannerBlockColor) {
+function getColorHex(color: AccentColor) {
   switch(color) {
+    case 'plum': return '#661A4E';
+    case 'rose': return '#B55F7C';
+    case 'peach': return '#FD8D79';
+    case 'orange': return '#FCA324';
+    case 'yellow': return '#FCCD38';
+    case 'blue': return '#5A8EFC';
     case 'violet': return '#a78bfa';
     case 'indigo': return '#818cf8';
-    case 'rose': return '#fb7185';
     case 'amber': return '#fbbf24';
     case 'teal': return '#2dd4bf';
     case 'ghost': return 'rgba(180,140,220,0.2)';
