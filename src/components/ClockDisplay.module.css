@@ -1,28 +1,37 @@
+/* ClockDisplay.module.css — Wide Orchid Frame */
+
 .clockDisplay {
   position: absolute;
-  top: 8.5%;
+  /* Vertically: the swirl ornament center is ~8% from top of window */
+  /* Use top + transform to center vertically within the ornament circle */
+  top: 5%;
   left: 50%;
   transform: translateX(-50%);
-  width: 160px;
+  width: 180px;
   text-align: center;
   z-index: 20;
   pointer-events: none;
+  /* The ornament is at the top-center — no horizontal offset needed */
 }
+
 .clockTime {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 300;
   color: rgba(220, 195, 255, 0.92);
   letter-spacing: 0.08em;
   line-height: 1;
-  text-shadow: 0 0 12px rgba(180, 130, 220, 0.5);
+  text-shadow:
+    0 0 12px rgba(180, 130, 220, 0.6),
+    0 0 24px rgba(140, 100, 200, 0.3);
 }
+
 .clockDate {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 300;
-  color: rgba(180, 150, 220, 0.65);
-  letter-spacing: 0.12em;
+  color: rgba(180, 150, 220, 0.70);
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  margin-top: 6px;
+  margin-top: 5px;
 }

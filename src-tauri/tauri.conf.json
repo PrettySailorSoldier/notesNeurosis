@@ -14,8 +14,8 @@
     "windows": [
       {
         "title": "Notes Neurosis",
-        "width": 820,
-        "height": 820,
+        "width": 920,
+        "height": 760,
         "resizable": true,
         "decorations": false,
         "transparent": true,

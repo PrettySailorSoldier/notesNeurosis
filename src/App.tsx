@@ -9,7 +9,7 @@ import { PlannerView } from './components/PlannerView';
 
 import { ClockDisplay } from './components/ClockDisplay';
 import type { Task, Reminder, ReminderSound } from './types';
-import appFrame from './assets/orchid.png';
+import appFrame from './assets/frame_orchid_wide_transparent.png';
 import './App.css';
 
 const appWindow = getCurrentWindow();
