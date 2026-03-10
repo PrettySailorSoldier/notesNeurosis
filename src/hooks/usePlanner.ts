@@ -79,7 +79,8 @@ export function usePlanner() {
       label: '',
       notes: '',
       color: 'ghost',
-      completed: false
+      completed: false,
+      tasks: []
     };
     
     setBlocks(prev => {

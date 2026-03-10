@@ -514,6 +514,103 @@ html, body {
   color: rgba(181, 95, 124, 0.4);
 }
 
+.planner-block-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+  padding-left: 4px;
+}
+
+.planner-task-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.planner-task-check {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(181, 95, 124, 0.4);
+  background: transparent;
+  color: transparent;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.planner-task-check.checked {
+  background: rgba(181, 95, 124, 0.2);
+  border-color: rgba(181, 95, 124, 0.6);
+  color: #661A4E;
+}
+
+.planner-task-input {
+  flex: 1;
+  background: none;
+  border: none;
+  border-bottom: 1px dashed transparent;
+  color: #661A4E;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 14px;
+  padding: 0;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.planner-task-input:focus {
+  border-bottom-color: rgba(181, 95, 124, 0.3);
+}
+
+.planner-task-input.completed {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+.planner-task-delete {
+  background: none;
+  border: none;
+  color: rgba(181, 95, 124, 0.4);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 4px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.planner-task-item:hover .planner-task-delete {
+  opacity: 1;
+}
+
+.planner-task-delete:hover {
+  color: #E74C3C;
+}
+
+.planner-task-add-btn {
+  background: none;
+  border: none;
+  color: rgba(181, 95, 124, 0.6);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  padding: 2px 4px;
+  cursor: pointer;
+  margin-top: 2px;
+  width: fit-content;
+  transition: color 0.15s;
+}
+
+.planner-task-add-btn:hover {
+  color: #661A4E;
+}
+
 .planner-block-actions {
   position: absolute;
   top: 6px;

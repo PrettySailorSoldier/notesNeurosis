@@ -42,6 +42,7 @@ export interface PlannerBlock {
   notes: string;           
   color: AccentColor;
   completed: boolean;
+  tasks?: Task[];
 }
 
 export type AccentColor = 

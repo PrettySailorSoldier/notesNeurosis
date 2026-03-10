@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { usePlanner } from '../hooks/usePlanner';
-import type { AccentColor, PlannerBlock } from '../types';
+import type { AccentColor, PlannerBlock, Task } from '../types';
 
 const COLORS: AccentColor[] = ['plum', 'rose', 'peach', 'orange', 'yellow', 'blue', 'ghost'];
 
@@ -243,6 +243,57 @@ export function PlannerView() {
                       updateBlock(block.id, { notes: e.target.value });
                     }}
                  />
+                 
+                 <div className="planner-block-tasks">
+                    {(block.tasks || []).map(task => (
+                      <div key={task.id} className="planner-task-item">
+                        <button 
+                          className={`planner-task-check ${task.completed ? 'checked' : ''}`}
+                          onClick={() => {
+                            const newTasks = (block.tasks || []).map(t => t.id === task.id ? { ...t, completed: !t.completed } : t);
+                            updateBlock(block.id, { tasks: newTasks });
+                          }}
+                        >
+                          {task.completed ? '✓' : ''}
+                        </button>
+                        <input
+                          type="text"
+                          className={`planner-task-input ${task.completed ? 'completed' : ''}`}
+                          value={task.content}
+                          placeholder="Task..."
+                          onChange={(e) => {
+                            const newTasks = (block.tasks || []).map(t => t.id === task.id ? { ...t, content: e.target.value } : t);
+                            updateBlock(block.id, { tasks: newTasks });
+                          }}
+                        />
+                        <button 
+                          className="planner-task-delete"
+                          onClick={() => {
+                            const newTasks = (block.tasks || []).filter(t => t.id !== task.id);
+                            updateBlock(block.id, { tasks: newTasks });
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    <button 
+                      className="planner-task-add-btn" 
+                      onClick={() => {
+                        const newTask: Task = {
+                          id: Date.now().toString(36) + Math.random().toString(36).substring(2, 8),
+                          content: '',
+                          type: 'checkbox',
+                          completed: false,
+                          createdAt: Date.now()
+                        };
+                        const newTasks = [...(block.tasks || []), newTask];
+                        updateBlock(block.id, { tasks: newTasks });
+                      }}
+                    >
+                      + add subtask
+                    </button>
+                 </div>
                  
                  <div className="planner-color-picker">
                     {COLORS.map(c => (
