@@ -143,57 +143,7 @@ export function PlannerView() {
 
   return (
     <div className="planner-container">
-      {/* LEFT PANEL */}
-      <div className="planner-sidebar">
-        <div className="planner-date-header">
-           <h2 className="planner-month-title">{getDisplayMonth(currentDate)}</h2>
-           <div className="planner-week-nav">
-             <button className="planner-nav-btn" onClick={goPrevWeek}>‹</button>
-             <button className={`planner-today-btn ${isToday ? 'is-today' : ''}`} onClick={goToToday}>Today</button>
-             <button className="planner-nav-btn" onClick={goNextWeek}>›</button>
-           </div>
-        </div>
-        
-        <div className="planner-week-strip">
-           {currentWeekDays.map(dayStr => {
-             const isActive = dayStr === currentDate;
-             const isTodayCell = dayStr === formatDate(new Date());
-             return (
-               <div 
-                 key={dayStr} 
-                 className={`planner-day-btn ${isActive ? 'active' : ''} ${isTodayCell ? 'today' : ''}`}
-                 onClick={() => setCurrentDate(dayStr)}
-               >
-                 <span className="day-name">{getDayOfWeek(dayStr)}</span>
-                 <span className="day-num">{getDayNumber(dayStr)}</span>
-                 {isActive && <div className="day-indicator" />}
-               </div>
-             );
-           })}
-        </div>
-        
-        <div className="planner-day-summary">
-           <h3 className="summary-title">Daily Summary</h3>
-           
-           <div className="summary-stat">
-             <span className="stat-label">Tasks</span>
-             <span className="stat-value">{completedBlocks} / {totalBlocks}</span>
-           </div>
-           
-           <div className="summary-stat">
-             <span className="stat-label">Scheduled Time</span>
-             <span className="stat-value">{hours > 0 ? `${hours}h ` : ''}{mins}m</span>
-           </div>
-           
-           {totalBlocks > 0 && (
-             <div className="summary-progress">
-               <div className="progress-bar" style={{ width: `${progressPercent}%` }}></div>
-             </div>
-           )}
-        </div>
-      </div>
-
-      {/* RIGHT PANEL */}
+      {/* LEFT PANEL (NOW MAIN SCHEDULE) */}
       <div className="planner-main">
          <div className="planner-main-header">
             <h1 className="planner-day-title">{getDisplayDate(currentDate)}</h1>
@@ -324,6 +274,56 @@ export function PlannerView() {
             <IntegratedSchedulePanel date={currentDate} />
           </div>
        </div>
+
+      {/* RIGHT PANEL (NOW SIDEBAR) */}
+      <div className="planner-sidebar">
+        <div className="planner-date-header">
+           <h2 className="planner-month-title">{getDisplayMonth(currentDate)}</h2>
+           <div className="planner-week-nav">
+             <button className="planner-nav-btn" onClick={goPrevWeek}>‹</button>
+             <button className={`planner-today-btn ${isToday ? 'is-today' : ''}`} onClick={goToToday}>Today</button>
+             <button className="planner-nav-btn" onClick={goNextWeek}>›</button>
+           </div>
+        </div>
+        
+        <div className="planner-week-strip">
+           {currentWeekDays.map(dayStr => {
+             const isActive = dayStr === currentDate;
+             const isTodayCell = dayStr === formatDate(new Date());
+             return (
+               <div 
+                 key={dayStr} 
+                 className={`planner-day-btn ${isActive ? 'active' : ''} ${isTodayCell ? 'today' : ''}`}
+                 onClick={() => setCurrentDate(dayStr)}
+               >
+                 <span className="day-name">{getDayOfWeek(dayStr)}</span>
+                 <span className="day-num">{getDayNumber(dayStr)}</span>
+                 {isActive && <div className="day-indicator" />}
+               </div>
+             );
+           })}
+        </div>
+        
+        <div className="planner-day-summary">
+           <h3 className="summary-title">Daily Summary</h3>
+           
+           <div className="summary-stat">
+             <span className="stat-label">Tasks</span>
+             <span className="stat-value">{completedBlocks} / {totalBlocks}</span>
+           </div>
+           
+           <div className="summary-stat">
+             <span className="stat-label">Scheduled Time</span>
+             <span className="stat-value">{hours > 0 ? `${hours}h ` : ''}{mins}m</span>
+           </div>
+           
+           {totalBlocks > 0 && (
+             <div className="summary-progress">
+               <div className="progress-bar" style={{ width: `${progressPercent}%` }}></div>
+             </div>
+           )}
+        </div>
+      </div>
     </div>
   );
 }
