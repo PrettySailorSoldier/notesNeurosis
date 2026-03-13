@@ -59,3 +59,26 @@ export type AccentColor =
   | 'indigo'
   | 'amber'
   | 'teal';
+
+export type CareCategory =
+  | 'medication'
+  | 'walk'
+  | 'meal'
+  | 'hygiene'
+  | 'therapy'
+  | 'check-in'
+  | 'appointment';
+
+export type CareEntry = {
+  id: string;
+  time: string;            // "HH:MM" 24-hour
+  endTime: string;         // "HH:MM" 24-hour — for duration display
+  label: string;           // e.g. "Morning Meds — Fludrocortisone + Colace + Keflex"
+  person: string;          // "Donna"
+  category: CareCategory;
+  notes: string;           // detail text, shown as sub-label
+  completed: boolean;
+  recurring: boolean;
+  recurringDays: number[]; // 0=Sun … 6=Sat; [0,1,2,3,4,5,6] = every day
+};
+

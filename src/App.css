@@ -162,6 +162,300 @@ html, body {
   50%       { opacity: 0.8; }
 }
 
+/* ── Integrated Schedule Panel ── */
+.planner-schedule-panel {
+  margin-top: 8px;
+  border: 1px solid rgba(180, 130, 220, 0.2);
+  border-radius: 8px;
+  background: rgba(180, 130, 220, 0.05);
+  overflow: hidden;
+}
+
+.planner-schedule-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(180, 130, 220, 0.15);
+  border-bottom: 1px solid rgba(180, 130, 220, 0.2);
+  cursor: pointer;
+}
+
+.planner-schedule-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.planner-schedule-chevron {
+  font-size: 10px;
+  color: rgba(180, 130, 220, 0.6);
+}
+
+.planner-schedule-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #661A4E;
+}
+
+.planner-schedule-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.planner-schedule-badge {
+  font-size: 11px;
+  color: rgba(102, 26, 78, 0.6);
+  background: rgba(180, 130, 220, 0.1);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.planner-schedule-import-btn {
+  font-size: 11px;
+  color: #5A8EFC;
+  cursor: pointer;
+  text-decoration: underline;
+  opacity: 0.7;
+}
+.planner-schedule-import-btn:hover { opacity: 1; }
+
+.planner-schedule-content {
+  padding: 8px;
+}
+
+.planner-schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.planner-schedule-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  transition: all 0.12s;
+  position: relative;
+  min-height: 32px;
+}
+
+.planner-schedule-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.planner-schedule-row.planner-schedule-row--current {
+  border-left: 2px solid #2dd4bf;
+  background: rgba(45, 212, 191, 0.08);
+}
+
+.planner-schedule-row.planner-schedule-row--upcoming {
+  border-left: 2px solid rgba(251, 191, 36, 0.6);
+}
+
+.planner-schedule-row.planner-schedule-row--overdue {
+  border-left: 2px solid rgba(251, 113, 133, 0.4);
+}
+.planner-schedule-row.planner-schedule-row--overdue .planner-schedule-label {
+  color: rgba(240, 180, 180, 0.75);
+}
+
+.planner-schedule-row.planner-schedule-row--done {
+  opacity: 0.45;
+}
+
+.planner-schedule-row.planner-schedule-row--dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.planner-schedule-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.planner-schedule-time {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  color: rgba(180, 150, 220, 0.7);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.planner-schedule-time-input {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: inherit;
+  width: 44px;
+  padding: 0;
+  outline: none;
+  font-family: inherit;
+}
+
+.planner-schedule-label-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.planner-schedule-label {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 14px;
+  color: rgba(240, 230, 255, 0.95);
+  background: none;
+  border: none;
+  width: 100%;
+  padding: 0;
+  outline: none;
+}
+
+.planner-schedule-row--done .planner-schedule-label {
+  text-decoration: line-through;
+}
+
+.planner-schedule-notes {
+  font-size: 11px;
+  color: rgba(180, 160, 220, 0.55);
+  opacity: 0;
+  transition: opacity 0.12s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.planner-schedule-row:hover .planner-schedule-notes {
+  opacity: 1;
+}
+
+.planner-schedule-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.planner-schedule-row:hover .planner-schedule-actions {
+  opacity: 1;
+}
+
+.planner-schedule-add-form {
+  background: rgba(180, 130, 220, 0.1);
+  border-radius: 6px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.planner-schedule-form-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(180, 150, 220, 0.8);
+}
+
+.planner-schedule-select {
+  background: rgba(30, 15, 55, 0.4);
+  border: 1px solid rgba(180, 130, 220, 0.3);
+  color: rgba(240, 230, 255, 0.9);
+  font-size: 11px;
+  border-radius: 4px;
+  padding: 2px 4px;
+  outline: none;
+}
+
+.planner-schedule-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(180, 130, 220, 0.2);
+  border-radius: 4px;
+  color: #fff;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.planner-schedule-textarea {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(180, 130, 220, 0.2);
+  border-radius: 4px;
+  color: rgba(240, 230, 255, 0.8);
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+  min-height: 60px;
+  resize: vertical;
+}
+
+.planner-schedule-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.planner-schedule-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(180, 160, 220, 0.8);
+  cursor: pointer;
+}
+
+.planner-schedule-form-btns {
+  display: flex;
+  gap: 6px;
+}
+
+.planner-schedule-btn {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.1s;
+}
+
+.planner-schedule-btn.save {
+  background: #5A8EFC;
+  color: #fff;
+}
+.planner-schedule-btn.save:hover { background: #1A5EED; }
+
+.planner-schedule-btn.cancel {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(180, 130, 220, 0.3);
+  color: rgba(240, 230, 255, 0.7);
+}
+.planner-schedule-btn.cancel:hover { background: rgba(255, 255, 255, 0.1); }
+
+/* ── Care Section Divider ── */
+.planner-care-divider {
+  display: flex; align-items: center; gap: 8px;
+  margin: 16px 0 8px;
+  color: rgba(180,130,220,0.4);
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 12px; letter-spacing: 0.1em; text-transform: lowercase;
+}
+.planner-care-divider::before, .planner-care-divider::after {
+  content: ''; flex: 1; height: 1px;
+  background: rgba(180,130,220,0.15);
+}
+
 /* ── Page Tabs UI ── */
 .page-tabs {
   position: absolute;

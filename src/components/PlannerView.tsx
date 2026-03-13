@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { usePlanner } from '../hooks/usePlanner';
 import type { AccentColor, PlannerBlock, Task } from '../types';
+import { IntegratedSchedulePanel } from './IntegratedSchedulePanel';
 
 const COLORS: AccentColor[] = ['plum', 'rose', 'peach', 'orange', 'yellow', 'blue', 'ghost'];
 
@@ -315,7 +316,14 @@ export function PlannerView() {
             
             <button className="planner-add-btn" onClick={handleAddBlock}>+ add block</button>
          </div>
-      </div>
+
+          <div className="planner-care-section">
+            <div className="planner-care-divider">
+              <span>care schedule</span>
+            </div>
+            <IntegratedSchedulePanel date={currentDate} />
+          </div>
+       </div>
     </div>
   );
 }
