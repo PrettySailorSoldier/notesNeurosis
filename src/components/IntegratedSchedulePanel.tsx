@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCareSchedule } from '../hooks/useCareSchedule';
 import type { CareEntry, CareCategory } from '../types';
 
