@@ -31,8 +31,9 @@ html, body {
   margin: 0;
   padding: 0;
   width: 100vw;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: transparent !important;
   user-select: none;
   -webkit-user-select: none;
@@ -40,8 +41,7 @@ html, body {
 
 #root {
   width: 100vw;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
   background: transparent;
 }
 
@@ -49,13 +49,12 @@ html, body {
 .frame-container {
   position: relative;
   width: 100%;
-  height: 100%;
-  overflow: hidden;
+  min-height: 100vh;
 }
 
 /* ── App Frame Image ── */
 .app-frame {
-  position: absolute;
+  position: fixed;
   inset: 0;
   width: 100%;
   height: 100%;
@@ -120,10 +119,10 @@ html, body {
   left: var(--zone-left);
   width: var(--zone-width);
   min-width: 400px;
-  height: var(--zone-height);
+  height: auto;
+  min-height: var(--zone-height);
   z-index: 5;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: visible;
 
   /* Subtle inner glow to define the writing area */
   background: transparent;
@@ -134,8 +133,7 @@ html, body {
   color: var(--text-primary);
 
   padding: 10px 14px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(180, 140, 220, 0.25) transparent;
+  padding-bottom: 200px; /* Space for scroll room */
 
   /* Let the user select text in the writing zone */
   user-select: text;
