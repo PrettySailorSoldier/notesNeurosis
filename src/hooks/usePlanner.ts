@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { load } from '@tauri-apps/plugin-store';
 import type { PlannerBlock } from '../types';
 
-const STORE_FILE = 'notes-neurosis-store.json';
+const STORE_FILE = 'planner.json';
 const PLANNER_KEY = 'planner-data';
 
 function makeId() {

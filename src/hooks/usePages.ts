@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { load } from '@tauri-apps/plugin-store';
 import type { Page, Task } from '../types';
 
-const STORE_FILE = 'notes-neurosis-store.json';
+const STORE_FILE = 'planner.json';
 const PAGES_KEY = 'pages';
 const CURRENT_PAGE_KEY = 'currentPageId';
 

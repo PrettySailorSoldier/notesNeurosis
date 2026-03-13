@@ -31,9 +31,8 @@ html, body {
   margin: 0;
   padding: 0;
   width: 100vw;
-  min-height: 100vh;
-  overflow-y: auto;
-  overflow-x: hidden;
+  height: 100vh;
+  overflow: hidden;
   background: transparent !important;
   user-select: none;
   -webkit-user-select: none;
@@ -119,10 +118,9 @@ html, body {
   left: var(--zone-left);
   width: var(--zone-width);
   min-width: 400px;
-  height: auto;
-  min-height: var(--zone-height);
+  height: var(--zone-height);
   z-index: 5;
-  overflow: visible;
+  overflow: hidden; /* Children handle internal scrolling */
 
   /* Subtle inner glow to define the writing area */
   background: transparent;
@@ -133,7 +131,7 @@ html, body {
   color: var(--text-primary);
 
   padding: 10px 14px;
-  padding-bottom: 200px; /* Space for scroll room */
+  /* padding-bottom: 200px;  <- Removed to prevent phantom scrolling */
 
   /* Let the user select text in the writing zone */
   user-select: text;
@@ -229,6 +227,11 @@ html, body {
   flex-direction: column;
   gap: 4px;
   margin-bottom: 8px;
+  max-height: 320px; /* Constrain long lists */
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(180, 140, 220, 0.25) transparent;
 }
 
 .planner-schedule-row {
