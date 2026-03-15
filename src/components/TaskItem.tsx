@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
+import ReactDOM from 'react-dom';
 import type { Task, TaskType, ReminderSound, AccentColor } from '../types';
 import { TimerModal } from './TimerModal';
 import { ContextMenu } from './ContextMenu';
@@ -39,6 +40,7 @@ export const TaskItem: React.FC<Props> = ({
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
   const [hovered, setHovered] = useState(false);
   const composingRef = useRef(false);
+  const savedRangeRef = useRef<Range | null>(null);
 
   // Sync content → DOM without cursor jump
   useEffect(() => {
@@ -148,7 +150,18 @@ export const TaskItem: React.FC<Props> = ({
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
+    // Save current text selection so cut/copy/paste can restore it after menu click
+    const sel = window.getSelection();
+    savedRangeRef.current = sel && sel.rangeCount > 0 ? sel.getRangeAt(0).cloneRange() : null;
     setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  const restoreSelection = () => {
+    if (!savedRangeRef.current) return;
+    contentRef.current?.focus();
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(savedRangeRef.current);
   };
 
   const prefix = task.type === 'bullet' ? '•' : null;
@@ -255,8 +268,8 @@ export const TaskItem: React.FC<Props> = ({
         />
       )}
 
-      {/* Context Menu */}
-      {contextMenu && (
+      {/* Context Menu — rendered via portal to escape writing-zone stacking context */}
+      {contextMenu && ReactDOM.createPortal(
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
@@ -273,6 +286,10 @@ export const TaskItem: React.FC<Props> = ({
           activeColor={task.color || 'ghost'}
           onColorSelect={(c) => onUpdate({ ...task, color: c as AccentColor })}
           options={[
+            { label: 'Cut', icon: '✂', onClick: () => { restoreSelection(); document.execCommand('cut'); } },
+            { label: 'Copy', icon: '⎘', onClick: () => { restoreSelection(); document.execCommand('copy'); } },
+            { label: 'Paste', icon: '⎗', onClick: async () => { restoreSelection(); const text = await navigator.clipboard.readText(); document.execCommand('insertText', false, text); } },
+            { divider: true, label: '', onClick: () => {} },
             { label: 'Add Reminder', icon: '⏱', onClick: openModal },
             { divider: true, label: '', onClick: () => {} },
             { label: 'Plain Text', icon: 'T', onClick: () => onUpdate({ ...task, type: 'plain' }) },
@@ -282,7 +299,8 @@ export const TaskItem: React.FC<Props> = ({
             { divider: true, label: '', onClick: () => {} },
             { label: 'Delete Task', icon: '✕', danger: true, onClick: () => onDelete(task.id) },
           ]}
-        />
+        />,
+        document.body
       )}
     </div>
   );

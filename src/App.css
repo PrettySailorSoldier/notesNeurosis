@@ -130,7 +130,7 @@ html, body {
   line-height: 1.6;
   color: var(--text-primary);
 
-  padding: 10px 14px;
+  padding: 10px 48px 10px 14px;
   /* padding-bottom: 200px;  <- Removed to prevent phantom scrolling */
 
   /* Let the user select text in the writing zone */
