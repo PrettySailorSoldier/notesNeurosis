@@ -152,8 +152,39 @@ export function useCareSchedule() {
   }, [entries, save]);
 
   const importSchedule = useCallback(async (newEntries: Record<string, CareEntry[]>) => {
+    // Validate structure: must be an object with string keys mapping to arrays
+    if (typeof newEntries !== 'object' || newEntries === null || Array.isArray(newEntries)) {
+      throw new Error('Invalid schedule format: expected an object with date/recurring keys');
+    }
+    for (const [key, val] of Object.entries(newEntries)) {
+      if (!Array.isArray(val)) {
+        throw new Error(`Invalid schedule format: key "${key}" must map to an array`);
+      }
+    }
     await save(newEntries);
   }, [save]);
+
+  const cleanupOldOverrides = useCallback(async (today: string) => {
+    const recurringIds = new Set((entries['recurring'] ?? []).map((e: CareEntry) => e.id));
+    let changed = false;
+    const next: Record<string, CareEntry[]> = { ...entries };
+
+    for (const key of Object.keys(next)) {
+      if (key === 'recurring' || key >= today) continue;
+      // Past date key — remove entries that are just completion overrides of recurring items
+      const filtered = next[key].filter((e: CareEntry) => !recurringIds.has(e.id));
+      if (filtered.length !== next[key].length) {
+        changed = true;
+        if (filtered.length === 0) {
+          delete next[key];
+        } else {
+          next[key] = filtered;
+        }
+      }
+    }
+
+    if (changed) await save(next);
+  }, [entries, save]);
 
   return {
     ready,
@@ -163,6 +194,7 @@ export function useCareSchedule() {
     toggleComplete,
     deleteEntry,
     reorderEntries,
-    importSchedule
+    importSchedule,
+    cleanupOldOverrides
   };
 }

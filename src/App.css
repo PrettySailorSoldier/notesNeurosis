@@ -338,6 +338,76 @@ html, body {
   opacity: 1;
 }
 
+.planner-schedule-notes--editable {
+  background: transparent;
+  border: none;
+  resize: none;
+  width: 100%;
+  font-family: inherit;
+  overflow: hidden;
+  outline: none;
+  padding: 0;
+  cursor: text;
+}
+
+.planner-schedule-notes--editable:focus {
+  opacity: 1;
+  color: rgba(180, 160, 220, 0.85);
+  white-space: pre-wrap;
+}
+
+.planner-schedule-import-status {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.planner-schedule-import-status--success {
+  color: #2dd4bf;
+  background: rgba(45, 212, 191, 0.12);
+}
+
+.planner-schedule-import-status--error {
+  color: #fb7185;
+  background: rgba(251, 113, 133, 0.12);
+}
+
+.planner-schedule-days-picker {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.planner-schedule-day-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(180, 140, 220, 0.3);
+  background: transparent;
+  color: rgba(180, 140, 220, 0.5);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.1s;
+}
+
+.planner-schedule-day-btn.active {
+  background: rgba(167, 139, 250, 0.25);
+  border-color: #a78bfa;
+  color: #a78bfa;
+}
+
+.planner-schedule-day-btn:hover {
+  border-color: rgba(167, 139, 250, 0.6);
+  color: rgba(167, 139, 250, 0.8);
+}
+
 .planner-schedule-actions {
   display: flex;
   align-items: center;

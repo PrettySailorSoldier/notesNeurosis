@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useCareSchedule } from '../hooks/useCareSchedule';
 import type { CareEntry, CareCategory } from '../types';
 
@@ -19,15 +19,16 @@ const CATEGORY_COLORS: Record<CareCategory, string> = {
 };
 
 export function IntegratedSchedulePanel({ date }: IntegratedSchedulePanelProps) {
-  const { 
-    ready, 
-    getEntriesForDate, 
-    addEntry, 
-    updateEntry, 
-    toggleComplete, 
-    deleteEntry, 
+  const {
+    ready,
+    getEntriesForDate,
+    addEntry,
+    updateEntry,
+    toggleComplete,
+    deleteEntry,
     reorderEntries,
-    importSchedule
+    importSchedule,
+    cleanupOldOverrides
   } = useCareSchedule();
 
   const [isExpanded, setIsExpanded] = useState(true);
@@ -36,6 +37,8 @@ export function IntegratedSchedulePanel({ date }: IntegratedSchedulePanelProps) 
     const d = new Date();
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   });
+  const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [dragIdx, setDragIdx] = useState<number | null>(null);
 
@@ -48,6 +51,11 @@ export function IntegratedSchedulePanel({ date }: IntegratedSchedulePanelProps) 
     return () => clearInterval(timer);
   }, []);
 
+  // Clean up stale completion overrides from past dates whenever the viewed date changes
+  useEffect(() => {
+    if (ready) cleanupOldOverrides(date);
+  }, [date, ready]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!ready) return null;
 
   const entries = getEntriesForDate(date);
@@ -56,13 +64,32 @@ export function IntegratedSchedulePanel({ date }: IntegratedSchedulePanelProps) 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Reset the input so the same file can be re-selected later
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
-        const json = JSON.parse(event.target?.result as string);
-        await importSchedule(json);
+        let parsed = JSON.parse(event.target?.result as string);
+
+        // Accept a plain array by wrapping it as a recurring schedule
+        if (Array.isArray(parsed)) {
+          parsed = { recurring: parsed };
+        }
+
+        if (typeof parsed !== 'object' || parsed === null) {
+          throw new Error('Expected a JSON object or array');
+        }
+
+        if (!window.confirm('This will replace your current schedule. Continue?')) return;
+
+        await importSchedule(parsed);
+        setImportStatus('success');
+        setTimeout(() => setImportStatus('idle'), 3000);
       } catch (err) {
-        console.error('Failed to parse schedule JSON', err);
+        console.error('Failed to import schedule', err);
+        setImportStatus('error');
+        setTimeout(() => setImportStatus('idle'), 3000);
       }
     };
     reader.readAsText(file);
@@ -81,8 +108,13 @@ export function IntegratedSchedulePanel({ date }: IntegratedSchedulePanelProps) 
           </span>
           <label className="planner-schedule-import-btn" onClick={e => e.stopPropagation()}>
             <span>upload</span>
-            <input type="file" accept=".json" onChange={handleFileUpload} style={{ display: 'none' }} />
+            <input ref={fileInputRef} type="file" accept=".json" onChange={handleFileUpload} style={{ display: 'none' }} />
           </label>
+          {importStatus !== 'idle' && (
+            <span className={`planner-schedule-import-status planner-schedule-import-status--${importStatus}`}>
+              {importStatus === 'success' ? '✓ imported' : '✗ failed'}
+            </span>
+          )}
         </div>
       </div>
 
@@ -148,7 +180,15 @@ export function IntegratedSchedulePanel({ date }: IntegratedSchedulePanelProps) 
                       value={entry.label} 
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateEntry(date, entry.id, { label: e.target.value })}
                     />
-                    {entry.notes && <div className="planner-schedule-notes">{entry.notes}</div>}
+                    <textarea
+                      className="planner-schedule-notes planner-schedule-notes--editable"
+                      value={entry.notes}
+                      placeholder="Notes..."
+                      rows={1}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateEntry(date, entry.id, { notes: e.target.value })}
+                      onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
+                      onInput={(e) => { const t = e.target as HTMLTextAreaElement; t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }}
+                    />
                   </div>
                   <div className="planner-schedule-actions">
                     <button 
@@ -238,16 +278,41 @@ function AddEntryForm({ onSave, onCancel }: { onSave: (e: Omit<CareEntry, 'id'>)
       />
       <div className="planner-schedule-form-footer">
         <label className="planner-schedule-checkbox-label">
-          <input 
-            type="checkbox" 
-            checked={formData.recurring} 
-            onChange={e => setFormData({ ...formData, recurring: e.target.checked })} 
+          <input
+            type="checkbox"
+            checked={formData.recurring}
+            onChange={e => setFormData({ ...formData, recurring: e.target.checked, recurringDays: e.target.checked ? [0,1,2,3,4,5,6] : [] })}
           />
-          Daily
+          Recurring
         </label>
+        {formData.recurring && (
+          <div className="planner-schedule-days-picker">
+            {['S','M','T','W','T','F','S'].map((label, idx) => (
+              <button
+                key={idx}
+                type="button"
+                className={`planner-schedule-day-btn ${formData.recurringDays.includes(idx) ? 'active' : ''}`}
+                onClick={() => {
+                  const days = formData.recurringDays.includes(idx)
+                    ? formData.recurringDays.filter(d => d !== idx)
+                    : [...formData.recurringDays, idx].sort((a, b) => a - b);
+                  setFormData({ ...formData, recurringDays: days });
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="planner-schedule-form-btns">
           <button className="planner-schedule-btn cancel" onClick={onCancel}>Cancel</button>
-          <button className="planner-schedule-btn save" onClick={() => onSave(formData)}>Save</button>
+          <button
+            className="planner-schedule-btn save"
+            disabled={formData.recurring && formData.recurringDays.length === 0}
+            onClick={() => onSave(formData)}
+          >
+            Save
+          </button>
         </div>
       </div>
     </div>
