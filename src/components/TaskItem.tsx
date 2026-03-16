@@ -20,6 +20,28 @@ interface Props {
   autoFocus?: boolean;
 }
 
+// Strips unsafe/block HTML from clipboard content, keeping only inline formatting
+function sanitizePasteHtml(html: string): string {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+
+  const INLINE = new Set(['b', 'strong', 'i', 'em', 'u', 's', 'del', 'mark', 'br']);
+  const BLOCKS = new Set(['p', 'div', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'tr', 'td', 'blockquote']);
+
+  function walk(node: Node): string {
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? '';
+    if (node.nodeType !== Node.ELEMENT_NODE) return '';
+    const el = node as Element;
+    const tag = el.tagName.toLowerCase();
+    const inner = Array.from(el.childNodes).map(walk).join('');
+    if (INLINE.has(tag)) return `<${tag}>${inner}</${tag}>`;
+    if (BLOCKS.has(tag)) return inner + (inner.trim() ? '<br>' : '');
+    return inner; // strip unknown tags but keep their text
+  }
+
+  return walk(div).replace(/<br>$/, ''); // trim trailing <br>
+}
+
 export const TaskItem: React.FC<Props> = ({
   task,
   isNew,
@@ -288,7 +310,23 @@ export const TaskItem: React.FC<Props> = ({
           options={[
             { label: 'Cut', icon: '✂', onClick: () => { restoreSelection(); document.execCommand('cut'); } },
             { label: 'Copy', icon: '⎘', onClick: () => { restoreSelection(); document.execCommand('copy'); } },
-            { label: 'Paste', icon: '⎗', onClick: async () => { restoreSelection(); const text = await navigator.clipboard.readText(); document.execCommand('insertText', false, text); } },
+            { label: 'Paste', icon: '⎗', onClick: async () => {
+                restoreSelection();
+                try {
+                  const items = await navigator.clipboard.read();
+                  for (const item of items) {
+                    if (item.types.includes('text/html')) {
+                      const blob = await item.getType('text/html');
+                      const html = sanitizePasteHtml(await blob.text());
+                      document.execCommand('insertHTML', false, html);
+                      return;
+                    }
+                  }
+                } catch { /* clipboard.read() not available, fall through */ }
+                const text = await navigator.clipboard.readText();
+                document.execCommand('insertText', false, text);
+              }
+            },
             { divider: true, label: '', onClick: () => {} },
             { label: 'Add Reminder', icon: '⏱', onClick: openModal },
             { divider: true, label: '', onClick: () => {} },
