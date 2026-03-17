@@ -108,6 +108,12 @@ export const TaskItem: React.FC<Props> = ({
     return () => clearInterval(iv);
   }, [task.reminder]);
 
+  function handlePaste(e: React.ClipboardEvent<HTMLSpanElement>) {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text/plain');
+    document.execCommand('insertText', false, text);
+  }
+
   function handleInput() {
     if (composingRef.current) return;
     const el = contentRef.current;
@@ -244,6 +250,7 @@ export const TaskItem: React.FC<Props> = ({
         className={`${styles.content} ${task.color && task.color !== 'ghost' ? 'text-color-' + task.color : ''}`}
         onInput={handleInput}
         onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
         onCompositionStart={handleCompositionStart}
         onCompositionEnd={handleCompositionEnd}
         data-placeholder={task.type === 'heading' ? 'Heading…' : 'Note…'}

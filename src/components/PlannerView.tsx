@@ -75,12 +75,12 @@ export function PlannerView({ settings }: Props) {
     setIsToday(currentDate === todayStr);
   }, [currentDate]);
 
-  // Update current time every minute
+  // Update current time every second to stay in sync with the clock
   useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date();
       setCurrentMinutes(now.getHours() * 60 + now.getMinutes());
-    }, 60000);
+    }, 1000);
     return () => clearInterval(timer);
   }, []);
 
