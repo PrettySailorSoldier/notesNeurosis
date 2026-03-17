@@ -752,6 +752,12 @@ html, body {
   border-radius: 2px;
   transition: width 0.3s ease;
 }
+.summary-percent {
+  font-size: 11px;
+  color: rgba(181, 95, 124, 0.55);
+  text-align: right;
+  margin-top: 3px;
+}
 
 /* ── Right Panel (Main Schedule) ── */
 .planner-main {

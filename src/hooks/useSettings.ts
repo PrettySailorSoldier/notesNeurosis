@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { load } from '@tauri-apps/plugin-store';
+import type { ReminderSound } from '../types';
 
 const STORE_FILE = 'notes-neurosis-settings.json';
 
@@ -12,10 +13,21 @@ export interface CustomTone {
 export interface Settings {
   customTones: CustomTone[];
   volume: number;
+  defaultReminderMinutes: number;
+  defaultReminderSound: ReminderSound;
+  defaultBlockDuration: number;
 }
 
+const DEFAULT_SETTINGS: Settings = {
+  customTones: [],
+  volume: 0.75,
+  defaultReminderMinutes: 30,
+  defaultReminderSound: 'chime',
+  defaultBlockDuration: 60,
+};
+
 export function useSettings() {
-  const [settings, setSettings] = useState<Settings>({ customTones: [], volume: 0.75 });
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
 
   useEffect(() => {
     (async () => {
@@ -23,9 +35,15 @@ export function useSettings() {
         const store = await load(STORE_FILE, { autoSave: false } as any);
         const tones = await store.get<CustomTone[]>('customTones');
         const vol = await store.get<number>('volume');
+        const defMin = await store.get<number>('defaultReminderMinutes');
+        const defSound = await store.get<ReminderSound>('defaultReminderSound');
+        const defBlock = await store.get<number>('defaultBlockDuration');
         setSettings(prev => ({
           customTones: tones || prev.customTones,
-          volume: vol !== undefined && vol !== null ? vol : prev.volume
+          volume: vol !== undefined && vol !== null ? vol : prev.volume,
+          defaultReminderMinutes: defMin ?? prev.defaultReminderMinutes,
+          defaultReminderSound: defSound ?? prev.defaultReminderSound,
+          defaultBlockDuration: defBlock ?? prev.defaultBlockDuration,
         }));
       } catch (err) {
         console.warn("[useSettings] load error:", err);
@@ -39,6 +57,9 @@ export function useSettings() {
       const store = await load(STORE_FILE, { autoSave: false } as any);
       await store.set('customTones', newSettings.customTones);
       await store.set('volume', newSettings.volume);
+      await store.set('defaultReminderMinutes', newSettings.defaultReminderMinutes);
+      await store.set('defaultReminderSound', newSettings.defaultReminderSound);
+      await store.set('defaultBlockDuration', newSettings.defaultBlockDuration);
       await store.save();
     } catch (e) {
       console.warn("[useSettings] save error:", e);
@@ -69,5 +90,13 @@ export function useSettings() {
     });
   }, [saveSettings]);
 
-  return { settings, addCustomTone, removeCustomTone, setVolume };
+  const updateSettings = useCallback((patch: Partial<Settings>) => {
+    setSettings(prev => {
+      const next = { ...prev, ...patch };
+      saveSettings(next);
+      return next;
+    });
+  }, [saveSettings]);
+
+  return { settings, addCustomTone, removeCustomTone, setVolume, updateSettings };
 }

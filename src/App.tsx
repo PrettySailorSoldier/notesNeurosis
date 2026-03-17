@@ -19,19 +19,19 @@ function makeId() {
 }
 
 export default function App() {
-  const { 
-    pages, 
-    currentPageId, 
-    currentPage, 
-    ready, 
-    addPage, 
-    renamePage, 
-    deletePage, 
+  const {
+    pages,
+    currentPageId,
+    currentPage,
+    ready,
+    addPage,
+    renamePage,
+    deletePage,
     switchPage,
-    updateTasksForPage 
+    updateTasksForPage
   } = usePages();
 
-  const { settings, addCustomTone, removeCustomTone, setVolume } = useSettings();
+  const { settings, addCustomTone, removeCustomTone, setVolume, updateSettings } = useSettings();
   const [showOptions, setShowOptions] = useState(false);
   const [showPlanner, setShowPlanner] = useState(false);
 
@@ -77,6 +77,31 @@ export default function App() {
     });
     updateTasksForPage(currentPageId, nextTasks);
   }, [currentPage, currentPageId, updateTasksForPage]);
+
+  // Update a timer's interval + sound from the options modal.
+  // Generates a new reminder ID so useReminders cancels the old handle and reschedules.
+  const handleUpdateTimerSettings = useCallback((taskId: string, pageId: string, intervalMinutes: number, sound: ReminderSound) => {
+    const pageToUpdate = pages.find(p => p.id === pageId);
+    if (!pageToUpdate) return;
+    const label = intervalMinutes >= 60
+      ? `every ${intervalMinutes / 60}h`
+      : `every ${intervalMinutes}m`;
+    const nextTasks = pageToUpdate.tasks.map(t => {
+      if (t.id !== taskId || !t.reminder) return t;
+      return {
+        ...t,
+        reminder: {
+          ...t.reminder,
+          id: makeId(), // new ID forces useReminders to cancel old and reschedule
+          intervalMinutes,
+          sound,
+          fireAt: Date.now() + intervalMinutes * 60 * 1000,
+          label,
+        },
+      };
+    });
+    updateTasksForPage(pageId, nextTasks);
+  }, [pages, updateTasksForPage]);
 
   // Unlock AudioContext on first user interaction
   useEffect(() => {
@@ -145,7 +170,7 @@ export default function App() {
           >
             📅 Planner
           </button>
-          
+
           {pages.map(page => (
             <button
               key={page.id}
@@ -171,7 +196,7 @@ export default function App() {
 
       {/* Writing zone */}
       <div className="writing-zone">
-        {ready && showPlanner && <PlannerView />}
+        {ready && showPlanner && <PlannerView settings={settings} />}
         {ready && !showPlanner && currentPage && (
           <TaskEditor
             tasks={currentPage.tasks}
@@ -199,9 +224,11 @@ export default function App() {
             const nextTasks = pageToUpdate.tasks.map(t => t.id === taskId ? { ...t, reminder: undefined } : t);
             updateTasksForPage(pageId, nextTasks);
           }}
+          onUpdateTimerSettings={handleUpdateTimerSettings}
           onAddCustomTone={addCustomTone}
           onRemoveCustomTone={removeCustomTone}
           onSetVolume={setVolume}
+          onUpdateSettings={updateSettings}
         />
       )}
     </div>

@@ -59,17 +59,17 @@ export function usePlanner() {
     }, 400);
   };
 
-  const addBlock = useCallback((date: string, startTime: string) => {
+  const addBlock = useCallback((date: string, startTime: string, durationMinutes: number = 60) => {
     const parts = startTime.split(':');
-    let hours = parseInt(parts[0] || '0', 10);
+    const hours = parseInt(parts[0] || '0', 10);
     const minutes = parseInt(parts[1] || '0', 10);
-    
-    let endHours = hours + 1;
-    if (endHours > 23) endHours = 23;
-    
-    const endHoursStr = String(endHours).padStart(2, '0');
-    const endMinutesStr = String(minutes).padStart(2, '0');
-    const endTime = `${endHoursStr}:${endMinutesStr}`;
+
+    const totalEndMinutes = hours * 60 + minutes + durationMinutes;
+    let endHours = Math.floor(totalEndMinutes / 60);
+    let endMins = totalEndMinutes % 60;
+    if (endHours > 23) { endHours = 23; endMins = 59; }
+
+    const endTime = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`;
 
     const newBlock: PlannerBlock = {
       id: makeId(),
