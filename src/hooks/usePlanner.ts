@@ -3,30 +3,43 @@ import { load } from '@tauri-apps/plugin-store';
 import type { PlannerBlock } from '../types';
 
 const STORE_FILE = 'planner.json';
-const PLANNER_KEY = 'planner-data';
+const LEGACY_PLANNER_KEY = 'planner-data'; // old single-key data
+
+function plannerKey(pageId: string) {
+  return `planner-${pageId}`;
+}
 
 function makeId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
-export function usePlanner() {
+export function usePlanner(pageId: string) {
   const [blocks, setBlocks] = useState<PlannerBlock[]>([]);
   const [ready, setReady] = useState(false);
   const saveTimeout = useRef<number | null>(null);
 
   useEffect(() => {
+    if (!pageId) return;
     let cancelled = false;
     (async () => {
       try {
         const store = await load(STORE_FILE, { autoSave: false } as any);
-        const storedBlocks = await store.get<PlannerBlock[]>(PLANNER_KEY);
+        const key = plannerKey(pageId);
+        let storedBlocks = await store.get<PlannerBlock[]>(key);
+
+        // Migration: on first load of this key, check if there's legacy data
+        if (!storedBlocks) {
+          const legacyBlocks = await store.get<PlannerBlock[]>(LEGACY_PLANNER_KEY);
+          if (legacyBlocks && legacyBlocks.length > 0) {
+            storedBlocks = legacyBlocks;
+            await store.set(key, legacyBlocks);
+            await store.delete(LEGACY_PLANNER_KEY);
+            await store.save();
+          }
+        }
 
         if (!cancelled) {
-          if (storedBlocks) {
-            setBlocks(storedBlocks);
-          } else {
-            setBlocks([]);
-          }
+          setBlocks(storedBlocks ?? []);
           setReady(true);
         }
       } catch (err) {
@@ -38,12 +51,12 @@ export function usePlanner() {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [pageId]);
 
   const saveToStore = async (b: PlannerBlock[]) => {
     try {
       const store = await load(STORE_FILE, { autoSave: false } as any);
-      await store.set(PLANNER_KEY, b);
+      await store.set(plannerKey(pageId), b);
       await store.save();
     } catch (err) {
       console.error('[usePlanner] save error:', err);
@@ -82,13 +95,13 @@ export function usePlanner() {
       completed: false,
       tasks: []
     };
-    
+
     setBlocks(prev => {
       const next = [...prev, newBlock];
       debouncedSave(next);
       return next;
     });
-  }, []);
+  }, [pageId]);
 
   const updateBlock = useCallback((id: string, changes: Partial<PlannerBlock>) => {
     setBlocks(prev => {
@@ -96,7 +109,7 @@ export function usePlanner() {
       debouncedSave(next);
       return next;
     });
-  }, []);
+  }, [pageId]);
 
   const deleteBlock = useCallback((id: string) => {
     setBlocks(prev => {
@@ -104,7 +117,7 @@ export function usePlanner() {
       debouncedSave(next);
       return next;
     });
-  }, []);
+  }, [pageId]);
 
   const getBlocksForDate = useCallback((date: string) => {
     return blocks

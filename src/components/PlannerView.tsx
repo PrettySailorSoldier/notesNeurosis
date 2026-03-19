@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { usePlanner } from '../hooks/usePlanner';
-import type { AccentColor, PlannerBlock, Task } from '../types';
+import type { AccentColor, PlannerBlock, Task, GoalEntry, PlannerSubtype } from '../types';
 import type { Settings } from '../hooks/useSettings';
 import { IntegratedSchedulePanel } from './IntegratedSchedulePanel';
+import { GoalsView } from './GoalsView';
 
 const COLORS: AccentColor[] = ['plum', 'rose', 'peach', 'orange', 'yellow', 'blue', 'ghost'];
 
@@ -59,10 +60,14 @@ function timeToMinutes(t: string) {
 
 interface Props {
   settings: Settings;
+  pageId: string;
+  subtype?: PlannerSubtype;
+  goals?: GoalEntry[];
+  onGoalsChange?: (goals: GoalEntry[]) => void;
 }
 
-export function PlannerView({ settings }: Props) {
-  const { ready, addBlock, updateBlock, deleteBlock, getBlocksForDate } = usePlanner();
+export function PlannerView({ settings, pageId, subtype = 'schedule', goals = [], onGoalsChange }: Props) {
+  const { ready, addBlock, updateBlock, deleteBlock, getBlocksForDate } = usePlanner(pageId);
   const [currentDate, setCurrentDate] = useState(() => formatDate(new Date()));
   const [isToday, setIsToday] = useState(true);
   const [currentMinutes, setCurrentMinutes] = useState(() => {
@@ -128,6 +133,16 @@ export function PlannerView({ settings }: Props) {
 
   if (!ready) {
     return <div className="loading-hint">✦</div>;
+  }
+
+  // Goals subtype — completely different UI
+  if (subtype === 'goals') {
+    return (
+      <GoalsView
+        goals={goals}
+        onChange={onGoalsChange ?? (() => {})}
+      />
+    );
   }
 
   const currentWeekDays = getWeekDays(currentDate);
@@ -312,13 +327,15 @@ export function PlannerView({ settings }: Props) {
             <button className="planner-add-btn" onClick={handleAddBlock}>+ add block</button>
           </div>
 
-          {/* Care schedule lives inside the scroll area */}
-          <div className="planner-care-section">
-            <div className="planner-care-divider">
-              <span>care schedule</span>
+          {/* Care schedule — only shown on caregiving subtype */}
+          {subtype === 'caregiving' && (
+            <div className="planner-care-section">
+              <div className="planner-care-divider">
+                <span>care schedule</span>
+              </div>
+              <IntegratedSchedulePanel date={currentDate} />
             </div>
-            <IntegratedSchedulePanel date={currentDate} />
-          </div>
+          )}
         </div>
       </div>
 

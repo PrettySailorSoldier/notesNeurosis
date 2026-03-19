@@ -563,6 +563,13 @@ html, body {
   font-size: 14px;
   padding: 3px 10px;
 }
+.tab-type-icon {
+  font-size: 11px;
+  margin-right: 4px;
+  opacity: 0.85;
+  vertical-align: middle;
+}
+
 
 /* ── Planner ── */
 .planner-container {

@@ -1,5 +1,8 @@
 export type TaskType = 'bullet' | 'checkbox' | 'heading' | 'plain';
 
+export type PageType = 'notes' | 'todo' | 'interval' | 'planner';
+export type PlannerSubtype = 'schedule' | 'caregiving' | 'goals';
+
 export interface Task {
   id: string;
   content: string;
@@ -26,11 +29,33 @@ export type ReminderInterval =
   | { type: 'interval'; minutes: number }
   | { type: 'once'; at: number };
 
+// Interval page — each task is a timed step that runs consecutively
+export interface IntervalTask {
+  id: string;
+  label: string;
+  durationSeconds: number;
+  completed: boolean;
+}
+
+// Goals page — short or long term goal entries
+export interface GoalEntry {
+  id: string;
+  title: string;
+  notes: string;
+  horizon: 'short' | 'long';
+  completed: boolean;
+  createdAt: number;
+}
+
 export interface Page {
   id: string;
   name: string;
   tasks: Task[];
   createdAt: number;
+  pageType?: PageType;
+  plannerSubtype?: PlannerSubtype;
+  intervalTasks?: IntervalTask[];
+  goals?: GoalEntry[];
 }
 
 export interface PlannerBlock {

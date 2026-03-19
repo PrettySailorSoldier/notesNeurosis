@@ -1,19 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { load } from '@tauri-apps/plugin-store';
-import type { Page, Task } from '../types';
+import type { Page, Task, PageType, PlannerSubtype } from '../types';
 
 const STORE_FILE = 'planner.json';
 const PAGES_KEY = 'pages';
 const CURRENT_PAGE_KEY = 'currentPageId';
 
-// Fallback logic for generating an empty task if needed
 function makeTask(content = '') {
   return { id: crypto.randomUUID(), content, type: 'plain' as const, completed: false, createdAt: Date.now() };
 }
 
 const DEFAULT_PAGES: Page[] = [
-  { id: crypto.randomUUID(), name: 'To-Do', tasks: [makeTask('')], createdAt: Date.now() },
-  { id: crypto.randomUUID(), name: 'Notes', tasks: [makeTask('')], createdAt: Date.now() + 1 }
+  { id: crypto.randomUUID(), name: 'To-Do', tasks: [makeTask('')], createdAt: Date.now(), pageType: 'todo' },
+  { id: crypto.randomUUID(), name: 'Notes', tasks: [makeTask('')], createdAt: Date.now() + 1, pageType: 'notes' }
 ];
 
 export function usePages() {
@@ -32,10 +31,14 @@ export function usePages() {
 
         if (!cancelled) {
           if (storedPages && storedPages.length > 0) {
-            setPages(storedPages);
-            setCurrentPageId(storedPageId && storedPages.find(p => p.id === storedPageId) ? storedPageId : storedPages[0].id);
+            // Migrate: pages without a pageType default to 'notes'
+            const migrated = storedPages.map(p => ({
+              ...p,
+              pageType: p.pageType ?? 'notes' as PageType,
+            }));
+            setPages(migrated);
+            setCurrentPageId(storedPageId && migrated.find(p => p.id === storedPageId) ? storedPageId : migrated[0].id);
           } else {
-            // First time setup or empty
             setPages(DEFAULT_PAGES);
             setCurrentPageId(DEFAULT_PAGES[0].id);
             debouncedSave(DEFAULT_PAGES, DEFAULT_PAGES[0].id);
@@ -81,12 +84,20 @@ export function usePages() {
     debouncedSave(newPages, pId);
   }, [currentPageId]);
 
-  const addPage = useCallback((name = 'New Page') => {
+  const addPage = useCallback((
+    name = 'New Page',
+    pageType: PageType = 'notes',
+    plannerSubtype?: PlannerSubtype
+  ) => {
     const newPage: Page = {
       id: crypto.randomUUID(),
       name,
       tasks: [makeTask('')],
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      pageType,
+      plannerSubtype: pageType === 'planner' ? (plannerSubtype ?? 'schedule') : undefined,
+      intervalTasks: pageType === 'interval' ? [] : undefined,
+      goals: pageType === 'planner' && plannerSubtype === 'goals' ? [] : undefined,
     };
     const nextPages = [...pages, newPage];
     updatePages(nextPages, newPage.id);
@@ -98,8 +109,28 @@ export function usePages() {
     updatePages(nextPages);
   }, [pages, updatePages]);
 
+  const changePageType = useCallback((
+    id: string,
+    pageType: PageType,
+    plannerSubtype?: PlannerSubtype
+  ) => {
+    const nextPages = pages.map(p => {
+      if (p.id !== id) return p;
+      return {
+        ...p,
+        pageType,
+        plannerSubtype: pageType === 'planner' ? (plannerSubtype ?? p.plannerSubtype ?? 'schedule') : undefined,
+        intervalTasks: pageType === 'interval' ? (p.intervalTasks ?? []) : p.intervalTasks,
+        goals: pageType === 'planner' && (plannerSubtype ?? p.plannerSubtype) === 'goals'
+          ? (p.goals ?? [])
+          : p.goals,
+      };
+    });
+    updatePages(nextPages);
+  }, [pages, updatePages]);
+
   const deletePage = useCallback((id: string) => {
-    if (pages.length <= 1) return; // Need at least one
+    if (pages.length <= 1) return;
     const idx = pages.findIndex(p => p.id === id);
     const nextPages = pages.filter(p => p.id !== id);
     let switchId = currentPageId;
@@ -118,17 +149,30 @@ export function usePages() {
     updatePages(nextPages);
   }, [pages, updatePages]);
 
+  const updateIntervalTasksForPage = useCallback((pageId: string, intervalTasks: import('../types').IntervalTask[]) => {
+    const nextPages = pages.map(p => p.id === pageId ? { ...p, intervalTasks } : p);
+    updatePages(nextPages);
+  }, [pages, updatePages]);
+
+  const updateGoalsForPage = useCallback((pageId: string, goals: import('../types').GoalEntry[]) => {
+    const nextPages = pages.map(p => p.id === pageId ? { ...p, goals } : p);
+    updatePages(nextPages);
+  }, [pages, updatePages]);
+
   const currentPage = pages.find(p => p.id === currentPageId);
 
-  return { 
-    pages, 
-    currentPageId, 
-    currentPage, 
-    ready, 
-    addPage, 
-    renamePage, 
-    deletePage, 
+  return {
+    pages,
+    currentPageId,
+    currentPage,
+    ready,
+    addPage,
+    renamePage,
+    deletePage,
     switchPage,
-    updateTasksForPage
+    changePageType,
+    updateTasksForPage,
+    updateIntervalTasksForPage,
+    updateGoalsForPage,
   };
 }

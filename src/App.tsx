@@ -6,9 +6,10 @@ import { useReminders } from './hooks/useReminders';
 import { useSettings } from './hooks/useSettings';
 import { OptionsModal } from './components/OptionsModal';
 import { PlannerView } from './components/PlannerView';
-
+import { IntervalView } from './components/IntervalView';
+import { ContextMenu } from './components/ContextMenu';
 import { ClockDisplay } from './components/ClockDisplay';
-import type { Task, Reminder, ReminderSound } from './types';
+import type { Task, Reminder, ReminderSound, PageType, PlannerSubtype } from './types';
 import appFrame from './assets/frame_blue_orchid.png';
 import './App.css';
 
@@ -16,6 +17,34 @@ const appWindow = getCurrentWindow();
 
 function makeId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+// Page type metadata
+const PAGE_TYPES: { type: PageType; icon: string; label: string }[] = [
+  { type: 'notes',    icon: '📝', label: 'Notes'    },
+  { type: 'todo',     icon: '✅', label: 'To-Do'    },
+  { type: 'interval', icon: '⏱', label: 'Interval'  },
+  { type: 'planner',  icon: '📅', label: 'Planner'  },
+];
+
+const PLANNER_SUBTYPES: { sub: PlannerSubtype; icon: string; label: string }[] = [
+  { sub: 'schedule',    icon: '🗓', label: 'Schedule'    },
+  { sub: 'caregiving',  icon: '🩺', label: 'Caregiving'  },
+  { sub: 'goals',       icon: '🎯', label: 'Goals'       },
+];
+
+function pageTypeIcon(type?: PageType, subtype?: PlannerSubtype): string {
+  if (type === 'planner') {
+    return PLANNER_SUBTYPES.find(s => s.sub === subtype)?.icon ?? '📅';
+  }
+  return PAGE_TYPES.find(p => p.type === type)?.icon ?? '📝';
+}
+
+interface TabContextMenu {
+  x: number;
+  y: number;
+  pageId: string;
+  phase: 'main' | 'type' | 'subtype';
 }
 
 export default function App() {
@@ -28,12 +57,15 @@ export default function App() {
     renamePage,
     deletePage,
     switchPage,
-    updateTasksForPage
+    changePageType,
+    updateTasksForPage,
+    updateIntervalTasksForPage,
+    updateGoalsForPage,
   } = usePages();
 
   const { settings, addCustomTone, removeCustomTone, setVolume, updateSettings } = useSettings();
   const [showOptions, setShowOptions] = useState(false);
-  const [showPlanner, setShowPlanner] = useState(false);
+  const [tabMenu, setTabMenu] = useState<TabContextMenu | null>(null);
 
   const handleUpdateReminder = useCallback((taskId: string, pageId: string, reminder: Reminder | undefined) => {
     const pageToUpdate = pages.find(p => p.id === pageId);
@@ -78,8 +110,6 @@ export default function App() {
     updateTasksForPage(currentPageId, nextTasks);
   }, [currentPage, currentPageId, updateTasksForPage]);
 
-  // Update a timer's interval + sound from the options modal.
-  // Generates a new reminder ID so useReminders cancels the old handle and reschedules.
   const handleUpdateTimerSettings = useCallback((taskId: string, pageId: string, intervalMinutes: number, sound: ReminderSound) => {
     const pageToUpdate = pages.find(p => p.id === pageId);
     if (!pageToUpdate) return;
@@ -92,7 +122,7 @@ export default function App() {
         ...t,
         reminder: {
           ...t.reminder,
-          id: makeId(), // new ID forces useReminders to cancel old and reschedule
+          id: makeId(),
           intervalMinutes,
           sound,
           fireAt: Date.now() + intervalMinutes * 60 * 1000,
@@ -121,6 +151,125 @@ export default function App() {
     };
   }, []);
 
+  // Context menu helpers
+  const openTabMenu = (e: React.MouseEvent, pageId: string) => {
+    e.preventDefault();
+    setTabMenu({ x: e.clientX, y: e.clientY, pageId, phase: 'main' });
+  };
+
+  const closeTabMenu = () => setTabMenu(null);
+
+  // Build context menu options based on current phase
+  const buildMenuOptions = () => {
+    if (!tabMenu) return [];
+    const page = pages.find(p => p.id === tabMenu.pageId);
+    if (!page) return [];
+
+    if (tabMenu.phase === 'type') {
+      return PAGE_TYPES.map(pt => ({
+        icon: pt.icon,
+        label: pt.label,
+        onClick: () => {
+          if (pt.type === 'planner') {
+            setTabMenu(prev => prev ? { ...prev, phase: 'subtype' } : null);
+          } else {
+            changePageType(page.id, pt.type);
+            closeTabMenu();
+          }
+        },
+      }));
+    }
+
+    if (tabMenu.phase === 'subtype') {
+      return PLANNER_SUBTYPES.map(ps => ({
+        icon: ps.icon,
+        label: ps.label,
+        onClick: () => {
+          changePageType(page.id, 'planner', ps.sub);
+          closeTabMenu();
+        },
+      }));
+    }
+
+    // main phase
+    const options: Parameters<typeof ContextMenu>[0]['options'] = [
+      {
+        icon: '🎨',
+        label: 'Set page type →',
+        onClick: () => setTabMenu(prev => prev ? { ...prev, phase: 'type' } : null),
+      },
+    ];
+
+    if (page.pageType === 'planner') {
+      options.push({
+        icon: '🔀',
+        label: 'Planner style →',
+        onClick: () => setTabMenu(prev => prev ? { ...prev, phase: 'subtype' } : null),
+      });
+    }
+
+    options.push({ label: '', divider: true, onClick: () => {} });
+    options.push({
+      icon: '✏️',
+      label: 'Rename',
+      onClick: () => {
+        const newName = prompt('Rename page:', page.name);
+        if (newName) renamePage(page.id, newName);
+        closeTabMenu();
+      },
+    });
+    options.push({
+      icon: '🗑',
+      label: 'Delete page',
+      danger: true,
+      onClick: () => {
+        if (pages.length <= 1) return;
+        deletePage(page.id);
+        closeTabMenu();
+      },
+    });
+
+    return options;
+  };
+
+  const renderPageContent = () => {
+    if (!ready) return <div className="loading-hint">✦</div>;
+    if (!currentPage) return null;
+
+    const type = currentPage.pageType ?? 'notes';
+
+    if (type === 'planner') {
+      return (
+        <PlannerView
+          settings={settings}
+          pageId={currentPage.id}
+          subtype={currentPage.plannerSubtype ?? 'schedule'}
+          goals={currentPage.goals ?? []}
+          onGoalsChange={g => updateGoalsForPage(currentPage.id, g)}
+        />
+      );
+    }
+
+    if (type === 'interval') {
+      return (
+        <IntervalView
+          tasks={currentPage.intervalTasks ?? []}
+          onChange={t => updateIntervalTasksForPage(currentPage.id, t)}
+        />
+      );
+    }
+
+    // notes + todo both use TaskEditor
+    return (
+      <TaskEditor
+        tasks={currentPage.tasks}
+        onChange={handleTasksChange}
+        onSetReminder={handleSetReminder}
+        onClearReminder={handleClearReminder}
+      />
+    );
+  };
+
   return (
     <div className="frame-container">
       {/* Application frame image */}
@@ -131,13 +280,13 @@ export default function App() {
         draggable={false}
       />
 
-      {/* Drag region — top 80px, over the circular ornament */}
+      {/* Drag region */}
       <div className="drag-region" data-tauri-drag-region />
 
-      {/* Clock display placed inside the top circular ornament */}
+      {/* Clock display */}
       <ClockDisplay />
 
-      {/* Window controls — close & minimize */}
+      {/* Window controls */}
       <div className="window-controls">
         <button
           className="win-btn win-options"
@@ -164,51 +313,44 @@ export default function App() {
       {/* Page Tabs */}
       {ready && pages.length > 0 && (
         <div className="page-tabs">
-          <button
-            className={`tab-btn ${showPlanner ? 'active' : ''}`}
-            onClick={() => setShowPlanner(true)}
-          >
-            📅 Planner
-          </button>
-
           {pages.map(page => (
             <button
               key={page.id}
-              className={`tab-btn ${!showPlanner && page.id === currentPageId ? 'active' : ''}`}
-              onClick={() => { setShowPlanner(false); switchPage(page.id); }}
+              className={`tab-btn ${page.id === currentPageId ? 'active' : ''}`}
+              onClick={() => switchPage(page.id)}
               onDoubleClick={() => {
                 const newName = prompt('Rename page:', page.name);
                 if (newName) renamePage(page.id, newName);
               }}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                if (confirm(`Delete page "${page.name}"?`)) {
-                  deletePage(page.id);
-                }
-              }}
+              onContextMenu={e => openTabMenu(e, page.id)}
+              title={`${page.name} — right-click to set type`}
             >
+              <span className="tab-type-icon">{pageTypeIcon(page.pageType, page.plannerSubtype)}</span>
               {page.name}
             </button>
           ))}
-          <button className="tab-btn tab-btn-add" onClick={() => { setShowPlanner(false); addPage(); }}>+</button>
+          <button
+            className="tab-btn tab-btn-add"
+            onClick={() => addPage()}
+            title="Add page"
+          >+</button>
         </div>
       )}
 
       {/* Writing zone */}
       <div className="writing-zone">
-        {ready && showPlanner && <PlannerView settings={settings} />}
-        {ready && !showPlanner && currentPage && (
-          <TaskEditor
-            tasks={currentPage.tasks}
-            onChange={handleTasksChange}
-            onSetReminder={handleSetReminder}
-            onClearReminder={handleClearReminder}
-          />
-        )}
-        {!ready && (
-          <div className="loading-hint">✦</div>
-        )}
+        {renderPageContent()}
       </div>
+
+      {/* Tab context menu */}
+      {tabMenu && (
+        <ContextMenu
+          x={tabMenu.x}
+          y={tabMenu.y}
+          onClose={closeTabMenu}
+          options={buildMenuOptions()}
+        />
+      )}
 
       {/* Options Modal */}
       {showOptions && (
