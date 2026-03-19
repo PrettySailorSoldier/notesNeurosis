@@ -1,4 +1,13 @@
 {
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDUyOTNEMzJDRDVCMzUwRkUKUldUK1VMUFZMTk9UVWd4OXdKZWZpL2M5c01hcEpmNXBoQ1ZkbzlzcVB1RXJrdDlGbDNaSzZMRFAK",
+      "endpoints": [
+        "https://github.com/PrettySailorSoldier/notesNeurosis/releases/latest/download/latest.json"
+      ],
+      "dialog": true
+    }
+  },
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Notes Neurosis",
   "version": "0.1.0",

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { check as checkUpdate } from '@tauri-apps/plugin-updater';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { TaskEditor } from './components/TaskEditor';
 import { usePages } from './hooks/usePages';
@@ -132,6 +133,16 @@ export default function App() {
     });
     updateTasksForPage(pageId, nextTasks);
   }, [pages, updateTasksForPage]);
+
+  // Check for updates silently on startup
+  useEffect(() => {
+    checkUpdate().then(update => {
+      if (update?.available) {
+        // dialog: true in tauri.conf.json means Tauri shows the native update dialog automatically
+        update.downloadAndInstall();
+      }
+    }).catch(() => { /* ignore update errors silently */ });
+  }, []);
 
   // Unlock AudioContext on first user interaction
   useEffect(() => {
