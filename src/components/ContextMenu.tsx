@@ -55,7 +55,6 @@ export const ContextMenu: React.FC<Props> = ({ x, y, onClose, options, colors, a
             onClick={(e) => {
               e.stopPropagation();
               opt.onClick();
-              onClose();
             }}
           >
             {opt.icon && <span className={styles.icon}>{opt.icon}</span>}
