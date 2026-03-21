@@ -46,7 +46,7 @@ export function useReminders(
       const stopAud = playTone(reminder.sound, volume, customTones);
       stops.current.set(reminder.id, stopAud);
       setRingingIds(prev => {
-        if (!prev.includes(reminder.id)) return [...prev, !!reminder ? reminder.id : ''];
+        if (!prev.includes(reminder.id)) return [...prev, reminder.id];
         return prev;
       });
 
@@ -84,7 +84,7 @@ export function useReminders(
     }, msUntilFire);
 
     handles.current.set(reminder.id, handle);
-  }, [playTone, customTones, onUpdateReminder]);
+  }, [playTone, customTones, volume, onUpdateReminder]);
 
   // Sync reminder schedules for all tasks across all pages
   useEffect(() => {

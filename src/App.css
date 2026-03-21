@@ -1111,3 +1111,14 @@ html, body {
   font-size: 15px;
   padding: 32px 0;
 }
+
+.summary-percent {
+  font-size: 12px;
+  color: #B55F7C;
+  text-align: right;
+  margin-top: 4px;
+}
+
+.planner-care-section {
+  margin-top: 8px;
+}

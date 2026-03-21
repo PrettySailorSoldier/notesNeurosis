@@ -38,7 +38,7 @@ export function IntervalView({ tasks, onChange }: Props) {
     }
   };
 
-  const advanceToNext = useCallback((currentIdx: number, currentTasks: IntervalTask[]) => {
+  const advanceToNext = useCallback((currentIdx: number, currentTasks: IntervalTask[], shouldContinue = false) => {
     // Mark current as completed
     const updated = currentTasks.map((t, i) =>
       i === currentIdx ? { ...t, completed: true } : t
@@ -50,7 +50,7 @@ export function IntervalView({ tasks, onChange }: Props) {
     if (nextIdx !== -1) {
       setActiveIdx(nextIdx);
       setSecondsLeft(updated[nextIdx].durationSeconds);
-      // timer keeps running — effect will restart it
+      if (shouldContinue) setRunning(true);
     } else {
       setRunning(false);
       setActiveIdx(null);
@@ -76,10 +76,10 @@ export function IntervalView({ tasks, onChange }: Props) {
     return clearTimer;
   }, [running, activeIdx]);
 
-  // When timer hits 0 and was running
+  // When timer hits 0 and was running — advance and continue automatically
   useEffect(() => {
     if (!running && secondsLeft === 0 && activeIdx !== null) {
-      advanceToNext(activeIdx, tasks);
+      advanceToNext(activeIdx, tasks, true);
     }
   }, [running, secondsLeft, activeIdx, tasks, advanceToNext]);
 
