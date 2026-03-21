@@ -4,6 +4,7 @@ import type { Page, Task, PageType, PlannerSubtype } from '../types';
 
 const STORE_FILE = 'planner.json';
 const PAGES_KEY = 'pages';
+const PAGES_BACKUP_KEY = 'pages_backup';
 const CURRENT_PAGE_KEY = 'currentPageId';
 
 function makeTask(content = '') {
@@ -39,9 +40,24 @@ export function usePages() {
             setPages(migrated);
             setCurrentPageId(storedPageId && migrated.find(p => p.id === storedPageId) ? storedPageId : migrated[0].id);
           } else {
-            setPages(DEFAULT_PAGES);
-            setCurrentPageId(DEFAULT_PAGES[0].id);
-            debouncedSave(DEFAULT_PAGES, DEFAULT_PAGES[0].id);
+            // Main key empty — try backup before falling back to defaults
+            const backupPages = await store.get<Page[]>(PAGES_BACKUP_KEY);
+            if (backupPages && backupPages.length > 0) {
+              console.warn('[usePages] main key empty, restoring from backup');
+              const migrated = backupPages.map(p => ({
+                ...p,
+                pageType: p.pageType ?? 'notes' as PageType,
+              }));
+              setPages(migrated);
+              setCurrentPageId(storedPageId && migrated.find(p => p.id === storedPageId) ? storedPageId : migrated[0].id);
+              // Restore main key immediately
+              await store.set(PAGES_KEY, migrated);
+              await store.save();
+            } else {
+              setPages(DEFAULT_PAGES);
+              setCurrentPageId(DEFAULT_PAGES[0].id);
+              debouncedSave(DEFAULT_PAGES, DEFAULT_PAGES[0].id);
+            }
           }
           setReady(true);
         }
@@ -62,6 +78,8 @@ export function usePages() {
       const store = await load(STORE_FILE, { autoSave: false } as any);
       await store.set(PAGES_KEY, p);
       await store.set(CURRENT_PAGE_KEY, cId);
+      // Keep a rolling backup so we can recover if the main key ever reads empty
+      await store.set(PAGES_BACKUP_KEY, p);
       await store.save();
     } catch (err) {
       console.error('[usePages] save error:', err);

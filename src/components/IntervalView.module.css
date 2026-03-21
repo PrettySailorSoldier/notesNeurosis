@@ -37,7 +37,7 @@
 
 .timerLabel {
   font-size: 0.85rem;
-  color: rgba(220, 200, 240, 0.65);
+  color: rgba(60, 20, 90, 0.85);
   max-width: 260px;
   text-align: center;
   white-space: nowrap;
@@ -56,7 +56,7 @@
   border: 1px solid rgba(180, 100, 220, 0.3);
   border-radius: 8px;
   background: rgba(100, 50, 140, 0.18);
-  color: rgba(220, 200, 240, 0.9);
+  color: rgba(55, 20, 85, 0.88);
   font-size: 0.8rem;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
@@ -75,7 +75,7 @@
 .startBtn {
   background: rgba(120, 60, 180, 0.35);
   border-color: rgba(200, 130, 255, 0.45);
-  color: #e0c8ff;
+  color: #2d0a50;
   font-weight: 600;
 }
 
@@ -120,7 +120,7 @@
 
 .progressLabel {
   font-size: 0.72rem;
-  color: rgba(200, 170, 240, 0.5);
+  color: rgba(70, 30, 100, 0.7);
 }
 
 /* ── Task List ── */
@@ -132,7 +132,7 @@
 
 .emptyHint {
   text-align: center;
-  color: rgba(200, 170, 240, 0.35);
+  color: rgba(80, 40, 110, 0.6);
   font-size: 0.82rem;
   padding: 16px 0;
 }
@@ -164,9 +164,14 @@
   opacity: 0.45;
 }
 
+.taskRow.active .taskLabel,
+.taskRow.active .taskOrder {
+  color: rgba(35, 10, 60, 0.92);
+}
+
 .taskOrder {
   font-size: 0.7rem;
-  color: rgba(200, 160, 240, 0.45);
+  color: rgba(110, 50, 160, 0.65);
   width: 18px;
   text-align: center;
   flex-shrink: 0;
@@ -177,21 +182,21 @@
   background: transparent;
   border: none;
   outline: none;
-  color: rgba(230, 210, 250, 0.9);
+  color: rgba(45, 15, 70, 0.9);
   font-size: 0.85rem;
   min-width: 0;
 }
 
 .taskLabel::placeholder {
-  color: rgba(200, 160, 240, 0.3);
+  color: rgba(120, 70, 160, 0.45);
 }
 
 .durationBtn {
   font-variant-numeric: tabular-nums;
   font-size: 0.8rem;
-  color: rgba(200, 160, 240, 0.6);
+  color: rgba(80, 35, 120, 0.8);
   background: rgba(120, 60, 160, 0.1);
-  border: 1px solid rgba(180, 100, 220, 0.15);
+  border: 1px solid rgba(180, 100, 220, 0.2);
   border-radius: 5px;
   padding: 3px 8px;
   cursor: pointer;
@@ -200,18 +205,18 @@
 }
 
 .durationBtn:hover {
-  background: rgba(140, 70, 190, 0.25);
-  border-color: rgba(200, 130, 255, 0.3);
-  color: rgba(220, 190, 255, 0.85);
+  background: rgba(140, 70, 190, 0.2);
+  border-color: rgba(160, 90, 220, 0.35);
+  color: rgba(55, 20, 85, 0.9);
 }
 
 .durationInput {
   width: 64px;
   font-variant-numeric: tabular-nums;
   font-size: 0.8rem;
-  color: rgba(230, 210, 250, 0.95);
-  background: rgba(80, 30, 120, 0.35);
-  border: 1px solid rgba(200, 130, 255, 0.4);
+  color: rgba(35, 10, 60, 0.95);
+  background: rgba(180, 140, 220, 0.2);
+  border: 1px solid rgba(160, 100, 210, 0.4);
   border-radius: 5px;
   padding: 3px 7px;
   outline: none;
@@ -239,9 +244,9 @@
   margin-top: 4px;
   align-self: flex-start;
   background: none;
-  border: 1px dashed rgba(180, 100, 220, 0.25);
+  border: 1px dashed rgba(140, 80, 190, 0.35);
   border-radius: 7px;
-  color: rgba(200, 150, 240, 0.5);
+  color: rgba(90, 40, 130, 0.7);
   font-size: 0.8rem;
   padding: 6px 14px;
   cursor: pointer;
@@ -250,6 +255,6 @@
 
 .addBtn:hover {
   background: rgba(120, 60, 160, 0.1);
-  color: rgba(210, 170, 255, 0.8);
-  border-color: rgba(200, 130, 255, 0.35);
+  color: rgba(60, 20, 90, 0.9);
+  border-color: rgba(160, 90, 220, 0.45);
 }
