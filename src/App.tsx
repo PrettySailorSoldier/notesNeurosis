@@ -277,6 +277,7 @@ export default function App() {
         onChange={handleTasksChange}
         onSetReminder={handleSetReminder}
         onClearReminder={handleClearReminder}
+        pageType={currentPage.pageType}
       />
     );
   };

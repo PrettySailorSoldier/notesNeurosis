@@ -18,6 +18,7 @@ interface Props {
   onDragEnter: (id: string) => void;
   onDragEnd: () => void;
   autoFocus?: boolean;
+  placeholder?: string;
 }
 
 // Strips unsafe/block HTML from clipboard content, keeping only inline formatting
@@ -55,6 +56,7 @@ export const TaskItem: React.FC<Props> = ({
   onDragEnter,
   onDragEnd,
   autoFocus,
+  placeholder = 'Note…',
 }) => {
   const contentRef = useRef<HTMLSpanElement>(null);
   const [showModal, setShowModal] = useState(false);
@@ -253,7 +255,7 @@ export const TaskItem: React.FC<Props> = ({
         onPaste={handlePaste}
         onCompositionStart={handleCompositionStart}
         onCompositionEnd={handleCompositionEnd}
-        data-placeholder={task.type === 'heading' ? 'Heading…' : 'Note…'}
+        data-placeholder={task.type === 'heading' ? 'Heading…' : placeholder}
         spellCheck={false}
       />
 

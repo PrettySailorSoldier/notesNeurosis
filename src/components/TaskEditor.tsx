@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect } from 'react';
-import type { Task, TaskType, ReminderSound } from '../types';
+import type { Task, TaskType, ReminderSound, PageType } from '../types';
 import { TaskItem } from './TaskItem';
 import styles from './TaskEditor.module.css';
 
@@ -8,6 +8,7 @@ interface Props {
   onChange: (tasks: Task[]) => void;
   onSetReminder: (taskId: string, intervalMinutes: number, sound: ReminderSound) => void;
   onClearReminder: (taskId: string) => void;
+  pageType?: PageType;
 }
 
 function makeId() {
@@ -24,7 +25,7 @@ function makeTask(type: TaskType = 'plain'): Task {
   };
 }
 
-export const TaskEditor: React.FC<Props> = ({ tasks, onChange, onSetReminder, onClearReminder }) => {
+export const TaskEditor: React.FC<Props> = ({ tasks, onChange, onSetReminder, onClearReminder, pageType }) => {
   // Ensure there's always at least one task
   useEffect(() => {
     if (tasks.length === 0) {
@@ -86,6 +87,7 @@ export const TaskEditor: React.FC<Props> = ({ tasks, onChange, onSetReminder, on
             task={task}
             isNew={i === tasks.length - 1 && task.content === ''}
             autoFocus={i === 0 && task.content === '' && tasks.length === 1}
+            placeholder={pageType === 'todo' ? "Get 'er done…" : 'Note…'}
             onUpdate={handleUpdate}
             onDelete={handleDelete}
             onAddAfter={handleAddAfter}
