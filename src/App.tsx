@@ -134,14 +134,17 @@ export default function App() {
     updateTasksForPage(pageId, nextTasks);
   }, [pages, updateTasksForPage]);
 
-  // Check for updates silently on startup
+  // Check for updates on startup
   useEffect(() => {
     checkUpdate().then(update => {
-      if (update?.available) {
-        // dialog: true in tauri.conf.json means Tauri shows the native update dialog automatically
+      console.log('[updater] check result:', update);
+      if (update) {
+        console.log('[updater] update available:', update.version);
         update.downloadAndInstall();
+      } else {
+        console.log('[updater] no update available');
       }
-    }).catch(() => { /* ignore update errors silently */ });
+    }).catch((err) => { console.error('[updater] check failed:', err); });
   }, []);
 
   // Unlock AudioContext on first user interaction
