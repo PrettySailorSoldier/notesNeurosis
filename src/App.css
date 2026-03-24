@@ -563,10 +563,12 @@ html, body {
   font-size: 14px;
   padding: 3px 10px;
 }
-.tab-btn[draggable] {
+.tab-btn[draggable="true"] {
   cursor: grab;
+  -webkit-user-drag: element;
+  user-select: none;
 }
-.tab-btn[draggable]:active {
+.tab-btn[draggable="true"]:active {
   cursor: grabbing;
 }
 .tab-btn.tab-drag-over {

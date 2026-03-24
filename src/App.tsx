@@ -69,6 +69,7 @@ export default function App() {
   const [showOptions, setShowOptions] = useState(false);
   const [tabMenu, setTabMenu] = useState<TabContextMenu | null>(null);
   const draggedTabId = useRef<string | null>(null);
+  const tabDragHappened = useRef(false);
   const [dragOverTabId, setDragOverTabId] = useState<string | null>(null);
 
   const handleUpdateReminder = useCallback((taskId: string, pageId: string, reminder: Reminder | undefined) => {
@@ -137,17 +138,20 @@ export default function App() {
     updateTasksForPage(pageId, nextTasks);
   }, [pages, updateTasksForPage]);
 
-  // Check for updates on startup (dialog:true in tauri.conf.json handles the prompt/install/relaunch)
+  // Check for updates on startup — dialog:true in tauri.conf.json shows a native
+  // confirmation prompt before downloading, so we just kick off the install here.
   useEffect(() => {
-    checkUpdate()
-      .then(update => {
+    (async () => {
+      try {
+        const update = await checkUpdate();
         if (update) {
           console.log('[updater] update available:', update.version);
-        } else {
-          console.log('[updater] up to date');
+          await update.downloadAndInstall();
         }
-      })
-      .catch(err => console.error('[updater] check failed:', err));
+      } catch (err) {
+        console.error('[updater] error:', err);
+      }
+    })();
   }, []);
 
   // Unlock AudioContext on first user interaction
@@ -334,9 +338,12 @@ export default function App() {
           {pages.map(page => (
             <button
               key={page.id}
-              draggable
+              draggable="true"
               className={`tab-btn ${page.id === currentPageId ? 'active' : ''} ${dragOverTabId === page.id && draggedTabId.current !== page.id ? 'tab-drag-over' : ''}`}
-              onClick={() => switchPage(page.id)}
+              onClick={() => {
+                if (tabDragHappened.current) { tabDragHappened.current = false; return; }
+                switchPage(page.id);
+              }}
               onDoubleClick={() => {
                 const newName = prompt('Rename page:', page.name);
                 if (newName) renamePage(page.id, newName);
@@ -345,7 +352,9 @@ export default function App() {
               title={`${page.name} — right-click to set type`}
               onDragStart={e => {
                 draggedTabId.current = page.id;
+                tabDragHappened.current = true;
                 e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', page.id);
               }}
               onDragOver={e => {
                 e.preventDefault();
