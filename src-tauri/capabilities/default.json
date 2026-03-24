@@ -28,6 +28,8 @@
     "core:tray:allow-set-menu",
     "core:tray:allow-set-tooltip",
     "core:tray:allow-set-title",
-    "core:tray:allow-set-visible"
+    "core:tray:allow-set-visible",
+    "updater:default",
+    "updater:allow-download-and-install"
   ]
 }
