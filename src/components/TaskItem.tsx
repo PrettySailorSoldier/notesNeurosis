@@ -19,6 +19,8 @@ interface Props {
   onDragEnd: () => void;
   autoFocus?: boolean;
   placeholder?: string;
+  selected?: boolean;
+  onSelect?: (id: string) => void;
 }
 
 // Strips unsafe/block HTML from clipboard content, keeping only inline formatting
@@ -57,6 +59,8 @@ export const TaskItem: React.FC<Props> = ({
   onDragEnd,
   autoFocus,
   placeholder = 'Note…',
+  selected = false,
+  onSelect,
 }) => {
   const contentRef = useRef<HTMLSpanElement>(null);
   const [showModal, setShowModal] = useState(false);
@@ -198,12 +202,28 @@ export const TaskItem: React.FC<Props> = ({
 
   return (
     <div
-      className={`${styles.taskItem} ${styles[`type_${task.type}`]} ${task.completed ? styles.completed : ''} ${hovered ? styles.hovered : ''}`}
+      className={`${styles.taskItem} ${styles[`type_${task.type}`]} ${task.completed ? styles.completed : ''} ${hovered ? styles.hovered : ''} ${selected ? styles.selected : ''}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onContextMenu={handleContextMenu}
       onDragEnter={() => onDragEnter(task.id)}
     >
+      {/* Selection checkbox */}
+      {onSelect && (
+        <button
+          className={`${styles.selectBox} ${(hovered || selected) ? styles.selectVisible : ''}`}
+          onClick={() => onSelect(task.id)}
+          aria-label={selected ? 'Deselect' : 'Select'}
+          tabIndex={-1}
+        >
+          {selected && (
+            <svg viewBox="0 0 10 10" fill="none">
+              <polyline points="1.5,5 4,7.5 8.5,2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          )}
+        </button>
+      )}
+
       {/* Drag handle */}
       <div
         className={`${styles.dragHandle} ${hovered ? styles.dragVisible : ''}`}

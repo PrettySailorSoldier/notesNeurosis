@@ -2,3 +2,59 @@
   width: 100%;
   height: 100%;
 }
+
+/* Bulk action bar */
+.bulkBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  margin-bottom: 4px;
+  background: rgba(100, 50, 160, 0.25);
+  border: 1px solid rgba(180, 130, 220, 0.35);
+  border-radius: 6px;
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.bulkCount {
+  font-size: 12px;
+  color: rgba(210, 175, 255, 0.85);
+  font-family: 'Cormorant Garamond', serif;
+  flex: 1;
+}
+
+.bulkBtn {
+  font-size: 12px;
+  font-family: 'Cormorant Garamond', serif;
+  padding: 2px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(180, 130, 220, 0.4);
+  background: rgba(60, 20, 90, 0.6);
+  color: rgba(220, 190, 255, 0.9);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.bulkBtn:hover {
+  background: rgba(100, 50, 150, 0.7);
+}
+.bulkBtnDanger {
+  border-color: rgba(220, 100, 120, 0.5);
+  color: rgba(255, 160, 170, 0.9);
+}
+.bulkBtnDanger:hover {
+  background: rgba(140, 40, 60, 0.5);
+}
+.bulkBtnCancel {
+  background: transparent;
+  border-color: transparent;
+  color: rgba(180, 150, 220, 0.6);
+}
+.bulkBtnCancel:hover {
+  color: rgba(210, 180, 255, 0.9);
+  background: transparent;
+}

@@ -21,6 +21,10 @@
 .taskItem.hovered {
   background: rgba(180, 130, 220, 0.04);
 }
+.taskItem.selected {
+  background: rgba(160, 100, 220, 0.12);
+  border-radius: 4px;
+}
 
 /* Task type styles */
 .type_heading .content {
@@ -52,12 +56,41 @@
   cursor: grabbing;
 }
 
-/* Checkbox */
+/* Completion Checkbox */
 .checkbox {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(200, 160, 240, 0.75);
+  border-radius: 4px;
+  background: rgba(30, 10, 50, 0.6);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.15s ease;
+  color: rgba(220, 180, 255, 1);
+}
+.checkbox:hover {
+  border-color: rgba(210, 170, 255, 1);
+  background: rgba(180, 140, 220, 0.15);
+}
+.checkbox.checked {
+  background: rgba(160, 100, 220, 0.5);
+  border-color: rgba(210, 170, 255, 1);
+}
+.checkbox svg {
+  width: 11px;
+  height: 11px;
+}
+
+/* Selection Checkbox */
+.selectBox {
   flex-shrink: 0;
   width: 16px;
   height: 16px;
-  border: 1.5px solid rgba(180, 140, 220, 0.5);
+  border: 1.5px solid rgba(180, 140, 220, 0.4);
   border-radius: 3px;
   background: transparent;
   cursor: pointer;
@@ -65,18 +98,18 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  transition: all 0.15s ease;
-  color: rgba(180, 140, 220, 0.9);
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+  color: rgba(210, 170, 255, 1);
 }
-.checkbox:hover {
-  border-color: rgba(180, 140, 220, 0.85);
-  background: rgba(180, 140, 220, 0.1);
+.selectBox.selectVisible {
+  opacity: 1;
 }
-.checkbox.checked {
-  background: rgba(180, 140, 220, 0.35);
-  border-color: rgba(180, 140, 220, 0.9);
+.selectBox:hover {
+  border-color: rgba(200, 160, 240, 0.9);
+  background: rgba(180, 140, 220, 0.12);
 }
-.checkbox svg {
+.selectBox svg {
   width: 10px;
   height: 10px;
 }

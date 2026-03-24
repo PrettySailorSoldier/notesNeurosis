@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import type { Task, TaskType, ReminderSound, PageType } from '../types';
 import { TaskItem } from './TaskItem';
 import styles from './TaskEditor.module.css';
@@ -26,7 +26,6 @@ function makeTask(type: TaskType = 'plain'): Task {
 }
 
 export const TaskEditor: React.FC<Props> = ({ tasks, onChange, onSetReminder, onClearReminder, pageType }) => {
-  // Ensure there's always at least one task
   useEffect(() => {
     if (tasks.length === 0) {
       onChange([makeTask('plain')]);
@@ -34,6 +33,12 @@ export const TaskEditor: React.FC<Props> = ({ tasks, onChange, onSetReminder, on
   }, [tasks, onChange]);
 
   const [draggedId, setDraggedId] = React.useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Clear selection when task list changes significantly (page switch)
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [pageType]);
 
   const handleUpdate = useCallback((updated: Task) => {
     onChange(tasks.map(t => t.id === updated.id ? updated : t));
@@ -41,6 +46,7 @@ export const TaskEditor: React.FC<Props> = ({ tasks, onChange, onSetReminder, on
 
   const handleDelete = useCallback((id: string) => {
     const next = tasks.filter(t => t.id !== id);
+    setSelectedIds(prev => { const s = new Set(prev); s.delete(id); return s; });
     onChange(next.length > 0 ? next : [makeTask('plain')]);
   }, [tasks, onChange]);
 
@@ -54,9 +60,8 @@ export const TaskEditor: React.FC<Props> = ({ tasks, onChange, onSetReminder, on
 
   const handleMergePrev = useCallback((id: string) => {
     const idx = tasks.findIndex(t => t.id === id);
-    if (idx === 0) return; // nothing to merge into
+    if (idx === 0) return;
     handleDelete(id);
-    // Focus will naturally go to previous item after delete re-render
   }, [tasks, handleDelete]);
 
   const handleDragStart = useCallback((id: string) => {
@@ -77,10 +82,73 @@ export const TaskEditor: React.FC<Props> = ({ tasks, onChange, onSetReminder, on
     setDraggedId(null);
   }, []);
 
+  // --- Multi-select ---
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const allSelected = tasks.length > 0 && selectedIds.size === tasks.length;
+
+  const handleSelectAll = useCallback(() => {
+    if (allSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(tasks.map(t => t.id)));
+  }, [allSelected, tasks]);
+
+  const handleCopySelected = useCallback(async () => {
+    const text = tasks
+      .filter(t => selectedIds.has(t.id))
+      .map(t => t.content)
+      .join('\n');
+    await navigator.clipboard.writeText(text);
+    setSelectedIds(new Set());
+  }, [tasks, selectedIds]);
+
+  const handleDeleteSelected = useCallback(() => {
+    const next = tasks.filter(t => !selectedIds.has(t.id));
+    onChange(next.length > 0 ? next : [makeTask('plain')]);
+    setSelectedIds(new Set());
+  }, [tasks, selectedIds, onChange]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.ctrlKey && e.key === 'a') {
+      // Only intercept if focus is NOT inside a contenteditable (let the text field handle its own Ctrl+A)
+      const active = document.activeElement;
+      if (active && (active as HTMLElement).contentEditable === 'true') return;
+      e.preventDefault();
+      handleSelectAll();
+    }
+  }, [handleSelectAll]);
+
   if (tasks.length === 0) return null;
 
   return (
-    <div className={styles.editor}>
+    <div className={styles.editor} onKeyDown={handleKeyDown}>
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className={styles.bulkBar}>
+          <span className={styles.bulkCount}>
+            {selectedIds.size} of {tasks.length} selected
+          </span>
+          <button className={styles.bulkBtn} onClick={handleSelectAll}>
+            {allSelected ? 'Deselect all' : 'Select all'}
+          </button>
+          <button className={styles.bulkBtn} onClick={handleCopySelected}>
+            Copy
+          </button>
+          <button className={`${styles.bulkBtn} ${styles.bulkBtnDanger}`} onClick={handleDeleteSelected}>
+            Delete
+          </button>
+          <button className={`${styles.bulkBtn} ${styles.bulkBtnCancel}`} onClick={() => setSelectedIds(new Set())}>
+            ✕
+          </button>
+        </div>
+      )}
+
       {tasks.map((task, i) => (
         <div key={task.id} style={{ opacity: draggedId === task.id ? 0.3 : 1 }}>
           <TaskItem
@@ -97,6 +165,8 @@ export const TaskEditor: React.FC<Props> = ({ tasks, onChange, onSetReminder, on
             onDragStart={handleDragStart}
             onDragEnter={handleDragEnter}
             onDragEnd={handleDragEnd}
+            selected={selectedIds.has(task.id)}
+            onSelect={toggleSelect}
           />
         </div>
       ))}
