@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { check as checkUpdate } from '@tauri-apps/plugin-updater';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { TaskEditor } from './components/TaskEditor';
@@ -62,11 +62,14 @@ export default function App() {
     updateTasksForPage,
     updateIntervalTasksForPage,
     updateGoalsForPage,
+    reorderPages,
   } = usePages();
 
   const { settings, addCustomTone, removeCustomTone, setVolume, updateSettings } = useSettings();
   const [showOptions, setShowOptions] = useState(false);
   const [tabMenu, setTabMenu] = useState<TabContextMenu | null>(null);
+  const draggedTabId = useRef<string | null>(null);
+  const [dragOverTabId, setDragOverTabId] = useState<string | null>(null);
 
   const handleUpdateReminder = useCallback((taskId: string, pageId: string, reminder: Reminder | undefined) => {
     const pageToUpdate = pages.find(p => p.id === pageId);
@@ -331,7 +334,8 @@ export default function App() {
           {pages.map(page => (
             <button
               key={page.id}
-              className={`tab-btn ${page.id === currentPageId ? 'active' : ''}`}
+              draggable
+              className={`tab-btn ${page.id === currentPageId ? 'active' : ''} ${dragOverTabId === page.id && draggedTabId.current !== page.id ? 'tab-drag-over' : ''}`}
               onClick={() => switchPage(page.id)}
               onDoubleClick={() => {
                 const newName = prompt('Rename page:', page.name);
@@ -339,6 +343,26 @@ export default function App() {
               }}
               onContextMenu={e => openTabMenu(e, page.id)}
               title={`${page.name} — right-click to set type`}
+              onDragStart={e => {
+                draggedTabId.current = page.id;
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+              onDragOver={e => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (draggedTabId.current !== page.id) setDragOverTabId(page.id);
+              }}
+              onDragLeave={() => setDragOverTabId(null)}
+              onDrop={e => {
+                e.preventDefault();
+                if (draggedTabId.current) reorderPages(draggedTabId.current, page.id);
+                draggedTabId.current = null;
+                setDragOverTabId(null);
+              }}
+              onDragEnd={() => {
+                draggedTabId.current = null;
+                setDragOverTabId(null);
+              }}
             >
               <span className="tab-type-icon">{pageTypeIcon(page.pageType, page.plannerSubtype)}</span>
               {page.name}

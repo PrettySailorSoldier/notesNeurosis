@@ -563,6 +563,16 @@ html, body {
   font-size: 14px;
   padding: 3px 10px;
 }
+.tab-btn[draggable] {
+  cursor: grab;
+}
+.tab-btn[draggable]:active {
+  cursor: grabbing;
+}
+.tab-btn.tab-drag-over {
+  border-left: 2px solid rgba(210, 160, 255, 0.9);
+  background: rgba(80, 35, 110, 0.9);
+}
 .tab-type-icon {
   font-size: 11px;
   margin-right: 4px;

@@ -177,6 +177,17 @@ export function usePages() {
     updatePages(nextPages);
   }, [pages, updatePages]);
 
+  const reorderPages = useCallback((fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    const from = pages.findIndex(p => p.id === fromId);
+    const to = pages.findIndex(p => p.id === toId);
+    if (from === -1 || to === -1) return;
+    const next = [...pages];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    updatePages(next);
+  }, [pages, updatePages]);
+
   const currentPage = pages.find(p => p.id === currentPageId);
 
   return {
@@ -189,6 +200,7 @@ export function usePages() {
     deletePage,
     switchPage,
     changePageType,
+    reorderPages,
     updateTasksForPage,
     updateIntervalTasksForPage,
     updateGoalsForPage,
