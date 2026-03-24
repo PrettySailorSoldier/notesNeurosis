@@ -127,6 +127,18 @@ export function usePlanner(pageId: string) {
     });
   }, [pageId]);
 
+  const batchUpdateBlocks = useCallback((updates: Array<{ id: string; changes: Partial<PlannerBlock> }>) => {
+    setBlocks(prev => {
+      const map = new Map(updates.map(u => [u.id, u.changes]));
+      const next = prev.map(b => {
+        const changes = map.get(b.id);
+        return changes ? { ...b, ...changes } : b;
+      });
+      debouncedSave(next);
+      return next;
+    });
+  }, [pageId]);
+
   const deleteBlock = useCallback((id: string) => {
     setBlocks(prev => {
       const next = prev.filter(b => b.id !== id);
@@ -146,6 +158,7 @@ export function usePlanner(pageId: string) {
     ready,
     addBlock,
     updateBlock,
+    batchUpdateBlocks,
     deleteBlock,
     getBlocksForDate
   };

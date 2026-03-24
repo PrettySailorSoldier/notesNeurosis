@@ -67,7 +67,7 @@ interface Props {
 }
 
 export function PlannerView({ settings, pageId, subtype = 'schedule', goals = [], onGoalsChange }: Props) {
-  const { ready, addBlock, updateBlock, deleteBlock, getBlocksForDate } = usePlanner(pageId);
+  const { ready, addBlock, updateBlock, batchUpdateBlocks, deleteBlock, getBlocksForDate } = usePlanner(pageId);
   const [currentDate, setCurrentDate] = useState(() => formatDate(new Date()));
   const [isToday, setIsToday] = useState(true);
   const [currentMinutes, setCurrentMinutes] = useState(() => {
@@ -117,18 +117,70 @@ export function PlannerView({ settings, pageId, subtype = 'schedule', goals = []
     return `${hh}:${mm}`;
   };
 
-  const handleTimeBlur = (id: string, startTime: string, endTime: string, field: 'start' | 'end', val: string) => {
-    let newStart = startTime;
-    let newEnd = endTime;
-    if (field === 'start') newStart = val;
-    else newEnd = val;
+  const handleTimeChange = (id: string, field: 'start' | 'end', val: string, allBlocks: PlannerBlock[]) => {
+    if (!val) return;
+    const sorted = [...allBlocks].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+    const idx = sorted.findIndex(b => b.id === id);
+    if (idx === -1) return;
 
-    const startMins = timeToMinutes(newStart);
-    const endMins = timeToMinutes(newEnd);
-    if (endMins <= startMins) {
-      newEnd = minutesToTime(startMins + 30);
+    const block = sorted[idx];
+    const newMins = timeToMinutes(val);
+    const updates: Array<{ id: string; changes: Partial<PlannerBlock> }> = [];
+
+    if (field === 'start') {
+      const oldStartMins = timeToMinutes(block.startTime);
+      const oldEndMins = timeToMinutes(block.endTime);
+      const delta = newMins - oldStartMins;
+      if (delta === 0) return;
+
+      const duration = Math.max(oldEndMins - oldStartMins, 15);
+      const newEnd = minutesToTime(newMins + duration);
+      updates.push({ id: block.id, changes: { startTime: val, endTime: newEnd } });
+
+      // Close the gap: if previous block ended exactly where this one started, stretch it
+      if (idx > 0) {
+        const prev = sorted[idx - 1];
+        if (prev.endTime === block.startTime) {
+          updates.push({ id: prev.id, changes: { endTime: val } });
+        }
+      }
+
+      // Cascade all subsequent blocks by the same delta
+      for (let j = idx + 1; j < sorted.length; j++) {
+        const b = sorted[j];
+        updates.push({
+          id: b.id,
+          changes: {
+            startTime: minutesToTime(timeToMinutes(b.startTime) + delta),
+            endTime:   minutesToTime(timeToMinutes(b.endTime)   + delta),
+          },
+        });
+      }
+    } else {
+      const oldEndMins = timeToMinutes(block.endTime);
+      const delta = newMins - oldEndMins;
+      if (delta === 0) return;
+
+      // Ensure end > start + 5 min
+      const minEnd = timeToMinutes(block.startTime) + 5;
+      const clampedEnd = minutesToTime(Math.max(newMins, minEnd));
+      const clampedDelta = timeToMinutes(clampedEnd) - oldEndMins;
+      updates.push({ id: block.id, changes: { endTime: clampedEnd } });
+
+      // Cascade all subsequent blocks
+      for (let j = idx + 1; j < sorted.length; j++) {
+        const b = sorted[j];
+        updates.push({
+          id: b.id,
+          changes: {
+            startTime: minutesToTime(timeToMinutes(b.startTime) + clampedDelta),
+            endTime:   minutesToTime(timeToMinutes(b.endTime)   + clampedDelta),
+          },
+        });
+      }
     }
-    updateBlock(id, { startTime: newStart, endTime: newEnd });
+
+    batchUpdateBlocks(updates);
   };
 
   if (!ready) {
@@ -208,16 +260,14 @@ export function PlannerView({ settings, pageId, subtype = 'schedule', goals = []
                       type="time"
                       className="planner-time-input"
                       value={block.startTime}
-                      onChange={(e) => updateBlock(block.id, { startTime: e.target.value })}
-                      onBlur={(e) => handleTimeBlur(block.id, block.startTime, block.endTime, 'start', e.target.value)}
+                      onChange={(e) => handleTimeChange(block.id, 'start', e.target.value, dailyBlocks)}
                     />
                     <span>–</span>
                     <input
                       type="time"
                       className="planner-time-input"
                       value={block.endTime}
-                      onChange={(e) => updateBlock(block.id, { endTime: e.target.value })}
-                      onBlur={(e) => handleTimeBlur(block.id, block.startTime, block.endTime, 'end', e.target.value)}
+                      onChange={(e) => handleTimeChange(block.id, 'end', e.target.value, dailyBlocks)}
                     />
                     {isCurrent && <span className="planner-current-indicator">● now</span>}
                   </div>

@@ -886,28 +886,43 @@ html, body {
 .text-color-ghost { color: inherit !important; }
 
 .planner-block-time {
-  font-size: 11px;
+  font-size: 13px;
   color: #5A8EFC;
-  margin-bottom: 3px;
+  margin-bottom: 5px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
 }
 
 .planner-time-input {
-  background: none;
-  border: none;
-  border-bottom: 1px solid rgba(90, 142, 252, 0.3);
-  color: #5A8EFC;
-  font-size: 11px;
-  width: 52px;
-  padding: 0 2px;
+  background: rgba(30, 15, 60, 0.5);
+  border: 1px solid rgba(90, 142, 252, 0.35);
+  border-radius: 4px;
+  color: #8ab4fc;
+  font-size: 13px;
+  width: 88px;
+  padding: 3px 6px;
   outline: none;
   font-family: inherit;
-  transition: border-color 0.1s;
+  transition: border-color 0.15s, background 0.15s;
+  cursor: pointer;
+}
+.planner-time-input:hover {
+  border-color: rgba(90, 142, 252, 0.65);
+  background: rgba(40, 20, 80, 0.6);
 }
 .planner-time-input:focus {
-  border-bottom-color: #5A8EFC;
+  border-color: #5A8EFC;
+  background: rgba(40, 20, 80, 0.75);
+}
+/* Style the browser's time picker icon */
+.planner-time-input::-webkit-calendar-picker-indicator {
+  filter: invert(60%) sepia(80%) saturate(400%) hue-rotate(200deg);
+  cursor: pointer;
+  opacity: 0.7;
+}
+.planner-time-input::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
 }
 
 .planner-block-label {
