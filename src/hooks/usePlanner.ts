@@ -9,6 +9,10 @@ function plannerKey(pageId: string) {
   return `planner-${pageId}`;
 }
 
+function plannerBackupKey(pageId: string) {
+  return `planner-backup-${pageId}`;
+}
+
 function makeId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
@@ -38,6 +42,17 @@ export function usePlanner(pageId: string) {
           }
         }
 
+        // If main key empty, try backup
+        if (!storedBlocks || storedBlocks.length === 0) {
+          const backup = await store.get<PlannerBlock[]>(plannerBackupKey(pageId));
+          if (backup && backup.length > 0) {
+            console.warn('[usePlanner] main key empty, restoring from backup for page', pageId);
+            storedBlocks = backup;
+            await store.set(key, backup);
+            await store.save();
+          }
+        }
+
         if (!cancelled) {
           setBlocks(storedBlocks ?? []);
           setReady(true);
@@ -57,6 +72,7 @@ export function usePlanner(pageId: string) {
     try {
       const store = await load(STORE_FILE, { autoSave: false } as any);
       await store.set(plannerKey(pageId), b);
+      await store.set(plannerBackupKey(pageId), b);
       await store.save();
     } catch (err) {
       console.error('[usePlanner] save error:', err);

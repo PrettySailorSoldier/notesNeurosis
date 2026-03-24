@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { CareEntry, CareCategory } from '../types';
 
 const STORE_KEY = 'care_entries';
+const STORE_BACKUP_KEY = 'care_entries_backup';
 
 function seedDonnaSchedule(): Record<string, CareEntry[]> {
   const make = (
@@ -56,15 +57,25 @@ export function useCareSchedule() {
     (async () => {
       const s = await Store.load('care-schedule.json');
       storeRef.current = s;
-      const saved = await s.get<Record<string, CareEntry[]>>(STORE_KEY);
+      let saved = await s.get<Record<string, CareEntry[]>>(STORE_KEY);
       if (saved && Object.keys(saved).length > 0) {
         setEntries(saved);
       } else {
-        // First run — seed with Donna's real schedule
-        const seeded = seedDonnaSchedule();
-        setEntries(seeded);
-        await s.set(STORE_KEY, seeded);
-        await s.save();
+        // Try backup before falling back to seed
+        const backup = await s.get<Record<string, CareEntry[]>>(STORE_BACKUP_KEY);
+        if (backup && Object.keys(backup).length > 0) {
+          console.warn('[useCareSchedule] main key empty, restoring from backup');
+          setEntries(backup);
+          await s.set(STORE_KEY, backup);
+          await s.save();
+        } else {
+          // First run — seed with Donna's real schedule
+          const seeded = seedDonnaSchedule();
+          setEntries(seeded);
+          await s.set(STORE_KEY, seeded);
+          await s.set(STORE_BACKUP_KEY, seeded);
+          await s.save();
+        }
       }
       setReady(true);
     })();
@@ -74,6 +85,7 @@ export function useCareSchedule() {
     setEntries(next);
     if (storeRef.current) {
       await storeRef.current.set(STORE_KEY, next);
+      await storeRef.current.set(STORE_BACKUP_KEY, next);
       await storeRef.current.save();
     }
   }, []);

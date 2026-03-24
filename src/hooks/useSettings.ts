@@ -3,6 +3,7 @@ import { load } from '@tauri-apps/plugin-store';
 import type { ReminderSound } from '../types';
 
 const STORE_FILE = 'notes-neurosis-settings.json';
+const SETTINGS_BACKUP_KEY = 'settings_backup';
 
 export interface CustomTone {
   id: string;
@@ -38,6 +39,26 @@ export function useSettings() {
         const defMin = await store.get<number>('defaultReminderMinutes');
         const defSound = await store.get<ReminderSound>('defaultReminderSound');
         const defBlock = await store.get<number>('defaultBlockDuration');
+
+        const hasData = tones || vol != null || defMin != null || defSound || defBlock != null;
+
+        if (!hasData) {
+          // Try restoring from backup
+          const backup = await store.get<Settings>(SETTINGS_BACKUP_KEY);
+          if (backup) {
+            console.warn('[useSettings] main keys empty, restoring from backup');
+            setSettings(backup);
+            // Restore individual keys
+            await store.set('customTones', backup.customTones);
+            await store.set('volume', backup.volume);
+            await store.set('defaultReminderMinutes', backup.defaultReminderMinutes);
+            await store.set('defaultReminderSound', backup.defaultReminderSound);
+            await store.set('defaultBlockDuration', backup.defaultBlockDuration);
+            await store.save();
+            return;
+          }
+        }
+
         setSettings(prev => ({
           customTones: tones || prev.customTones,
           volume: vol !== undefined && vol !== null ? vol : prev.volume,
@@ -60,6 +81,7 @@ export function useSettings() {
       await store.set('defaultReminderMinutes', newSettings.defaultReminderMinutes);
       await store.set('defaultReminderSound', newSettings.defaultReminderSound);
       await store.set('defaultBlockDuration', newSettings.defaultBlockDuration);
+      await store.set(SETTINGS_BACKUP_KEY, newSettings);
       await store.save();
     } catch (e) {
       console.warn("[useSettings] save error:", e);
