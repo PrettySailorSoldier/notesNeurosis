@@ -23,3 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 .claude
+
+# Tauri signing keys — never commit these
+tauri.key
+tauri.key.pub
