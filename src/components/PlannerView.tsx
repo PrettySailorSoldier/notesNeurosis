@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePlanner } from '../hooks/usePlanner';
 import type { AccentColor, PlannerBlock, Task, GoalEntry, PlannerSubtype } from '../types';
 import type { Settings } from '../hooks/useSettings';
@@ -227,6 +227,18 @@ export function PlannerView({ settings, pageId, subtype = 'schedule', goals = []
     return acc;
   }, {} as Record<string, number>);
 
+  // ── Proportional height config ─────────────────────
+  // 1.4px per minute. A 60-min block = 84px tall, 2h = 168px, 15-min = 21px.
+  // minHeight is enforced so even a 5-min block is legible.
+  const PX_PER_MINUTE = 1.4;
+  const BLOCK_MIN_HEIGHT = 64;   // px — never shorter than this
+  const COMPACT_THRESHOLD = 30;  // minutes — below this, use compact layout
+
+  // Sort blocks by start time for now-line insertion
+  const sortedDailyBlocks = [...dailyBlocks].sort(
+    (a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime)
+  );
+
   return (
     <div className="planner-container">
       {/* MAIN PANEL */}
@@ -245,134 +257,191 @@ export function PlannerView({ settings, pageId, subtype = 'schedule', goals = []
               <div className="planner-empty">No blocks scheduled. Press <em>+ add block</em> to begin.</div>
             )}
 
-            {dailyBlocks.map((block) => {
+            {sortedDailyBlocks.map((block, idx) => {
               const blockStart = timeToMinutes(block.startTime);
-              const blockEnd = timeToMinutes(block.endTime);
-              const isCurrent = isToday && currentMinutes >= blockStart && currentMinutes < blockEnd;
+              const blockEnd   = timeToMinutes(block.endTime);
+              const duration   = blockEnd > blockStart
+                ? blockEnd - blockStart
+                : Math.max(blockEnd + (24 * 60 - blockStart), 15);
+              const isCurrent  = isToday && currentMinutes >= blockStart && currentMinutes < blockEnd;
+              const isCompact  = duration < COMPACT_THRESHOLD;
+
+              // Proportional height: clamped to minimum so short blocks stay readable
+              const blockHeightPx = Math.max(BLOCK_MIN_HEIGHT, duration * PX_PER_MINUTE);
+
+              // Spacer height = total proportional height minus fixed header content estimate.
+              // Fixed content (time row + title + padding) ~= 54px for normal, 36px compact.
+              const fixedContentEstimatePx = isCompact ? 36 : 54;
+              const spacerHeightPx = Math.max(0, blockHeightPx - fixedContentEstimatePx);
+
+              // Should the now-line appear BEFORE this block?
+              const prevBlock = idx > 0 ? sortedDailyBlocks[idx - 1] : null;
+              const prevBlockEnd = prevBlock ? timeToMinutes(prevBlock.endTime) : 0;
+              const showNowLineBefore =
+                isToday &&
+                currentMinutes < blockStart &&
+                currentMinutes >= prevBlockEnd;
 
               return (
-                <div
-                  key={block.id}
-                  className={`planner-block color-${block.color} ${block.completed ? 'completed' : ''} ${isCurrent ? 'planner-block--current' : ''}`}
-                >
-                  <div className="planner-block-time">
-                    <input
-                      type="time"
-                      className="planner-time-input"
-                      value={block.startTime}
-                      onChange={(e) => handleTimeChange(block.id, 'start', e.target.value, dailyBlocks)}
-                    />
-                    <span>–</span>
-                    <input
-                      type="time"
-                      className="planner-time-input"
-                      value={block.endTime}
-                      onChange={(e) => handleTimeChange(block.id, 'end', e.target.value, dailyBlocks)}
-                    />
-                    {isCurrent && <span className="planner-current-indicator">● now</span>}
-                  </div>
+                <React.Fragment key={block.id}>
+                  {/* Now-line in a gap before this block */}
+                  {showNowLineBefore && (
+                    <div className="planner-now-line">
+                      <span className="planner-now-line-label">{nowStr}</span>
+                    </div>
+                  )}
 
-                  <input
-                    type="text"
-                    className="planner-block-label"
-                    value={block.label}
-                    placeholder="Block title..."
-                    autoFocus={block.label === ''}
-                    onChange={(e) => updateBlock(block.id, { label: e.target.value })}
-                  />
-
-                  <textarea
-                    className="planner-block-notes"
-                    value={block.notes}
-                    placeholder="Notes..."
-                    rows={1}
-                    onChange={(e) => {
-                      e.target.style.height = 'auto';
-                      e.target.style.height = e.target.scrollHeight + 'px';
-                      updateBlock(block.id, { notes: e.target.value });
-                    }}
-                  />
-
-                  <div className="planner-block-tasks">
-                    {(block.tasks || []).map(task => (
-                      <div key={task.id} className="planner-task-item">
-                        <button
-                          className={`planner-task-check ${task.completed ? 'checked' : ''}`}
-                          onClick={() => {
-                            const newTasks = (block.tasks || []).map(t =>
-                              t.id === task.id ? { ...t, completed: !t.completed } : t
-                            );
-                            updateBlock(block.id, { tasks: newTasks });
-                          }}
-                        >
-                          {task.completed ? '✓' : ''}
-                        </button>
-                        <input
-                          type="text"
-                          className={`planner-task-input ${task.completed ? 'completed' : ''}`}
-                          value={task.content}
-                          placeholder="Task..."
-                          onChange={(e) => {
-                            const newTasks = (block.tasks || []).map(t =>
-                              t.id === task.id ? { ...t, content: e.target.value } : t
-                            );
-                            updateBlock(block.id, { tasks: newTasks });
-                          }}
-                        />
-                        <button
-                          className="planner-task-delete"
-                          onClick={() => {
-                            const newTasks = (block.tasks || []).filter(t => t.id !== task.id);
-                            updateBlock(block.id, { tasks: newTasks });
-                          }}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      className="planner-task-add-btn"
-                      onClick={() => {
-                        const newTask: Task = {
-                          id: Date.now().toString(36) + Math.random().toString(36).substring(2, 8),
-                          content: '',
-                          type: 'checkbox',
-                          completed: false,
-                          createdAt: Date.now(),
-                        };
-                        updateBlock(block.id, { tasks: [...(block.tasks || []), newTask] });
-                      }}
-                    >
-                      + add subtask
-                    </button>
-                  </div>
-
-                  <div className="planner-color-picker">
-                    {COLORS.map(c => (
-                      <div
-                        key={c}
-                        className={`planner-color-dot ${block.color === c ? 'active' : ''}`}
-                        style={{ background: getColorHex(c) }}
-                        onClick={() => updateBlock(block.id, { color: c })}
+                  <div
+                    className={[
+                      'planner-block',
+                      `color-${block.color}`,
+                      block.completed ? 'completed' : '',
+                      isCurrent ? 'planner-block--current' : '',
+                      isCompact ? 'planner-block--compact' : '',
+                    ].filter(Boolean).join(' ')}
+                    style={{ minHeight: `${blockHeightPx}px` }}
+                  >
+                    <div className="planner-block-time">
+                      <input
+                        type="time"
+                        className="planner-time-input"
+                        value={block.startTime}
+                        onChange={(e) => handleTimeChange(block.id, 'start', e.target.value, dailyBlocks)}
                       />
-                    ))}
-                  </div>
+                      <span>–</span>
+                      <input
+                        type="time"
+                        className="planner-time-input"
+                        value={block.endTime}
+                        onChange={(e) => handleTimeChange(block.id, 'end', e.target.value, dailyBlocks)}
+                      />
+                      {isCurrent && <span className="planner-current-indicator">● now</span>}
+                    </div>
 
-                  <div className="planner-block-actions">
-                    <button
-                      className={`planner-action-btn ${block.completed ? 'done' : ''}`}
-                      onClick={() => updateBlock(block.id, { completed: !block.completed })}
-                      title={block.completed ? 'Mark incomplete' : 'Mark complete'}
-                    >✓</button>
-                    <button
-                      className="planner-action-btn delete"
-                      onClick={() => deleteBlock(block.id)}
-                      title="Delete block"
-                    >×</button>
+                    <input
+                      type="text"
+                      className="planner-block-label"
+                      value={block.label}
+                      placeholder="Block title..."
+                      autoFocus={block.label === ''}
+                      onChange={(e) => updateBlock(block.id, { label: e.target.value })}
+                    />
+
+                    <textarea
+                      className="planner-block-notes"
+                      value={block.notes}
+                      placeholder="Notes..."
+                      rows={1}
+                      onChange={(e) => {
+                        e.target.style.height = 'auto';
+                        e.target.style.height = e.target.scrollHeight + 'px';
+                        updateBlock(block.id, { notes: e.target.value });
+                      }}
+                    />
+
+                    <div className="planner-block-tasks">
+                      {(block.tasks || []).map(task => (
+                        <div key={task.id} className="planner-task-item">
+                          <button
+                            className={`planner-task-check ${task.completed ? 'checked' : ''}`}
+                            onClick={() => {
+                              const newTasks = (block.tasks || []).map(t =>
+                                t.id === task.id ? { ...t, completed: !t.completed } : t
+                              );
+                              updateBlock(block.id, { tasks: newTasks });
+                            }}
+                          >
+                            {task.completed ? '✓' : ''}
+                          </button>
+                          <input
+                            type="text"
+                            className={`planner-task-input ${task.completed ? 'completed' : ''}`}
+                            value={task.content}
+                            placeholder="Task..."
+                            onChange={(e) => {
+                              const newTasks = (block.tasks || []).map(t =>
+                                t.id === task.id ? { ...t, content: e.target.value } : t
+                              );
+                              updateBlock(block.id, { tasks: newTasks });
+                            }}
+                          />
+                          <button
+                            className="planner-task-delete"
+                            onClick={() => {
+                              const newTasks = (block.tasks || []).filter(t => t.id !== task.id);
+                              updateBlock(block.id, { tasks: newTasks });
+                            }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        className="planner-task-add-btn"
+                        onClick={() => {
+                          const newTask: Task = {
+                            id: Date.now().toString(36) + Math.random().toString(36).substring(2, 8),
+                            content: '',
+                            type: 'checkbox',
+                            completed: false,
+                            createdAt: Date.now(),
+                          };
+                          updateBlock(block.id, { tasks: [...(block.tasks || []), newTask] });
+                        }}
+                      >
+                        + add subtask
+                      </button>
+                    </div>
+
+                    {/* Proportional spacer — pushes block to its full duration height */}
+                    {!isCompact && spacerHeightPx > 0 && (
+                      <div className="planner-block-spacer" style={{ height: `${spacerHeightPx}px` }} />
+                    )}
+
+                    <div className="planner-color-picker">
+                      {COLORS.map(c => (
+                        <div
+                          key={c}
+                          className={`planner-color-dot ${block.color === c ? 'active' : ''}`}
+                          style={{ background: getColorHex(c) }}
+                          onClick={() => updateBlock(block.id, { color: c })}
+                        />
+                      ))}
+                    </div>
+
+                    <div className="planner-block-actions">
+                      <button
+                        className={`planner-action-btn ${block.completed ? 'done' : ''}`}
+                        onClick={() => updateBlock(block.id, { completed: !block.completed })}
+                        title={block.completed ? 'Mark incomplete' : 'Mark complete'}
+                      >✓</button>
+                      <button
+                        className="planner-action-btn delete"
+                        onClick={() => deleteBlock(block.id)}
+                        title="Delete block"
+                      >×</button>
+                    </div>
                   </div>
-                </div>
+                </React.Fragment>
               );
             })}
+
+            {/* Now-line after all blocks (if today and current time is past all blocks) */}
+            {isToday && sortedDailyBlocks.length > 0 && (() => {
+              const lastBlock = sortedDailyBlocks[sortedDailyBlocks.length - 1];
+              return currentMinutes >= timeToMinutes(lastBlock.endTime);
+            })() && (
+              <div className="planner-now-line">
+                <span className="planner-now-line-label">{nowStr}</span>
+              </div>
+            )}
+
+            {/* Now-line when there are no blocks */}
+            {isToday && sortedDailyBlocks.length === 0 && (
+              <div className="planner-now-line">
+                <span className="planner-now-line-label">{nowStr}</span>
+              </div>
+            )}
 
             <button className="planner-add-btn" onClick={handleAddBlock}>+ add block</button>
           </div>
