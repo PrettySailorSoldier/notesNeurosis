@@ -824,6 +824,18 @@ html, body {
   padding-right: 6px;
   scrollbar-width: thin;
   scrollbar-color: rgba(180, 140, 220, 0.22) transparent;
+  /* Time-of-day ambient gradient: morning gold → afternoon rose → evening indigo */
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(252, 163, 36,  0.025) 0%,
+      rgba(252, 163, 36,  0.018) 20%,
+      rgba(181, 95,  124, 0.022) 40%,
+      rgba(181, 95,  124, 0.028) 60%,
+      rgba(90,  142, 252, 0.022) 78%,
+      rgba(60,  40,  160, 0.032) 100%
+    );
+  border-radius: 6px;
 }
 .planner-scroll-area::-webkit-scrollbar { width: 4px; }
 .planner-scroll-area::-webkit-scrollbar-thumb { background: rgba(180, 140, 220, 0.22); border-radius: 2px; }
@@ -1248,6 +1260,115 @@ html, body {
   color: #B55F7C;
   text-align: right;
   margin-top: 4px;
+}
+
+/* ── Weekly Energy Arc ── */
+.planner-week-arc {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.planner-week-arc-label {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(102, 26, 78, 0.5);
+}
+
+.planner-week-arc-bars {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  align-items: end;
+  height: 52px;
+}
+
+.planner-arc-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.12s;
+  height: 100%;
+  justify-content: flex-end;
+}
+.planner-arc-col:hover {
+  background: rgba(181, 95, 124, 0.08);
+}
+.planner-arc-col--active {
+  background: rgba(90, 142, 252, 0.1);
+  border-radius: 4px;
+}
+.planner-arc-col--today .planner-arc-day-label {
+  color: #5A8EFC;
+  font-weight: 700;
+}
+
+.planner-arc-bar-track {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 0;
+}
+
+.planner-arc-bar-fill {
+  width: 100%;
+  border-radius: 2px 2px 0 0;
+  transition: height 0.3s ease, background 0.3s ease;
+  min-height: 0;
+}
+
+.planner-arc-day-label {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: rgba(102, 26, 78, 0.55);
+  letter-spacing: 0.04em;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.planner-arc-count {
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(102, 26, 78, 0.4);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.planner-summary-divider {
+  height: 1px;
+  background: rgba(102, 26, 78, 0.12);
+  margin: 4px 0;
+}
+
+.planner-day-summary .summary-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(102, 26, 78, 0.5);
+  margin: 0 0 8px 0;
+}
+
+.planner-day-summary .stat-label {
+  font-size: 12px;
+  color: rgba(181, 95, 124, 0.8);
+}
+.planner-day-summary .stat-value {
+  font-size: 12px;
+  color: #661A4E;
+  font-weight: 600;
 }
 
 .planner-care-section {

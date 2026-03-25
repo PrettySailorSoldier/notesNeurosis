@@ -227,6 +227,17 @@ export function PlannerView({ settings, pageId, subtype = 'schedule', goals = []
     return acc;
   }, {} as Record<string, number>);
 
+  // Weekly arc data: total blocks + completion ratio per day
+  const weekStats = currentWeekDays.map(day => {
+    const blocks = getBlocksForDate(day);
+    const total = blocks.length;
+    const done  = blocks.filter(b => b.completed).length;
+    return { day, total, done, ratio: total > 0 ? done / total : 0 };
+  });
+
+  // Max blocks in any single day this week (used to scale bar heights)
+  const weekMaxBlocks = Math.max(1, ...weekStats.map(s => s.total));
+
   // ── Proportional height config ─────────────────────
   // 1.4px per minute. A 60-min block = 84px tall, 2h = 168px, 15-min = 21px.
   // minHeight is enforced so even a 5-min block is legible.
@@ -495,16 +506,81 @@ export function PlannerView({ settings, pageId, subtype = 'schedule', goals = []
         </div>
 
         <div className="planner-day-summary">
-          <h3 className="summary-title">Daily Summary</h3>
+
+          {/* ── Weekly Energy Arc ── */}
+          <div className="planner-week-arc">
+            <span className="planner-week-arc-label">this week</span>
+            <div className="planner-week-arc-bars">
+              {weekStats.map(({ day, total, done, ratio }) => {
+                const isActiveDay  = day === currentDate;
+                const isTodayDay   = day === formatDate(new Date());
+                const barHeightPct = total === 0
+                  ? 0
+                  : Math.max(12, Math.round((total / weekMaxBlocks) * 100));
+
+                let barColor: string;
+                if (total === 0) {
+                  barColor = 'rgba(102,26,78,0.12)';
+                } else if (ratio >= 1) {
+                  barColor = 'rgba(90,142,252,0.75)';
+                } else if (ratio >= 0.5) {
+                  barColor = 'rgba(181,95,124,0.7)';
+                } else {
+                  barColor = 'rgba(181,95,124,0.35)';
+                }
+
+                return (
+                  <button
+                    key={day}
+                    className={[
+                      'planner-arc-col',
+                      isActiveDay ? 'planner-arc-col--active' : '',
+                      isTodayDay  ? 'planner-arc-col--today'  : '',
+                    ].filter(Boolean).join(' ')}
+                    onClick={() => setCurrentDate(day)}
+                    title={`${day}: ${done}/${total} blocks`}
+                  >
+                    <div className="planner-arc-bar-track">
+                      <div
+                        className="planner-arc-bar-fill"
+                        style={{
+                          height: `${barHeightPct}%`,
+                          background: barColor,
+                          boxShadow: ratio >= 1
+                            ? '0 0 6px rgba(90,142,252,0.4)'
+                            : 'none',
+                        }}
+                      />
+                    </div>
+                    <span className="planner-arc-day-label">
+                      {getDayOfWeek(day).charAt(0)}
+                    </span>
+                    {total > 0 && (
+                      <span className="planner-arc-count">{total}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ── Divider ── */}
+          <div className="planner-summary-divider" />
+
+          {/* ── Daily Stats ── */}
+          <h3 className="summary-title">today</h3>
 
           <div className="summary-stat">
-            <span className="stat-label">Blocks</span>
+            <span className="stat-label">blocks</span>
             <span className="stat-value">{completedBlocks} / {totalBlocks} done</span>
           </div>
 
           <div className="summary-stat">
-            <span className="stat-label">Scheduled</span>
-            <span className="stat-value">{hours > 0 ? `${hours}h ` : ''}{mins > 0 ? `${mins}m` : hours === 0 ? '—' : ''}</span>
+            <span className="stat-label">scheduled</span>
+            <span className="stat-value">
+              {hours > 0 ? `${hours}h ` : ''}
+              {mins > 0 ? `${mins}m` : hours === 0 ? '—' : ''}
+            </span>
           </div>
 
           {totalBlocks > 0 && (
