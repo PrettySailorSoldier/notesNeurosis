@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { check as checkUpdate } from '@tauri-apps/plugin-updater';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { TaskEditor } from './components/TaskEditor';
 import { usePages } from './hooks/usePages';
@@ -71,6 +70,48 @@ export default function App() {
   const draggedTabId = useRef<string | null>(null);
   const tabDragHappened = useRef(false);
   const [dragOverTabId, setDragOverTabId] = useState<string | null>(null);
+  const dragOverTabIdRef = useRef<string | null>(null);
+  const dragStartPos = useRef<{ x: number; y: number } | null>(null);
+  const isDragging = useRef(false);
+  const reorderPagesRef = useRef(reorderPages);
+  useEffect(() => { reorderPagesRef.current = reorderPages; }, [reorderPages]);
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      if (!draggedTabId.current || !dragStartPos.current) return;
+      if (!isDragging.current) {
+        const dx = e.clientX - dragStartPos.current.x;
+        const dy = e.clientY - dragStartPos.current.y;
+        if (dx * dx + dy * dy < 25) return;
+        isDragging.current = true;
+        tabDragHappened.current = true;
+      }
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const tabEl = el?.closest('[data-tab-id]') as HTMLElement | null;
+      const hoveredId = tabEl?.dataset.tabId ?? null;
+      const next = hoveredId && hoveredId !== draggedTabId.current ? hoveredId : null;
+      if (next !== dragOverTabIdRef.current) {
+        dragOverTabIdRef.current = next;
+        setDragOverTabId(next);
+      }
+    };
+    const onUp = () => {
+      if (draggedTabId.current && isDragging.current && dragOverTabIdRef.current) {
+        reorderPagesRef.current(draggedTabId.current, dragOverTabIdRef.current);
+      }
+      draggedTabId.current = null;
+      dragStartPos.current = null;
+      isDragging.current = false;
+      dragOverTabIdRef.current = null;
+      setDragOverTabId(null);
+    };
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    return () => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+    };
+  }, []);
 
   const handleUpdateReminder = useCallback((taskId: string, pageId: string, reminder: Reminder | undefined) => {
     const pageToUpdate = pages.find(p => p.id === pageId);
@@ -137,22 +178,6 @@ export default function App() {
     });
     updateTasksForPage(pageId, nextTasks);
   }, [pages, updateTasksForPage]);
-
-  // Check for updates on startup — dialog:true in tauri.conf.json shows a native
-  // confirmation prompt before downloading, so we just kick off the install here.
-  useEffect(() => {
-    (async () => {
-      try {
-        const update = await checkUpdate();
-        if (update) {
-          console.log('[updater] update available:', update.version);
-          await update.downloadAndInstall();
-        }
-      } catch (err) {
-        console.error('[updater] error:', err);
-      }
-    })();
-  }, []);
 
   // Unlock AudioContext on first user interaction
   useEffect(() => {
@@ -338,8 +363,8 @@ export default function App() {
           {pages.map(page => (
             <button
               key={page.id}
-              draggable="true"
-              className={`tab-btn ${page.id === currentPageId ? 'active' : ''} ${dragOverTabId === page.id && draggedTabId.current !== page.id ? 'tab-drag-over' : ''}`}
+              data-tab-id={page.id}
+              className={`tab-btn ${page.id === currentPageId ? 'active' : ''} ${dragOverTabId === page.id ? 'tab-drag-over' : ''}`}
               onClick={() => {
                 if (tabDragHappened.current) { tabDragHappened.current = false; return; }
                 switchPage(page.id);
@@ -350,27 +375,13 @@ export default function App() {
               }}
               onContextMenu={e => openTabMenu(e, page.id)}
               title={`${page.name} — right-click to set type`}
-              onDragStart={e => {
+              onPointerDown={e => {
+                if (e.button !== 0) return;
+                e.preventDefault();
                 draggedTabId.current = page.id;
-                tabDragHappened.current = true;
-                e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/plain', page.id);
-              }}
-              onDragOver={e => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                if (draggedTabId.current !== page.id) setDragOverTabId(page.id);
-              }}
-              onDragLeave={() => setDragOverTabId(null)}
-              onDrop={e => {
-                e.preventDefault();
-                if (draggedTabId.current) reorderPages(draggedTabId.current, page.id);
-                draggedTabId.current = null;
-                setDragOverTabId(null);
-              }}
-              onDragEnd={() => {
-                draggedTabId.current = null;
-                setDragOverTabId(null);
+                dragStartPos.current = { x: e.clientX, y: e.clientY };
+                isDragging.current = false;
+                tabDragHappened.current = false;
               }}
             >
               <span className="tab-type-icon">{pageTypeIcon(page.pageType, page.plannerSubtype)}</span>
