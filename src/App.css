@@ -843,8 +843,8 @@ html, body {
 .planner-blocks {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding-bottom: 8px;
+  gap: 6px;
+  padding: 4px 0 8px 0;
 }
 
 .planner-block {
@@ -861,12 +861,25 @@ html, body {
   overflow: hidden;
 }
 
-.planner-block:hover {
-  background: rgba(255, 255, 255, 0.065);
+.planner-block.completed {
+  opacity: 0.40;
+  /* Desaturate the left and top accent borders */
+  filter: saturate(0.3);
 }
 
-.planner-block.completed {
-  opacity: 0.38;
+/* But keep text inputs readable — don't desaturate text */
+.planner-block.completed .planner-block-label,
+.planner-block.completed .planner-block-notes,
+.planner-block.completed .planner-task-input,
+.planner-block.completed .planner-time-input {
+  filter: none;
+}
+
+/* But keep text inputs readable — don't desaturate text */
+.planner-block.completed .planner-block-label,
+.planner-block.completed .planner-block-notes,
+.planner-block.completed .planner-task-input {
+  filter: none;
 }
 
 /* Apply top border color to match left border color */
@@ -881,6 +894,17 @@ html, body {
 .planner-block.color-amber  { border-left-color: #fbbf24; border-top-color: rgba(251,191,36,0.35); background: rgba(251,191,36,0.07); }
 .planner-block.color-teal   { border-left-color: #2dd4bf; border-top-color: rgba(45,212,191,0.35); background: rgba(45,212,191,0.07); }
 .planner-block.color-ghost  { border-left-color: rgba(102,26,78,0.2); border-top-color: rgba(102,26,78,0.1); background: rgba(102,26,78,0.03); }
+
+/* Hover brightening — declared after color variants so cascade order ensures it wins */
+.planner-block:hover {
+  filter: brightness(1.06);
+  transition: filter 0.15s;
+}
+
+/* Completed blocks should not brighten on hover */
+.planner-block.completed:hover {
+  filter: saturate(0.3) brightness(1.03);
+}
 
 .planner-block--current {
   box-shadow:
