@@ -110,6 +110,12 @@ html, body {
   background: rgba(160, 50, 80, 0.8);
   border-color: rgba(220, 100, 130, 0.7);
 }
+/* Fix 1 — keyboard focus ring on window controls */
+.win-btn:focus-visible {
+  outline: 2px solid rgba(210,160,255,0.7);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
 
 /* ── Writing Zone ── */
 .writing-zone {
@@ -146,11 +152,15 @@ html, body {
 }
 
 /* ── Loading indicator ── */
+/* Fix 5 — properly centered loading hint */
 .loading-hint {
-  color: rgba(180, 140, 220, 0.35);
-  font-size: 20px;
-  text-align: center;
-  padding-top: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: rgba(210, 160, 255, 0.4);
+  font-size: 1.5rem;
+  letter-spacing: 0.2em;
   animation: pulse 2s ease-in-out infinite;
 }
 @keyframes pulse {
@@ -580,6 +590,12 @@ html, body {
   margin-right: 4px;
   opacity: 0.85;
   vertical-align: middle;
+}
+/* Fix 5 — keyboard focus ring on tab buttons */
+.tab-btn:focus-visible {
+  outline: 2px solid rgba(210,160,255,0.8);
+  outline-offset: -2px;
+  border-radius: 8px 8px 0 0;
 }
 
 
@@ -1083,17 +1099,30 @@ html, body {
   color: rgba(181, 95, 124, 0.4);
   font-size: 14px;
   cursor: pointer;
-  padding: 0 4px;
+  padding: 2px 6px;
+  min-width: 22px;
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   opacity: 0;
-  transition: opacity 0.15s, color 0.15s;
+  border-radius: 3px;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
 }
 
 .planner-task-item:hover .planner-task-delete {
   opacity: 1;
 }
 
+/* Fix 3 — background feedback + focus ring on subtask delete */
 .planner-task-delete:hover {
   color: #E74C3C;
+  background: rgba(231,76,60,0.1);
+}
+.planner-task-delete:focus-visible {
+  opacity: 1;
+  outline: 2px solid rgba(231,76,60,0.5);
+  outline-offset: 1px;
 }
 
 .planner-task-add-btn {
@@ -1116,8 +1145,8 @@ html, body {
 
 .planner-block-actions {
   position: absolute;
-  top: 6px;
-  right: 8px;
+  top: 4px;
+  right: 6px;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -1130,17 +1159,28 @@ html, body {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 13px;
-  padding: 2px 4px;
+  font-size: 15px;
+  padding: 4px 8px;
+  min-width: 24px;
+  min-height: 24px;
   border-radius: 4px;
   color: #B55F7C;
   transition: all 0.1s;
   line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .planner-action-btn:hover { color: #661A4E; background: rgba(181, 95, 124, 0.15); }
 .planner-action-btn.done { color: #5A8EFC; }
 .planner-action-btn.done:hover { color: #1A5EED; }
 .planner-action-btn.delete:hover { color: #E74C3C; background: rgba(231, 76, 60, 0.15); }
+/* Fix 2 — focus-visible ring on action buttons */
+.planner-action-btn:focus-visible {
+  outline: 2px solid rgba(90,142,252,0.7);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 
 .planner-color-picker {
   display: flex;
@@ -1188,6 +1228,43 @@ html, body {
   background: rgba(181, 95, 124, 0.15);
 }
 
+/* Fix 4 — :focus-visible rings on all interactive planner elements */
+.planner-nav-btn:focus-visible {
+  outline: 2px solid rgba(90,142,252,0.7);
+  outline-offset: 2px;
+}
+.planner-today-btn:focus-visible {
+  outline: 2px solid rgba(181,95,124,0.7);
+  outline-offset: 2px;
+}
+.planner-day-btn:focus-visible {
+  outline: 2px solid rgba(181,95,124,0.6);
+  outline-offset: 1px;
+  border-radius: 6px;
+}
+.planner-add-btn:focus-visible {
+  outline: 2px solid rgba(181,95,124,0.6);
+  outline-offset: 2px;
+}
+.planner-task-check:focus-visible {
+  outline: 2px solid rgba(181,95,124,0.7);
+  outline-offset: 2px;
+}
+.planner-time-input:focus-visible {
+  outline: 2px solid rgba(90,142,252,0.5);
+  outline-offset: 1px;
+}
+.planner-color-dot:focus-visible {
+  outline: 2px solid rgba(102,26,78,0.7);
+  outline-offset: 2px;
+  border-radius: 50%;
+}
+.planner-arc-col:focus-visible {
+  outline: 2px solid rgba(181,95,124,0.6);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
 /* ── Compact block variant (< 30 min duration) ── */
 .planner-block--compact {
   padding: 6px 12px 6px 16px;
@@ -1201,11 +1278,22 @@ html, body {
   font-size: 15px;
   display: inline;
 }
+/* Fix 1 — smooth reveal with max-height transition instead of display:none */
 .planner-block--compact .planner-block-notes {
-  display: none;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.2s ease, opacity 0.15s ease;
+  display: block;
+  padding-top: 0;
 }
 .planner-block--compact .planner-block-tasks {
-  display: none;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.2s ease, opacity 0.15s ease;
+  display: flex;
+  flex-direction: column;
 }
 .planner-block--compact .planner-color-picker {
   display: none !important;
@@ -1214,11 +1302,14 @@ html, body {
 /* When compact block is focused/hovered, reveal notes + tasks */
 .planner-block--compact:focus-within .planner-block-notes,
 .planner-block--compact:hover .planner-block-notes {
-  display: block;
+  max-height: 200px;
+  opacity: 1;
+  padding-top: 3px;
 }
 .planner-block--compact:focus-within .planner-block-tasks,
 .planner-block--compact:hover .planner-block-tasks {
-  display: flex;
+  max-height: 300px;
+  opacity: 1;
 }
 
 /* ── Duration spacer: fills proportional height inside block ── */
