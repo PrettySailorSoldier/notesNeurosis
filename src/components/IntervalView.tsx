@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { IntervalTask } from '../types';
+import type { IntervalTask, IntervalPhaseType, SavedSequence } from '../types';
 import styles from './IntervalView.module.css';
 
 interface Props {
@@ -17,20 +17,91 @@ function formatTime(seconds: number) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+const PHASE_ORDER: IntervalPhaseType[] = ['work', 'break', 'transition', 'buffer'];
+
+const PHASE_META: Record<IntervalPhaseType, { emoji: string; label: string }> = {
+  work:       { emoji: '🟣', label: 'Work'   },
+  break:      { emoji: '🔵', label: 'Break'  },
+  transition: { emoji: '🟡', label: 'Trans'  },
+  buffer:     { emoji: '⚪', label: 'Buffer' },
+};
+
+// Change 5 — quick-start templates
+const QUICK_TEMPLATES: Record<string, Omit<IntervalTask, 'id' | 'completed'>[]> = {
+  pomodoro: [
+    { label: 'Focus',      durationSeconds: 1500, phaseType: 'work'  },
+    { label: 'Break',      durationSeconds: 300,  phaseType: 'break' },
+    { label: 'Focus',      durationSeconds: 1500, phaseType: 'work'  },
+    { label: 'Break',      durationSeconds: 300,  phaseType: 'break' },
+    { label: 'Focus',      durationSeconds: 1500, phaseType: 'work'  },
+    { label: 'Long Break', durationSeconds: 900,  phaseType: 'break' },
+  ],
+  flow: [
+    { label: 'Warm Up',   durationSeconds: 300,  phaseType: 'transition' },
+    { label: 'Deep Work', durationSeconds: 2700, phaseType: 'work'       },
+    { label: 'Rest',      durationSeconds: 600,  phaseType: 'break'      },
+  ],
+  sprint: [
+    { label: 'Sprint', durationSeconds: 900, phaseType: 'work'  },
+    { label: 'Sprint', durationSeconds: 900, phaseType: 'work'  },
+    { label: 'Sprint', durationSeconds: 900, phaseType: 'work'  },
+    { label: 'Rest',   durationSeconds: 300, phaseType: 'break' },
+  ],
+};
+
 export function IntervalView({ tasks, onChange }: Props) {
-  const [activeIdx, setActiveIdx] = useState<number | null>(null);
-  const [secondsLeft, setSecondsLeft] = useState(0);
-  const [running, setRunning] = useState(false);
-  const [editingDuration, setEditingDuration] = useState<string | null>(null); // task id being edited
+  // ── Core timer state ──────────────────────────────────────────────────────
+  const [activeIdx,       setActiveIdx]       = useState<number | null>(null);
+  const [secondsLeft,     setSecondsLeft]     = useState(0);
+  const [running,         setRunning]         = useState(false);
+  const [editingDuration, setEditingDuration] = useState<string | null>(null);
   const intervalRef = useRef<number | null>(null);
 
-  // Sync secondsLeft when active task changes while not running
+  // Change 4 — auto-focus new task row
+  const pendingFocusId = useRef<string | null>(null);
+
+  // Change 9 — drag to reorder
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+
+  // ── Break gate ────────────────────────────────────────────────────────────
+  const [breakGate,          setBreakGate]          = useState(false);
+  const [breakGateCountdown, setBreakGateCountdown] = useState(10);
+  const breakGateNextIdxRef  = useRef<number | null>(null);
+  const breakGateIntervalRef = useRef<number | null>(null);
+
+  // ── Session completion ────────────────────────────────────────────────────
+  const [sessionComplete, setSessionComplete] = useState(false);
+
+  // ── Rest mode standalone countdown ───────────────────────────────────────
+  const [restSecondsLeft, setRestSecondsLeft] = useState<number | null>(null);
+  const restIntervalRef = useRef<number | null>(null);
+
+  // ── Saved sequences ───────────────────────────────────────────────────────
+  const [savedSequences,   setSavedSequences]   = useState<SavedSequence[]>([]);
+  const [savingSequence,   setSavingSequence]   = useState(false);
+  const [saveSequenceName, setSaveSequenceName] = useState('');
+
+  // ── Sync secondsLeft when idle ────────────────────────────────────────────
   useEffect(() => {
     if (!running && activeIdx !== null && tasks[activeIdx]) {
       setSecondsLeft(tasks[activeIdx].durationSeconds);
     }
   }, [activeIdx, tasks, running]);
 
+  // Change 4 — focus newly added task label
+  useEffect(() => {
+    if (pendingFocusId.current) {
+      const input = document.querySelector(
+        `[data-task-id="${pendingFocusId.current}"] .${styles.taskLabel}`
+      ) as HTMLInputElement | null;
+      if (input) {
+        input.focus();
+        pendingFocusId.current = null;
+      }
+    }
+  }, [tasks]);
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
   const clearTimer = () => {
     if (intervalRef.current !== null) {
       clearInterval(intervalRef.current);
@@ -38,25 +109,27 @@ export function IntervalView({ tasks, onChange }: Props) {
     }
   };
 
-  const advanceToNext = useCallback((currentIdx: number, currentTasks: IntervalTask[], shouldContinue = false) => {
-    // Mark current as completed
-    const updated = currentTasks.map((t, i) =>
-      i === currentIdx ? { ...t, completed: true } : t
-    );
-    onChange(updated);
+  const advanceToNext = useCallback(
+    (currentIdx: number, currentTasks: IntervalTask[], shouldContinue = false) => {
+      const updated = currentTasks.map((t, i) =>
+        i === currentIdx ? { ...t, completed: true } : t
+      );
+      onChange(updated);
+      const nextIdx = updated.findIndex((t, i) => i > currentIdx && !t.completed);
+      if (nextIdx !== -1) {
+        setActiveIdx(nextIdx);
+        setSecondsLeft(updated[nextIdx].durationSeconds);
+        if (shouldContinue) setRunning(true);
+      } else {
+        setRunning(false);
+        setActiveIdx(null);
+        setSessionComplete(true);
+      }
+    },
+    [onChange]
+  );
 
-    // Find next incomplete
-    const nextIdx = updated.findIndex((t, i) => i > currentIdx && !t.completed);
-    if (nextIdx !== -1) {
-      setActiveIdx(nextIdx);
-      setSecondsLeft(updated[nextIdx].durationSeconds);
-      if (shouldContinue) setRunning(true);
-    } else {
-      setRunning(false);
-      setActiveIdx(null);
-    }
-  }, [onChange]);
-
+  // ── Main countdown interval ───────────────────────────────────────────────
   useEffect(() => {
     if (!running || activeIdx === null) {
       clearTimer();
@@ -65,24 +138,87 @@ export function IntervalView({ tasks, onChange }: Props) {
     clearTimer();
     intervalRef.current = window.setInterval(() => {
       setSecondsLeft(prev => {
-        if (prev <= 1) {
-          // Will advance on next render cycle
-          setRunning(false); // pause briefly; advanceToNext handles restart
-          return 0;
-        }
+        if (prev <= 1) { setRunning(false); return 0; }
         return prev - 1;
       });
     }, 1000);
     return clearTimer;
   }, [running, activeIdx]);
 
-  // When timer hits 0 and was running — advance and continue automatically
+  // ── Timer-hit-zero: break gate OR advance ─────────────────────────────────
   useEffect(() => {
-    if (!running && secondsLeft === 0 && activeIdx !== null) {
-      advanceToNext(activeIdx, tasks, true);
+    if (!running && secondsLeft === 0 && activeIdx !== null && !breakGate) {
+      const currentTask  = tasks[activeIdx];
+      const currentPhase = currentTask?.phaseType ?? 'work';
+      const nextIdx      = tasks.findIndex((t, i) => i > activeIdx && !t.completed);
+      if (
+        nextIdx !== -1 &&
+        currentPhase === 'break' &&
+        (tasks[nextIdx].phaseType ?? 'work') === 'work'
+      ) {
+        onChange(tasks.map((t, i) => i === activeIdx ? { ...t, completed: true } : t));
+        breakGateNextIdxRef.current = nextIdx;
+        setBreakGate(true);
+      } else {
+        advanceToNext(activeIdx, tasks, true);
+      }
     }
-  }, [running, secondsLeft, activeIdx, tasks, advanceToNext]);
+  }, [running, secondsLeft, activeIdx, tasks, advanceToNext, onChange, breakGate]);
 
+  // ── Break gate countdown ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!breakGate) return;
+    setBreakGateCountdown(10);
+    breakGateIntervalRef.current = window.setInterval(() => {
+      setBreakGateCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(breakGateIntervalRef.current!);
+          breakGateIntervalRef.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => {
+      if (breakGateIntervalRef.current) {
+        clearInterval(breakGateIntervalRef.current);
+        breakGateIntervalRef.current = null;
+      }
+    };
+  }, [breakGate]);
+
+  const handleBreakGateStart = useCallback(() => {
+    const nextIdx = breakGateNextIdxRef.current;
+    setBreakGate(false);
+    if (breakGateIntervalRef.current) {
+      clearInterval(breakGateIntervalRef.current);
+      breakGateIntervalRef.current = null;
+    }
+    if (nextIdx !== null && tasks[nextIdx]) {
+      setActiveIdx(nextIdx);
+      setSecondsLeft(tasks[nextIdx].durationSeconds);
+      setRunning(true);
+    }
+  }, [tasks]);
+
+  useEffect(() => {
+    if (breakGate && breakGateCountdown === 0) handleBreakGateStart();
+  }, [breakGate, breakGateCountdown, handleBreakGateStart]);
+
+  const handleBreakGateOneMore = useCallback(() => {
+    setBreakGate(false);
+    if (breakGateIntervalRef.current) {
+      clearInterval(breakGateIntervalRef.current);
+      breakGateIntervalRef.current = null;
+    }
+    if (activeIdx !== null) {
+      onChange(tasks.map((t, i) => i === activeIdx ? { ...t, completed: false } : t));
+      setSecondsLeft(60);
+      setRunning(true);
+    }
+  }, [activeIdx, tasks, onChange]);
+
+  // ── Timer controls ────────────────────────────────────────────────────────
   const handleStart = () => {
     if (tasks.length === 0) return;
     if (activeIdx === null) {
@@ -96,12 +232,17 @@ export function IntervalView({ tasks, onChange }: Props) {
 
   const handlePause = () => setRunning(false);
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     setRunning(false);
     setActiveIdx(null);
     setSecondsLeft(0);
+    setSessionComplete(false);
+    setBreakGate(false);
+    setRestSecondsLeft(null);
+    if (restIntervalRef.current)      { clearInterval(restIntervalRef.current);      restIntervalRef.current = null; }
+    if (breakGateIntervalRef.current) { clearInterval(breakGateIntervalRef.current); breakGateIntervalRef.current = null; }
     onChange(tasks.map(t => ({ ...t, completed: false })));
-  };
+  }, [tasks, onChange]);
 
   const handleSkip = () => {
     if (activeIdx === null) return;
@@ -109,51 +250,225 @@ export function IntervalView({ tasks, onChange }: Props) {
     advanceToNext(activeIdx, tasks);
   };
 
+  // ── Rest mode ─────────────────────────────────────────────────────────────
+  const startRestMode = () => {
+    setSessionComplete(false);
+    setRestSecondsLeft(15 * 60);
+    if (restIntervalRef.current) clearInterval(restIntervalRef.current);
+    restIntervalRef.current = window.setInterval(() => {
+      setRestSecondsLeft(prev => {
+        if (prev === null || prev <= 1) {
+          clearInterval(restIntervalRef.current!);
+          restIntervalRef.current = null;
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  // ── Task CRUD ─────────────────────────────────────────────────────────────
   const addTask = () => {
     const newTask: IntervalTask = {
-      id: makeId(),
-      label: '',
-      durationSeconds: 300, // 5 min default
-      completed: false,
+      id: makeId(), label: '', durationSeconds: 300, completed: false, phaseType: 'work',
     };
+    pendingFocusId.current = newTask.id;
     onChange([...tasks, newTask]);
   };
 
   const updateTask = (id: string, changes: Partial<IntervalTask>) => {
-    onChange(tasks.map(t => t.id === id ? { ...t, ...changes } : t));
+    onChange(tasks.map(t => (t.id === id ? { ...t, ...changes } : t)));
   };
 
   const removeTask = (id: string) => {
     const idx = tasks.findIndex(t => t.id === id);
-    const next = tasks.filter(t => t.id !== id);
-    onChange(next);
+    onChange(tasks.filter(t => t.id !== id));
     if (activeIdx !== null) {
-      if (idx === activeIdx) {
-        setRunning(false);
-        setActiveIdx(null);
-      } else if (idx < activeIdx) {
-        setActiveIdx(activeIdx - 1);
-      }
+      if (idx === activeIdx)  { setRunning(false); setActiveIdx(null); }
+      else if (idx < activeIdx) setActiveIdx(activeIdx - 1);
     }
   };
+
+  const cyclePhaseType = (id: string, current: IntervalPhaseType = 'work') => {
+    updateTask(id, { phaseType: PHASE_ORDER[(PHASE_ORDER.indexOf(current) + 1) % PHASE_ORDER.length] });
+  };
+
+  // Change 2 — seconds-based adjustDuration with isActive param
+  const adjustDuration = (id: string, deltaSecs: number, isActive: boolean) => {
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+    const newDuration = Math.max(60, Math.min(7200, task.durationSeconds + deltaSecs));
+    updateTask(id, { durationSeconds: newDuration });
+    if (isActive) setSecondsLeft(prev => Math.max(1, prev + deltaSecs));
+  };
+
+  const openDurationEdit = (id: string) => setEditingDuration(id);
 
   const parseDurationInput = (val: string): number => {
-    // Accept MM:SS or plain seconds number
     if (val.includes(':')) {
       const [m, s] = val.split(':').map(n => parseInt(n, 10) || 0);
-      return m * 60 + s;
+      return Math.max(60, Math.min(7200, m * 60 + s));
     }
-    return parseInt(val, 10) || 0;
+    return Math.max(60, Math.min(7200, parseInt(val, 10) || 0));
   };
 
-  const totalSeconds = tasks.reduce((s, t) => s + t.durationSeconds, 0);
-  const completedSeconds = tasks.filter(t => t.completed).reduce((s, t) => s + t.durationSeconds, 0);
-  const progressPercent = totalSeconds > 0 ? Math.round((completedSeconds / totalSeconds) * 100) : 0;
+  // Change 5 — apply quick-start template
+  const applyTemplate = (name: keyof typeof QUICK_TEMPLATES) => {
+    onChange(QUICK_TEMPLATES[name].map(t => ({ ...t, id: makeId(), completed: false })));
+  };
 
+  const handleSaveSequence = () => {
+    if (!saveSequenceName.trim()) return;
+    setSavedSequences(prev => [...prev, {
+      id: makeId(),
+      name: saveSequenceName.trim(),
+      tasks: tasks.map(({ id, label, durationSeconds, phaseType }) => ({
+        id, label, durationSeconds, phaseType,
+      })),
+    }]);
+    setSavingSequence(false);
+    setSaveSequenceName('');
+  };
+
+  const loadSequence = (seqTasks: Omit<IntervalTask, 'completed'>[]) => {
+    onChange(seqTasks.map(t => ({ ...t, completed: false })));
+    setActiveIdx(null);
+    setSecondsLeft(0);
+    setRunning(false);
+    setSessionComplete(false);
+  };
+
+  // ── Derived values ────────────────────────────────────────────────────────
+  const totalSeconds     = tasks.reduce((s, t) => s + t.durationSeconds, 0);
+  const completedSeconds = tasks.filter(t => t.completed).reduce((s, t) => s + t.durationSeconds, 0);
+  const completedCount   = tasks.filter(t => t.completed).length;
+  const progressPercent  = totalSeconds > 0 ? Math.round((completedSeconds / totalSeconds) * 100) : 0;
+  const totalMinutes     = Math.round(totalSeconds / 60);
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  SESSION COMPLETE OVERLAY
+  // ════════════════════════════════════════════════════════════════════════
+  if (sessionComplete) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.intervalCompleteOverlay}>
+          <div className={styles.intervalCompleteCard}>
+            <h2 className={styles.intervalCompleteTitle}>Session Complete</h2>
+            <p className={styles.intervalCompleteStat}>
+              {completedCount} blocks · {Math.round(completedSeconds / 60)} minutes
+            </p>
+            <div className={styles.intervalCompleteActions}>
+              <button className={`${styles.controlBtn} ${styles.startBtn}`} onClick={startRestMode}>
+                Rest (15 min)
+              </button>
+              <button className={styles.controlBtn} onClick={handleReset}>Done</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  EMPTY STATE — Change 5: warm prompt + quick-start
+  // ════════════════════════════════════════════════════════════════════════
+  if (tasks.length === 0) {
+    return (
+      <div className={styles.container}>
+        {savedSequences.length > 0 && (
+          <div className={styles.intervalPickerSection}>
+            <span className={styles.intervalSectionLabel}>Saved</span>
+            <div className={styles.intervalPillRow}>
+              {savedSequences.map(seq => (
+                <button
+                  key={seq.id}
+                  className={`${styles.intervalTemplatePill} ${styles.intervalSavedPill}`}
+                  onClick={() => loadSequence(seq.tasks)}
+                >
+                  {seq.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className={styles.emptyState}>
+          <p className={styles.emptyTitle}>What are we working on?</p>
+          <p className={styles.emptyBody}>Add your first interval below, or use a quick-start pattern:</p>
+          <div className={styles.quickStart}>
+            <button className={styles.quickBtn} onClick={() => applyTemplate('pomodoro')}>🍅 Pomodoro</button>
+            <button className={styles.quickBtn} onClick={() => applyTemplate('flow')}>🌊 Flow</button>
+            <button className={styles.quickBtn} onClick={() => applyTemplate('sprint')}>⚡ Sprint</button>
+          </div>
+        </div>
+        <button className={styles.addBtn} onClick={addTask}>+ build your own</button>
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  MAIN VIEW
+  // ════════════════════════════════════════════════════════════════════════
   return (
     <div className={styles.container}>
-      {/* Timer display */}
+      {/* Rest banner */}
+      {restSecondsLeft !== null && (
+        <div className={styles.intervalRestBanner}>
+          <span>Rest · {formatTime(restSecondsLeft)}</span>
+          <button
+            className={styles.intervalRestDismiss}
+            onClick={() => {
+              setRestSecondsLeft(null);
+              if (restIntervalRef.current) { clearInterval(restIntervalRef.current); restIntervalRef.current = null; }
+            }}
+          >×</button>
+        </div>
+      )}
+
+      {/* Sequence strip */}
+      <div className={styles.intervalStripWrapper}>
+        <span className={styles.intervalStripTotal}>{totalMinutes} min total</span>
+        <div className={styles.intervalStrip}>
+          {tasks.map((task, idx) => {
+            const widthPct = Math.max((task.durationSeconds / totalSeconds) * 100, 4);
+            const phase    = task.phaseType ?? 'work';
+            return (
+              <div
+                key={task.id}
+                className={[
+                  styles.intervalCapsule,
+                  styles[`intervalCapsule_${phase}`],
+                  idx === activeIdx ? styles.intervalCapsuleActive    : '',
+                  task.completed    ? styles.intervalCapsuleCompleted : '',
+                ].filter(Boolean).join(' ')}
+                style={{ '--capsule-w': `${widthPct}%` } as React.CSSProperties}
+                title={`${task.label || 'Untitled'} · ${formatTime(task.durationSeconds)}`}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Timer section */}
       <div className={styles.timerSection}>
+        {breakGate && (
+          <div className={styles.intervalBreakGate}>
+            <p className={styles.intervalBreakGateText}>
+              Break&rsquo;s over. Ready for the next block?
+            </p>
+            <div className={styles.intervalBreakGateActions}>
+              <button
+                className={`${styles.controlBtn} ${styles.startBtn}`}
+                onClick={handleBreakGateStart}
+              >
+                Start Now{breakGateCountdown > 0 ? ` (${breakGateCountdown})` : ''}
+              </button>
+              <button className={styles.controlBtn} onClick={handleBreakGateOneMore}>
+                1 more minute
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className={styles.timerDisplay}>
           <span className={styles.timerDigits}>
             {activeIdx !== null ? formatTime(secondsLeft) : '--:--'}
@@ -162,87 +477,231 @@ export function IntervalView({ tasks, onChange }: Props) {
             <span className={styles.timerLabel}>{tasks[activeIdx].label || 'Untitled task'}</span>
           )}
         </div>
+
+        {/* Change 7 — button hierarchy + title attributes */}
         <div className={styles.controls}>
           {!running ? (
-            <button className={`${styles.controlBtn} ${styles.startBtn}`} onClick={handleStart}>
+            <button
+              className={`${styles.controlBtn} ${styles.startBtn}`}
+              onClick={handleStart}
+              title="Start sequence"
+            >
               ▶ {activeIdx !== null ? 'Resume' : 'Start'}
             </button>
           ) : (
-            <button className={`${styles.controlBtn} ${styles.pauseBtn}`} onClick={handlePause}>
+            <button
+              className={`${styles.controlBtn} ${styles.pauseBtn}`}
+              onClick={handlePause}
+              title="Pause timer"
+            >
               ⏸ Pause
             </button>
           )}
-          <button className={styles.controlBtn} onClick={handleSkip} disabled={activeIdx === null}>
+          <button
+            className={styles.controlBtn}
+            onClick={handleSkip}
+            disabled={activeIdx === null}
+            title="Skip to next interval"
+          >
             ⏭ Skip
           </button>
-          <button className={`${styles.controlBtn} ${styles.resetBtn}`} onClick={handleReset}>
+          <button
+            className={`${styles.controlBtn} ${styles.resetBtn}`}
+            onClick={handleReset}
+            title="Reset all intervals"
+          >
             ↺ Reset
           </button>
         </div>
+
+        {/* Change 8 — progress bar (CSS-only change, JSX unchanged) */}
         {totalSeconds > 0 && (
           <div className={styles.progressRow}>
             <div className={styles.progressBar}>
-              <div className={styles.progressFill} style={{ width: `${progressPercent}%` }} />
+              <div
+                className={styles.progressFill}
+                style={{ '--fill-pct': `${progressPercent}%` } as React.CSSProperties}
+              />
             </div>
-            <span className={styles.progressLabel}>{progressPercent}% · {formatTime(totalSeconds - completedSeconds)} left</span>
+            <span className={styles.progressLabel}>
+              {progressPercent}% · {formatTime(totalSeconds - completedSeconds)} left
+            </span>
           </div>
         )}
       </div>
 
       {/* Task list */}
       <div className={styles.taskList}>
-        {tasks.length === 0 && (
-          <div className={styles.emptyHint}>No tasks yet — add one below to get started.</div>
-        )}
         {tasks.map((task, idx) => {
-          const isActive = idx === activeIdx;
+          const isActive   = idx === activeIdx;
+          const phase      = task.phaseType ?? 'work';
+          const phaseMeta  = PHASE_META[phase];
+          const isBreakRow = phase === 'break';
+
           return (
             <div
               key={task.id}
-              className={`${styles.taskRow} ${task.completed ? styles.completed : ''} ${isActive ? styles.active : ''}`}
-              onClick={() => { if (!running) { setActiveIdx(idx); setSecondsLeft(task.durationSeconds); } }}
+              data-task-id={task.id}
+              className={[
+                styles.taskRow,
+                task.completed ? styles.completed        : '',
+                isActive       ? styles.active           : '',
+                isBreakRow     ? styles.intervalBreakRow : '',
+              ].filter(Boolean).join(' ')}
+              onClick={() => {
+                if (!running) { setActiveIdx(idx); setSecondsLeft(task.durationSeconds); }
+              }}
+              /* Change 9 — drag to reorder */
+              draggable={!running}
+              onDragStart={() => setDraggedTaskId(task.id)}
+              onDragEnter={() => {
+                if (!draggedTaskId || draggedTaskId === task.id || running) return;
+                const next = [...tasks];
+                const fromIdx = next.findIndex(t => t.id === draggedTaskId);
+                const [removed] = next.splice(fromIdx, 1);
+                next.splice(idx, 0, removed);
+                onChange(next);
+              }}
+              onDragEnd={() => setDraggedTaskId(null)}
+              onDragOver={e => e.preventDefault()}
+              style={{
+                opacity: draggedTaskId === task.id ? 0.4 : 1,
+                cursor: running ? 'default' : 'grab',
+              }}
             >
-              <div className={styles.taskOrder}>{idx + 1}</div>
+              {/* Change 9 — drag handle */}
+              {!running && (
+                <div className={styles.dragHandle}>
+                  <svg viewBox="0 0 8 12" fill="currentColor" width="8" height="12">
+                    <circle cx="2" cy="2"  r="1.2"/><circle cx="6" cy="2"  r="1.2"/>
+                    <circle cx="2" cy="6"  r="1.2"/><circle cx="6" cy="6"  r="1.2"/>
+                    <circle cx="2" cy="10" r="1.2"/><circle cx="6" cy="10" r="1.2"/>
+                  </svg>
+                </div>
+              )}
+
+              {/* Change 1 — status dot */}
+              <div
+                className={styles.statusDot}
+                data-state={task.completed ? 'done' : isActive ? 'active' : 'waiting'}
+              >
+                {task.completed && (
+                  <svg viewBox="0 0 8 8" width="8" height="8">
+                    <polyline
+                      points="1,4 3,6.5 7,1.5"
+                      stroke="rgba(160,100,220,0.6)"
+                      strokeWidth="1.5"
+                      fill="none"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                )}
+              </div>
+
+              {/* Change 3 — task label with visible affordance (CSS) */}
               <input
-                className={styles.taskLabel}
+                className={[
+                  styles.taskLabel,
+                  isBreakRow ? styles.intervalBreakLabel : '',
+                ].filter(Boolean).join(' ')}
                 value={task.label}
                 placeholder="Task name..."
                 onChange={e => updateTask(task.id, { label: e.target.value })}
                 onClick={e => e.stopPropagation()}
               />
-              {editingDuration === task.id ? (
-                <input
-                  className={styles.durationInput}
-                  defaultValue={formatTime(task.durationSeconds)}
-                  autoFocus
-                  onClick={e => e.stopPropagation()}
-                  onBlur={e => {
-                    const secs = parseDurationInput(e.target.value);
-                    if (secs > 0) updateTask(task.id, { durationSeconds: secs });
-                    setEditingDuration(null);
-                  }}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                  }}
-                />
-              ) : (
+
+              {/* Change 2 — durationGroup with ±5 step buttons */}
+              <div className={styles.durationGroup}>
                 <button
-                  className={styles.durationBtn}
-                  onClick={e => { e.stopPropagation(); setEditingDuration(task.id); }}
-                  title="Click to edit duration"
+                  className={styles.durationStep}
+                  onClick={e => { e.stopPropagation(); adjustDuration(task.id, -300, isActive); }}
+                  disabled={task.durationSeconds <= 60}
                 >
-                  {formatTime(task.durationSeconds)}
+                  −5
                 </button>
-              )}
+                {editingDuration === task.id ? (
+                  <input
+                    className={styles.durationInput}
+                    defaultValue={formatTime(task.durationSeconds)}
+                    autoFocus
+                    onClick={e => e.stopPropagation()}
+                    onBlur={e => {
+                      const secs = parseDurationInput(e.target.value);
+                      if (secs > 0) updateTask(task.id, { durationSeconds: secs });
+                      setEditingDuration(null);
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                      e.stopPropagation();
+                    }}
+                  />
+                ) : (
+                  <span
+                    className={styles.durationDisplay}
+                    onClick={e => { e.stopPropagation(); openDurationEdit(task.id); }}
+                  >
+                    {formatTime(task.durationSeconds)}
+                  </span>
+                )}
+                <button
+                  className={styles.durationStep}
+                  onClick={e => { e.stopPropagation(); adjustDuration(task.id, 300, isActive); }}
+                  disabled={task.durationSeconds >= 7200}
+                >
+                  +5
+                </button>
+              </div>
+
+              {/* Phase badge */}
+              <button
+                className={[
+                  styles.intervalPhaseBadge,
+                  styles[`intervalPhase_${phase}`],
+                ].filter(Boolean).join(' ')}
+                onClick={e => { e.stopPropagation(); cyclePhaseType(task.id, phase); }}
+                title="Click to change phase type"
+              >
+                {phaseMeta.emoji} {phaseMeta.label}
+              </button>
+
               <button
                 className={styles.removeBtn}
                 onClick={e => { e.stopPropagation(); removeTask(task.id); }}
                 title="Remove"
-              >×</button>
+              >
+                ×
+              </button>
             </div>
           );
         })}
-        <button className={styles.addBtn} onClick={addTask}>+ add task</button>
+
+        <div className={styles.intervalTaskFooter}>
+          <button className={styles.addBtn} onClick={addTask}>+ add task</button>
+
+          {!running && (
+            savingSequence ? (
+              <div className={styles.intervalSaveRow}>
+                <input
+                  className={styles.intervalSaveInput}
+                  value={saveSequenceName}
+                  onChange={e => setSaveSequenceName(e.target.value)}
+                  placeholder="Name this sequence"
+                  autoFocus
+                  onKeyDown={e => {
+                    if (e.key === 'Enter')  handleSaveSequence();
+                    if (e.key === 'Escape') { setSavingSequence(false); setSaveSequenceName(''); }
+                  }}
+                />
+                <button className={`${styles.controlBtn} ${styles.startBtn}`} onClick={handleSaveSequence}>Save</button>
+                <button className={styles.controlBtn} onClick={() => { setSavingSequence(false); setSaveSequenceName(''); }}>Cancel</button>
+              </div>
+            ) : (
+              <button className={styles.intervalSaveBtn} onClick={() => setSavingSequence(true)}>
+                Save Sequence
+              </button>
+            )
+          )}
+        </div>
       </div>
     </div>
   );

@@ -1,3 +1,7 @@
+/* ════════════════════════════════════════════════════════════════
+   IntervalView.module.css
+   ════════════════════════════════════════════════════════════════ */
+
 .container {
   display: flex;
   flex-direction: column;
@@ -5,9 +9,10 @@
   padding: 12px 4px;
   height: 100%;
   overflow-y: auto;
+  position: relative;
 }
 
-/* ── Timer Section ── */
+/* ── Timer Section ────────────────────────────────────────────── */
 .timerSection {
   display: flex;
   flex-direction: column;
@@ -17,6 +22,7 @@
   background: rgba(120, 60, 160, 0.08);
   border: 1px solid rgba(180, 100, 220, 0.18);
   border-radius: 12px;
+  position: relative;
 }
 
 .timerDisplay {
@@ -26,7 +32,9 @@
   gap: 4px;
 }
 
+/* Change 6 — serif font on digits */
 .timerDigits {
+  font-family: 'Cormorant Garamond', serif;
   font-size: 3.2rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -35,9 +43,10 @@
   line-height: 1;
 }
 
+/* Change 6 — larger label */
 .timerLabel {
-  font-size: 0.85rem;
-  color: rgba(60, 20, 90, 0.85);
+  font-size: 1rem;
+  color: rgba(50, 15, 80, 0.9);
   max-width: 260px;
   text-align: center;
   white-space: nowrap;
@@ -45,19 +54,21 @@
   text-overflow: ellipsis;
 }
 
-/* ── Controls ── */
+/* ── Controls ─────────────────────────────────────────────────── */
 .controls {
   display: flex;
   gap: 8px;
+  align-items: center;
 }
 
+/* Change 7 — base size smaller (skip/reset) */
 .controlBtn {
-  padding: 7px 14px;
+  padding: 7px 13px;
   border: 1px solid rgba(180, 100, 220, 0.3);
   border-radius: 8px;
   background: rgba(100, 50, 140, 0.18);
   color: rgba(55, 20, 85, 0.88);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
@@ -72,14 +83,20 @@
   cursor: default;
 }
 
+/* Change 7 — Start is the clear primary action */
 .startBtn {
+  padding: 9px 22px;
+  font-size: 0.88rem;
   background: rgba(120, 60, 180, 0.35);
   border-color: rgba(200, 130, 255, 0.45);
   color: #2d0a50;
   font-weight: 600;
 }
 
+/* Change 7 — Pause slightly smaller than start */
 .pauseBtn {
+  padding: 8px 18px;
+  font-size: 0.83rem;
   background: rgba(80, 50, 120, 0.3);
   border-color: rgba(160, 100, 220, 0.4);
 }
@@ -93,7 +110,7 @@
   border-color: rgba(220, 80, 80, 0.4) !important;
 }
 
-/* ── Progress ── */
+/* ── Progress — Change 8: thicker bar ────────────────────────── */
 .progressRow {
   display: flex;
   flex-direction: column;
@@ -105,7 +122,7 @@
 .progressBar {
   width: 100%;
   max-width: 280px;
-  height: 4px;
+  height: 8px;
   background: rgba(180, 100, 220, 0.15);
   border-radius: 999px;
   overflow: hidden;
@@ -113,23 +130,26 @@
 
 .progressFill {
   height: 100%;
+  width: var(--fill-pct, 0%);
   background: linear-gradient(90deg, #9333ea, #c084fc);
   border-radius: 999px;
   transition: width 0.4s ease;
 }
 
+/* Change 8 — larger, darker label */
 .progressLabel {
-  font-size: 0.72rem;
-  color: rgba(70, 30, 100, 0.7);
+  font-size: 0.78rem;
+  color: rgba(60, 25, 90, 0.75);
 }
 
-/* ── Task List ── */
+/* ── Task List ────────────────────────────────────────────────── */
 .taskList {
   display: flex;
   flex-direction: column;
   gap: 5px;
 }
 
+/* kept for backward compat, not rendered */
 .emptyHint {
   text-align: center;
   color: rgba(80, 40, 110, 0.6);
@@ -140,12 +160,11 @@
 .taskRow {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 8px 10px;
   border: 1px solid rgba(180, 100, 220, 0.1);
   border-radius: 8px;
   background: rgba(80, 40, 110, 0.06);
-  cursor: pointer;
   transition: background 0.12s, border-color 0.12s;
 }
 
@@ -164,61 +183,149 @@
   opacity: 0.45;
 }
 
-.taskRow.active .taskLabel,
-.taskRow.active .taskOrder {
+.taskRow.active .taskLabel {
   color: rgba(35, 10, 60, 0.92);
 }
 
-.taskOrder {
-  font-size: 0.7rem;
-  color: rgba(110, 50, 160, 0.65);
-  width: 18px;
-  text-align: center;
+/* Change 9 — drag handle (hidden until hover) */
+.dragHandle {
+  color: rgba(180, 100, 220, 0.3);
+  width: 10px;
+  height: 14px;
+  cursor: grab;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
 }
 
+.taskRow:hover .dragHandle {
+  opacity: 1;
+}
+
+.dragHandle:hover {
+  color: rgba(180, 100, 220, 0.7);
+}
+
+/* Change 1 — status dot replacing order number */
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-right: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.statusDot[data-state="waiting"] {
+  background: rgba(180, 100, 220, 0.25);
+  border: 1.5px solid rgba(180, 100, 220, 0.4);
+}
+
+.statusDot[data-state="active"] {
+  background: #c084fc;
+  box-shadow: 0 0 6px rgba(192, 132, 252, 0.7);
+}
+
+.statusDot[data-state="done"] {
+  background: rgba(120, 60, 160, 0.15);
+  border: 1.5px solid rgba(120, 60, 160, 0.2);
+}
+
+/* Change 3 — task label with visible affordance */
 .taskLabel {
   flex: 1;
-  background: transparent;
-  border: none;
+  background: rgba(100, 50, 140, 0.06);
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 3px 7px;
   outline: none;
   color: rgba(45, 15, 70, 0.9);
   font-size: 0.85rem;
   min-width: 0;
+  transition: background 0.12s, border-color 0.12s;
 }
 
 .taskLabel::placeholder {
   color: rgba(120, 70, 160, 0.45);
 }
 
-.durationBtn {
-  font-variant-numeric: tabular-nums;
-  font-size: 0.8rem;
-  color: rgba(80, 35, 120, 0.8);
-  background: rgba(120, 60, 160, 0.1);
-  border: 1px solid rgba(180, 100, 220, 0.2);
-  border-radius: 5px;
-  padding: 3px 8px;
-  cursor: pointer;
-  transition: background 0.12s;
+.taskLabel:focus {
+  background: rgba(120, 60, 160, 0.12);
+  border-color: rgba(180, 100, 220, 0.3);
+  outline: none;
+}
+
+.taskRow:hover .taskLabel {
+  border-color: rgba(180, 100, 220, 0.15);
+}
+
+/* Change 2 — duration group */
+.durationGroup {
+  display: flex;
+  align-items: center;
+  gap: 3px;
   flex-shrink: 0;
 }
 
-.durationBtn:hover {
-  background: rgba(140, 70, 190, 0.2);
-  border-color: rgba(160, 90, 220, 0.35);
-  color: rgba(55, 20, 85, 0.9);
+.durationStep {
+  width: 26px;
+  height: 24px;
+  border: 1px solid rgba(180, 100, 220, 0.25);
+  border-radius: 5px;
+  background: rgba(100, 50, 140, 0.12);
+  color: rgba(80, 35, 120, 0.8);
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  transition: background 0.12s, border-color 0.12s;
+  flex-shrink: 0;
+}
+
+.durationStep:hover:not(:disabled) {
+  background: rgba(140, 70, 190, 0.25);
+  border-color: rgba(180, 100, 220, 0.45);
+}
+
+.durationStep:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.durationDisplay {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  color: rgba(80, 35, 120, 0.85);
+  min-width: 40px;
+  text-align: center;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background 0.1s;
+  user-select: none;
+}
+
+.durationDisplay:hover {
+  background: rgba(120, 60, 160, 0.12);
 }
 
 .durationInput {
-  width: 64px;
+  width: 52px;
   font-variant-numeric: tabular-nums;
   font-size: 0.8rem;
   color: rgba(35, 10, 60, 0.95);
   background: rgba(180, 140, 220, 0.2);
   border: 1px solid rgba(160, 100, 210, 0.4);
   border-radius: 5px;
-  padding: 3px 7px;
+  padding: 2px 5px;
   outline: none;
   text-align: center;
   flex-shrink: 0;
@@ -257,4 +364,364 @@
   background: rgba(120, 60, 160, 0.1);
   color: rgba(60, 20, 90, 0.9);
   border-color: rgba(160, 90, 220, 0.45);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Sequence Strip
+   ════════════════════════════════════════════════════════════════ */
+.intervalStripWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.intervalStripTotal {
+  align-self: flex-end;
+  font-size: 0.7rem;
+  color: rgba(100, 50, 140, 0.65);
+  letter-spacing: 0.02em;
+}
+
+.intervalStrip {
+  display: flex;
+  gap: 3px;
+  height: 18px;
+  align-items: stretch;
+}
+
+.intervalCapsule {
+  height: 100%;
+  width: var(--capsule-w, 10%);
+  min-width: 12px;
+  border-radius: 6px;
+  transition: opacity 0.25s, filter 0.25s;
+  flex-shrink: 0;
+}
+
+.intervalCapsule_work       { background: rgba(120, 60,  180, 0.6); }
+.intervalCapsule_break      { background: rgba(60,  140, 180, 0.6); }
+.intervalCapsule_transition { background: rgba(180, 140, 60,  0.5); }
+.intervalCapsule_buffer     { background: rgba(120, 120, 120, 0.4); }
+
+.intervalCapsuleActive {
+  filter: brightness(1.5) saturate(1.2);
+  animation: intervalCapsulePulse 2s ease-in-out infinite;
+}
+
+.intervalCapsuleCompleted { opacity: 0.3; }
+
+@keyframes intervalCapsulePulse {
+  0%, 100% { transform: scale(1);    }
+  50%       { transform: scale(1.02); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Phase Badge
+   ════════════════════════════════════════════════════════════════ */
+.intervalPhaseBadge {
+  font-size: 0.68rem;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s, opacity 0.12s;
+  background: rgba(100, 50, 140, 0.1);
+  color: rgba(70, 30, 100, 0.8);
+}
+
+.intervalPhaseBadge:hover {
+  opacity: 0.8;
+  background: rgba(130, 70, 180, 0.18);
+  border-color: rgba(160, 90, 220, 0.3);
+}
+
+.intervalPhase_work       { border-color: rgba(120, 60,  180, 0.3); }
+.intervalPhase_break      { border-color: rgba(60,  140, 180, 0.3); }
+.intervalPhase_transition { border-color: rgba(180, 140, 60,  0.3); }
+.intervalPhase_buffer     { border-color: rgba(130, 130, 130, 0.25); }
+
+.intervalBreakRow  { background: rgba(60, 140, 180, 0.08) !important; }
+.intervalBreakLabel { font-style: italic; }
+
+/* ════════════════════════════════════════════════════════════════
+   Break Gate overlay
+   ════════════════════════════════════════════════════════════════ */
+.intervalBreakGate {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: rgba(20, 10, 40, 0.88);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 11px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  animation: intervalFadeIn 0.22s ease-out;
+}
+
+.intervalBreakGateText {
+  font-size: 0.95rem;
+  color: rgba(210, 170, 255, 0.92);
+  text-align: center;
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+
+.intervalBreakGateActions {
+  display: flex;
+  gap: 10px;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Session Complete overlay
+   ════════════════════════════════════════════════════════════════ */
+.intervalCompleteOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: rgba(20, 5, 40, 0.92);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  animation: intervalFadeIn 0.35s ease-out;
+}
+
+.intervalCompleteCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.intervalCompleteTitle {
+  font-family: 'Cormorant Garamond', 'Fraunces', Georgia, serif;
+  font-size: 2.2rem;
+  font-weight: 600;
+  color: rgba(220, 180, 255, 0.95);
+  margin: 0;
+  letter-spacing: 0.02em;
+  animation: intervalOrchidPulse 3s ease-in-out infinite;
+}
+
+.intervalCompleteStat {
+  font-size: 0.88rem;
+  color: rgba(180, 140, 220, 0.75);
+  margin: 0;
+  letter-spacing: 0.04em;
+}
+
+.intervalCompleteActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+@keyframes intervalFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+@keyframes intervalOrchidPulse {
+  0%, 100% { text-shadow: 0 0 20px rgba(180, 80, 240, 0.4); }
+  50%       { text-shadow: 0 0 40px rgba(180, 80, 240, 0.85),
+                            0 0 60px rgba(120, 40, 200, 0.4); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Change 5 — Empty state (warm prompt + quick-start)
+   ════════════════════════════════════════════════════════════════ */
+.emptyState {
+  text-align: center;
+  padding: 20px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.emptyTitle {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.1rem;
+  color: rgba(60, 20, 90, 0.8);
+  margin: 0;
+}
+
+.emptyBody {
+  font-size: 0.78rem;
+  color: rgba(80, 40, 110, 0.6);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.quickStart {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.quickBtn {
+  background: rgba(120, 60, 160, 0.1);
+  border: 1px solid rgba(180, 100, 220, 0.25);
+  border-radius: 20px;
+  color: rgba(70, 30, 100, 0.8);
+  font-size: 0.75rem;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.quickBtn:hover {
+  background: rgba(140, 70, 190, 0.2);
+  border-color: rgba(180, 100, 220, 0.45);
+}
+
+/* Saved sequences section (empty state) */
+.intervalPickerSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.intervalSectionLabel {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(110, 55, 160, 0.55);
+  align-self: flex-start;
+}
+
+.intervalPillRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.intervalTemplatePill {
+  padding: 11px 16px;
+  border: 1px solid rgba(160, 90, 220, 0.28);
+  border-radius: 10px;
+  background: rgba(100, 50, 140, 0.1);
+  color: rgba(55, 18, 85, 0.85);
+  font-size: 0.83rem;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s, transform 0.1s;
+  text-align: center;
+  line-height: 1.35;
+}
+
+.intervalTemplatePill:hover {
+  background: rgba(130, 65, 185, 0.22);
+  border-color: rgba(190, 110, 255, 0.45);
+  transform: translateY(-1px);
+}
+
+.intervalSavedPill {
+  background: rgba(60, 140, 100, 0.1);
+  border-color: rgba(60, 180, 120, 0.3);
+}
+
+.intervalSavedPill:hover {
+  background: rgba(60, 160, 110, 0.2);
+  border-color: rgba(60, 200, 130, 0.45);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Rest banner
+   ════════════════════════════════════════════════════════════════ */
+.intervalRestBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: rgba(60, 140, 180, 0.12);
+  border: 1px solid rgba(60, 160, 200, 0.25);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: rgba(30, 80, 120, 0.85);
+  font-variant-numeric: tabular-nums;
+}
+
+.intervalRestDismiss {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(60, 100, 140, 0.55);
+  font-size: 1rem;
+  padding: 0 2px;
+  line-height: 1;
+  transition: color 0.12s;
+}
+
+.intervalRestDismiss:hover {
+  color: rgba(60, 100, 180, 0.85);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Save sequence controls
+   ════════════════════════════════════════════════════════════════ */
+.intervalTaskFooter {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.intervalSaveBtn {
+  background: none;
+  border: 1px dashed rgba(120, 70, 180, 0.3);
+  border-radius: 7px;
+  color: rgba(90, 40, 130, 0.6);
+  font-size: 0.78rem;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.intervalSaveBtn:hover {
+  background: rgba(120, 60, 160, 0.08);
+  color: rgba(60, 20, 90, 0.85);
+  border-color: rgba(150, 90, 220, 0.4);
+}
+
+.intervalSaveRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.intervalSaveInput {
+  font-size: 0.8rem;
+  color: rgba(35, 10, 60, 0.9);
+  background: rgba(180, 140, 220, 0.15);
+  border: 1px solid rgba(160, 100, 210, 0.35);
+  border-radius: 6px;
+  padding: 4px 10px;
+  outline: none;
+  min-width: 160px;
+}
+
+.intervalSaveInput::placeholder {
+  color: rgba(120, 70, 160, 0.45);
+}
+
+.intervalSaveInput:focus {
+  border-color: rgba(180, 100, 240, 0.5);
+  background: rgba(180, 140, 220, 0.22);
 }

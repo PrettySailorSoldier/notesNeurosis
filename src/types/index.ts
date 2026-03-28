@@ -30,11 +30,20 @@ export type ReminderInterval =
   | { type: 'once'; at: number };
 
 // Interval page — each task is a timed step that runs consecutively
+export type IntervalPhaseType = 'work' | 'break' | 'transition' | 'buffer';
+
 export interface IntervalTask {
   id: string;
   label: string;
   durationSeconds: number;
   completed: boolean;
+  phaseType?: IntervalPhaseType;
+}
+
+export interface SavedSequence {
+  id: string;
+  name: string;
+  tasks: Omit<IntervalTask, 'completed'>[];
 }
 
 // Goals page — short or long term goal entries
