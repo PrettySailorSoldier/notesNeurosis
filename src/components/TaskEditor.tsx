@@ -6,7 +6,7 @@ import styles from './TaskEditor.module.css';
 interface Props {
   tasks: Task[];
   onChange: (tasks: Task[]) => void;
-  onSetReminder: (taskId: string, intervalMinutes: number, sound: ReminderSound) => void;
+  onSetReminder: (taskId: string, intervalMinutes: number, sound: ReminderSound, alarmEnabled?: boolean) => void;
   onClearReminder: (taskId: string) => void;
   pageType?: PageType;
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { load } from '@tauri-apps/plugin-store';
-import type { Page, Task, PageType, PlannerSubtype, TodoList, TodoBoard } from '../types';
+import type { Page, Task, PageType, PlannerSubtype, TodoList, TodoBoard, TodoSubtype } from '../types';
 
 const STORE_FILE = 'planner.json';
 const PAGES_KEY = 'pages';
@@ -45,8 +45,23 @@ function migrateTodoBoards(p: Page): Page {
   };
 }
 
+/**
+ * Migrate multitodo → unified todo/board, and ensure all todo pages have todoSubtype.
+ */
+function migrateTodoSubtype(p: Page): Page {
+  // multitodo → todo + board subtype
+  if (p.pageType === 'multitodo') {
+    return { ...p, pageType: 'todo', todoSubtype: 'board' };
+  }
+  // todo without subtype → list
+  if (p.pageType === 'todo' && !p.todoSubtype) {
+    return { ...p, todoSubtype: 'list' };
+  }
+  return p;
+}
+
 const DEFAULT_PAGES: Page[] = [
-  { id: crypto.randomUUID(), name: 'To-Do', tasks: [makeTask('')], createdAt: Date.now(), pageType: 'todo' },
+  { id: crypto.randomUUID(), name: 'To-Do', tasks: [makeTask('')], createdAt: Date.now(), pageType: 'todo', todoSubtype: 'list' },
   { id: crypto.randomUUID(), name: 'Notes', tasks: [makeTask('')], createdAt: Date.now() + 1, pageType: 'notes' }
 ];
 
@@ -66,23 +81,22 @@ export function usePages() {
 
         if (!cancelled) {
           if (storedPages && storedPages.length > 0) {
-            // Migrate: pages without a pageType default to 'notes'; multitodo pages get todoBoards
             const migrated = storedPages
               .map(p => ({ ...p, pageType: p.pageType ?? 'notes' as PageType }))
-              .map(migrateTodoBoards);
+              .map(migrateTodoBoards)
+              .map(migrateTodoSubtype);
             setPages(migrated);
             setCurrentPageId(storedPageId && migrated.find(p => p.id === storedPageId) ? storedPageId : migrated[0].id);
           } else {
-            // Main key empty — try backup before falling back to defaults
             const backupPages = await store.get<Page[]>(PAGES_BACKUP_KEY);
             if (backupPages && backupPages.length > 0) {
               console.warn('[usePages] main key empty, restoring from backup');
               const migrated = backupPages
                 .map(p => ({ ...p, pageType: p.pageType ?? 'notes' as PageType }))
-                .map(migrateTodoBoards);
+                .map(migrateTodoBoards)
+                .map(migrateTodoSubtype);
               setPages(migrated);
               setCurrentPageId(storedPageId && migrated.find(p => p.id === storedPageId) ? storedPageId : migrated[0].id);
-              // Restore main key immediately
               await store.set(PAGES_KEY, migrated);
               await store.save();
             } else {
@@ -110,7 +124,6 @@ export function usePages() {
       const store = await load(STORE_FILE, { autoSave: false } as any);
       await store.set(PAGES_KEY, p);
       await store.set(CURRENT_PAGE_KEY, cId);
-      // Keep a rolling backup so we can recover if the main key ever reads empty
       await store.set(PAGES_BACKUP_KEY, p);
       await store.save();
     } catch (err) {
@@ -148,7 +161,8 @@ export function usePages() {
       plannerSubtype: pageType === 'planner' ? (plannerSubtype ?? 'schedule') : undefined,
       intervalTasks: pageType === 'interval' ? [] : undefined,
       goals: pageType === 'planner' && plannerSubtype === 'goals' ? [] : undefined,
-      todoBoards: pageType === 'multitodo' ? [makeTodoBoard('Board 1')] : undefined,
+      todoBoards: pageType === 'todo' ? [makeTodoBoard('Board 1')] : undefined,
+      todoSubtype: pageType === 'todo' ? 'list' : undefined,
     };
     const nextPages = [...pages, newPage];
     updatePages(nextPages, newPage.id);
@@ -175,8 +189,19 @@ export function usePages() {
         goals: pageType === 'planner' && (plannerSubtype ?? p.plannerSubtype) === 'goals'
           ? (p.goals ?? [])
           : p.goals,
+        // When switching to todo, default to list subtype if not already set
+        todoSubtype: pageType === 'todo' ? (p.todoSubtype ?? 'list') : p.todoSubtype,
+        // Seed todoBoards when switching to todo if not already present
+        todoBoards: pageType === 'todo' && !p.todoBoards?.length
+          ? [makeTodoBoard('Board 1')]
+          : p.todoBoards,
       };
     });
+    updatePages(nextPages);
+  }, [pages, updatePages]);
+
+  const updateTodoSubtypeForPage = useCallback((pageId: string, todoSubtype: TodoSubtype) => {
+    const nextPages = pages.map(p => p.id === pageId ? { ...p, todoSubtype } : p);
     updatePages(nextPages);
   }, [pages, updatePages]);
 
@@ -249,5 +274,6 @@ export function usePages() {
     updateGoalsForPage,
     updateTodoListsForPage,
     updateTodoBoardsForPage,
+    updateTodoSubtypeForPage,
   };
 }

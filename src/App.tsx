@@ -11,7 +11,8 @@ import { HabitsPage } from './components/HabitsPage';
 import { MultiTodoView } from './components/MultiTodoView';
 import { ContextMenu } from './components/ContextMenu';
 import { ClockDisplay } from './components/ClockDisplay';
-import type { Task, Reminder, ReminderSound, PageType, PlannerSubtype } from './types';
+import type { Task, Reminder, ReminderSound, PageType, PlannerSubtype, TodoSubtype } from './types';
+import { updateTaskInPage } from './utils/taskLookup';
 import appFrame from './assets/frame_blue_orchid.png';
 import './App.css';
 
@@ -21,14 +22,13 @@ function makeId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
-// Page type metadata
+// Page type metadata — multitodo removed from picker; existing pages auto-migrate
 const PAGE_TYPES: { type: PageType; icon: string; label: string }[] = [
   { type: 'notes',    icon: '📝', label: 'Notes'         },
   { type: 'todo',     icon: '✅', label: 'To-Do'         },
   { type: 'interval', icon: '⏱', label: 'Interval'       },
   { type: 'planner',  icon: '📅', label: 'Planner'       },
   { type: 'habits',   icon: '◉',  label: 'Habit Tracker' },
-  { type: 'multitodo', icon: '⊞', label: 'Multi-List'    },
 ];
 
 const PLANNER_SUBTYPES: { sub: PlannerSubtype; icon: string; label: string }[] = [
@@ -37,9 +37,17 @@ const PLANNER_SUBTYPES: { sub: PlannerSubtype; icon: string; label: string }[] =
   { sub: 'goals',       icon: '🎯', label: 'Goals'       },
 ];
 
-function pageTypeIcon(type?: PageType, subtype?: PlannerSubtype): string {
+const TODO_SUBTYPES: { sub: TodoSubtype; icon: string; label: string }[] = [
+  { sub: 'list',  icon: '📋', label: 'List'  },
+  { sub: 'board', icon: '⊞',  label: 'Board' },
+];
+
+function pageTypeIcon(type?: PageType, plannerSubtype?: PlannerSubtype, todoSubtype?: TodoSubtype): string {
   if (type === 'planner') {
-    return PLANNER_SUBTYPES.find(s => s.sub === subtype)?.icon ?? '📅';
+    return PLANNER_SUBTYPES.find(s => s.sub === plannerSubtype)?.icon ?? '📅';
+  }
+  if (type === 'todo') {
+    return todoSubtype === 'board' ? '⊞' : '✅';
   }
   return PAGE_TYPES.find(p => p.type === type)?.icon ?? '📝';
 }
@@ -49,7 +57,7 @@ interface TabContextMenu {
   x: number;
   y: number;
   pageId: string;
-  phase: 'main' | 'type' | 'subtype';
+  phase: 'main' | 'type' | 'subtype' | 'todostyle';
 }
 
 export default function App() {
@@ -67,6 +75,7 @@ export default function App() {
     updateIntervalTasksForPage,
     updateGoalsForPage,
     updateTodoBoardsForPage,
+    updateTodoSubtypeForPage,
     reorderPages,
   } = usePages();
 
@@ -119,15 +128,20 @@ export default function App() {
     };
   }, []);
 
+  /**
+   * Generic reminder updater — works for tasks in flat lists AND in board columns.
+   */
   const handleUpdateReminder = useCallback((taskId: string, pageId: string, reminder: Reminder | undefined) => {
     const pageToUpdate = pages.find(p => p.id === pageId);
     if (!pageToUpdate) return;
-    const nextTasks = pageToUpdate.tasks.map(t => {
-      if (t.id !== taskId) return t;
-      return { ...t, reminder };
-    });
-    updateTasksForPage(pageId, nextTasks);
-  }, [pages, updateTasksForPage]);
+    const updatedPage = updateTaskInPage(pageToUpdate, taskId, t => ({ ...t, reminder }));
+    // Determine which update fn to call based on what changed
+    if (updatedPage.tasks !== pageToUpdate.tasks) {
+      updateTasksForPage(pageId, updatedPage.tasks);
+    } else if (updatedPage.todoBoards !== pageToUpdate.todoBoards) {
+      updateTodoBoardsForPage(pageId, updatedPage.todoBoards!);
+    }
+  }, [pages, updateTasksForPage, updateTodoBoardsForPage]);
 
   const { ringingIds, stopRinging } = useReminders(pages, handleUpdateReminder, settings.customTones, settings.volume);
 
@@ -135,7 +149,7 @@ export default function App() {
     if (currentPageId) updateTasksForPage(currentPageId, updated);
   }, [currentPageId, updateTasksForPage]);
 
-  const handleSetReminder = useCallback((taskId: string, intervalMinutes: number, sound: ReminderSound) => {
+  const handleSetReminder = useCallback((taskId: string, intervalMinutes: number, sound: ReminderSound, alarmEnabled = true) => {
     if (!currentPage) return;
     const nextTasks = currentPage.tasks.map(t => {
       if (t.id !== taskId) return t;
@@ -144,9 +158,10 @@ export default function App() {
         taskId,
         intervalMinutes,
         fireAt: Date.now() + intervalMinutes * 60 * 1000,
-        label: `every ${intervalMinutes}m`,
+        label: intervalMinutes >= 60 ? `every ${intervalMinutes / 60}h` : `every ${intervalMinutes}m`,
         sound,
         active: true,
+        alarmEnabled,
       };
       return { ...t, reminder };
     });
@@ -155,10 +170,9 @@ export default function App() {
 
   const handleClearReminder = useCallback((taskId: string) => {
     if (!currentPage) return;
-    const nextTasks = currentPage.tasks.map(t => {
-      if (t.id !== taskId) return t;
-      return { ...t, reminder: undefined };
-    });
+    const nextTasks = currentPage.tasks.map(t =>
+      t.id !== taskId ? t : { ...t, reminder: undefined }
+    );
     updateTasksForPage(currentPageId, nextTasks);
   }, [currentPage, currentPageId, updateTasksForPage]);
 
@@ -184,6 +198,38 @@ export default function App() {
     });
     updateTasksForPage(pageId, nextTasks);
   }, [pages, updateTasksForPage]);
+
+  /** Set reminder on a board task — called from MultiTodoView */
+  const handleSetBoardReminder = useCallback((
+    taskId: string,
+    intervalMinutes: number,
+    sound: ReminderSound,
+    alarmEnabled = true
+  ) => {
+    if (!currentPage) return;
+    const reminder: Reminder = {
+      id: makeId(),
+      taskId,
+      intervalMinutes,
+      fireAt: Date.now() + intervalMinutes * 60 * 1000,
+      label: intervalMinutes >= 60 ? `every ${intervalMinutes / 60}h` : `every ${intervalMinutes}m`,
+      sound,
+      active: true,
+      alarmEnabled,
+    };
+    const updatedPage = updateTaskInPage(currentPage, taskId, t => ({ ...t, reminder }));
+    if (updatedPage.todoBoards !== currentPage.todoBoards) {
+      updateTodoBoardsForPage(currentPage.id, updatedPage.todoBoards!);
+    }
+  }, [currentPage, updateTodoBoardsForPage]);
+
+  const handleClearBoardReminder = useCallback((taskId: string) => {
+    if (!currentPage) return;
+    const updatedPage = updateTaskInPage(currentPage, taskId, t => ({ ...t, reminder: undefined }));
+    if (updatedPage.todoBoards !== currentPage.todoBoards) {
+      updateTodoBoardsForPage(currentPage.id, updatedPage.todoBoards!);
+    }
+  }, [currentPage, updateTodoBoardsForPage]);
 
   // Unlock AudioContext on first user interaction
   useEffect(() => {
@@ -243,6 +289,17 @@ export default function App() {
       }));
     }
 
+    if (tabMenu.phase === 'todostyle') {
+      return TODO_SUBTYPES.map(ts => ({
+        icon: ts.icon,
+        label: ts.label,
+        onClick: () => {
+          updateTodoSubtypeForPage(page.id, ts.sub);
+          closeTabMenu();
+        },
+      }));
+    }
+
     // main phase
     const options: Parameters<typeof ContextMenu>[0]['options'] = [
       {
@@ -257,6 +314,14 @@ export default function App() {
         icon: '🔀',
         label: 'Planner style →',
         onClick: () => setTabMenu(prev => prev ? { ...prev, phase: 'subtype' } : null),
+      });
+    }
+
+    if (page.pageType === 'todo') {
+      options.push({
+        icon: page.todoSubtype === 'board' ? '⊞' : '📋',
+        label: 'Todo style →',
+        onClick: () => setTabMenu(prev => prev ? { ...prev, phase: 'todostyle' } : null),
       });
     }
 
@@ -316,16 +381,23 @@ export default function App() {
       return <HabitsPage pageId={currentPage.id} />;
     }
 
-    if (type === 'multitodo') {
-      return (
-        <MultiTodoView
-          boards={currentPage.todoBoards ?? []}
-          onChange={boards => updateTodoBoardsForPage(currentPage.id, boards)}
-        />
-      );
+    // Unified todo: list OR board subtype
+    if (type === 'todo' || type === 'multitodo') {
+      const todoSubtype = currentPage.todoSubtype ?? (type === 'multitodo' ? 'board' : 'list');
+      if (todoSubtype === 'board') {
+        return (
+          <MultiTodoView
+            boards={currentPage.todoBoards ?? []}
+            onChange={boards => updateTodoBoardsForPage(currentPage.id, boards)}
+            onSetReminder={handleSetBoardReminder}
+            onClearReminder={handleClearBoardReminder}
+          />
+        );
+      }
+      // List mode — falls through to TaskEditor below
     }
 
-    // notes + todo both use TaskEditor
+    // notes + todo/list both use TaskEditor
     return (
       <TaskEditor
         tasks={currentPage.tasks}
@@ -336,6 +408,9 @@ export default function App() {
       />
     );
   };
+
+  const isBoardMode = (currentPage?.pageType === 'todo' && currentPage?.todoSubtype === 'board')
+    || currentPage?.pageType === 'multitodo';
 
   return (
     <div className="frame-container">
@@ -404,7 +479,7 @@ export default function App() {
                 tabDragHappened.current = false;
               }}
             >
-              <span className="tab-type-icon">{pageTypeIcon(page.pageType, page.plannerSubtype)}</span>
+              <span className="tab-type-icon">{pageTypeIcon(page.pageType, page.plannerSubtype, page.todoSubtype)}</span>
               {page.name}
             </button>
           ))}
@@ -417,7 +492,7 @@ export default function App() {
       )}
 
       {/* Writing zone */}
-      <div className={`writing-zone${(currentPage?.pageType === 'multitodo') ? ' writing-zone--board' : ''}`}>
+      <div className={`writing-zone${isBoardMode ? ' writing-zone--board' : ''}`}>
         {renderPageContent()}
       </div>
 

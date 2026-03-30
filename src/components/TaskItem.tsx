@@ -12,7 +12,7 @@ interface Props {
   onDelete: (id: string) => void;
   onAddAfter: (afterId: string, type: TaskType) => void;
   onMergePrev: (id: string) => void;
-  onSetReminder: (taskId: string, intervalMinutes: number, sound: ReminderSound) => void;
+  onSetReminder: (taskId: string, intervalMinutes: number, sound: ReminderSound, alarmEnabled?: boolean) => void;
   onClearReminder: (taskId: string) => void;
   onDragStart: (id: string) => void;
   onDragEnter: (id: string) => void;
@@ -282,11 +282,11 @@ export const TaskItem: React.FC<Props> = ({
       {/* Reminder badge */}
       {task.reminder?.active && countdown && (
         <button
-          className={styles.reminderPill}
+          className={`${styles.reminderPill} ${task.reminder.alarmEnabled === false ? styles.reminderPillDisabled : ''}`}
           onClick={openModal}
-          title="Edit reminder"
+          title={task.reminder.alarmEnabled === false ? 'Alarm paused — click to edit' : 'Edit reminder'}
         >
-          ⏱ {countdown}
+          {task.reminder.alarmEnabled === false ? '○' : '⏱'} {countdown}
         </button>
       )}
 
@@ -307,8 +307,8 @@ export const TaskItem: React.FC<Props> = ({
           taskContent={task.content}
           existing={task.reminder?.active ? task.reminder : undefined}
           anchorRect={modalAnchor}
-          onSet={(mins, sound) => {
-            onSetReminder(task.id, mins, sound);
+          onSet={(mins, sound, alarmEnabled) => {
+            onSetReminder(task.id, mins, sound, alarmEnabled);
             setShowModal(false);
           }}
           onClear={() => {

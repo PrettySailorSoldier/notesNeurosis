@@ -1,6 +1,7 @@
 export type TaskType = 'bullet' | 'checkbox' | 'heading' | 'plain';
 
 export type PageType = 'notes' | 'todo' | 'interval' | 'planner' | 'habits' | 'multitodo';
+export type TodoSubtype = 'list' | 'board';
 export type PlannerSubtype = 'schedule' | 'caregiving' | 'goals';
 
 export interface Task {
@@ -21,6 +22,7 @@ export interface Reminder {
   label: string;             // display label e.g. "every 30m"
   sound: ReminderSound;
   active: boolean;
+  alarmEnabled?: boolean;    // false = alarm is paused (sound/notify suppressed) without clearing config
 }
 
 export type ReminderSound = 'chime' | 'bell' | 'blip' | 'soft_ding' | 'none' | string;
@@ -65,6 +67,7 @@ export interface Page {
   createdAt: number;
   pageType?: PageType;
   plannerSubtype?: PlannerSubtype;
+  todoSubtype?: TodoSubtype;  // 'list' (flat TaskEditor) | 'board' (MultiTodoView)
   intervalTasks?: IntervalTask[];
   goals?: GoalEntry[];
   todoLists?: TodoList[];   // legacy — migrated to todoBoards on first load

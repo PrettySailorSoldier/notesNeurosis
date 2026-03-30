@@ -17,6 +17,11 @@ export function useReminders(
   const [ringingIds, setRingingIds] = useState<string[]>([]);
   const { playTone } = useAudio();
 
+  /**
+   * Stop only the audio for this fire cycle — the alarm remains scheduled.
+   * After the current sound is silenced, the alarm will still reschedule and
+   * fire again at the next interval.
+   */
   const stopRinging = useCallback((reminderId: string) => {
     const stop = stops.current.get(reminderId);
     if (stop) {
@@ -26,6 +31,10 @@ export function useReminders(
     }
   }, []);
 
+  /**
+   * Fully cancel a reminder's timer and any ringing sound.
+   * Used when the reminder is deleted or its active flag is cleared.
+   */
   const cancelReminder = useCallback((reminderId: string) => {
     const handle = handles.current.get(reminderId);
     if (handle !== undefined) {
@@ -39,10 +48,13 @@ export function useReminders(
     const existingHandle = handles.current.get(reminder.id);
     if (existingHandle !== undefined) clearTimeout(existingHandle);
 
+    // If alarm is explicitly disabled, don't schedule
+    if (reminder.alarmEnabled === false) return;
+
     const msUntilFire = Math.max(0, reminder.fireAt - Date.now());
 
     const handle = setTimeout(async () => {
-      // 1. Play audio tone (loops indefinitely)
+      // 1. Play audio tone (loops indefinitely until stopRinging is called)
       const stopAud = playTone(reminder.sound, volume, customTones);
       stops.current.set(reminder.id, stopAud);
       setRingingIds(prev => {
@@ -67,7 +79,7 @@ export function useReminders(
         console.warn('[useReminders] notification error:', err);
       }
 
-      // 3. Reschedule if interval, otherwise mark inactive
+      // 3. Reschedule if interval (sound runs until user calls stopRinging; alarm keeps going)
       if (reminder.intervalMinutes > 0) {
         const nextFire = Date.now() + reminder.intervalMinutes * 60 * 1000;
         const updated: Reminder = {
@@ -86,14 +98,16 @@ export function useReminders(
     handles.current.set(reminder.id, handle);
   }, [playTone, customTones, volume, onUpdateReminder]);
 
-  // Sync reminder schedules for all tasks across all pages
+  // Collect all tasks with active reminders across flat tasks AND board tasks
   useEffect(() => {
     const now = Date.now();
     const activeIds = new Set<string>();
 
     pages.forEach(page => {
-      page.tasks.forEach(task => {
+      // Helper to process a single task
+      const processTask = (task: Task) => {
         if (!task.reminder?.active) return;
+        if (task.reminder.alarmEnabled === false) return;
         const r = task.reminder;
         activeIds.add(r.id);
 
@@ -107,9 +121,22 @@ export function useReminders(
             scheduleReminder(updated, task, page.name, page.id);
           }
         }
-      });
+      };
+
+      // Flat tasks
+      page.tasks.forEach(processTask);
+
+      // Board tasks
+      if (page.todoBoards) {
+        page.todoBoards.forEach(board =>
+          board.lists.forEach(list =>
+            list.tasks.forEach(processTask)
+          )
+        );
+      }
     });
 
+    // Cancel timers for reminders that are no longer active
     handles.current.forEach((_, id) => {
       if (!activeIds.has(id)) cancelReminder(id);
     });

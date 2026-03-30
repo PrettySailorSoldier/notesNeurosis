@@ -1,10 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import type { TodoBoard, TodoList, Task, TaskType, AccentColor } from '../types';
+import ReactDOM from 'react-dom';
+import type { TodoBoard, TodoList, Task, TaskType, AccentColor, ReminderSound } from '../types';
+import { TimerModal } from './TimerModal';
 import styles from './MultiTodoView.module.css';
 
 interface Props {
   boards: TodoBoard[];
   onChange: (boards: TodoBoard[]) => void;
+  onSetReminder: (taskId: string, intervalMinutes: number, sound: ReminderSound, alarmEnabled?: boolean) => void;
+  onClearReminder: (taskId: string) => void;
 }
 
 const ACCENT_MAP: Record<AccentColor, string> = {
@@ -49,7 +53,7 @@ function makeBoard(name = 'Board'): TodoBoard {
 // ─────────────────────────────────────────────
 // MultiTodoView — top-level with board tabs
 // ─────────────────────────────────────────────
-export const MultiTodoView: React.FC<Props> = ({ boards, onChange }) => {
+export const MultiTodoView: React.FC<Props> = ({ boards, onChange, onSetReminder, onClearReminder }) => {
   const onChangeRef = useRef(onChange);
   useEffect(() => { onChangeRef.current = onChange; });
 
@@ -246,6 +250,8 @@ export const MultiTodoView: React.FC<Props> = ({ boards, onChange }) => {
               nextListLabel={nextList?.label}
               onMoveLeft={prevList  ? (taskId) => moveTask(list.id, taskId, prevList.id)  : undefined}
               onMoveRight={nextList ? (taskId) => moveTask(list.id, taskId, nextList.id) : undefined}
+              onSetReminder={onSetReminder}
+              onClearReminder={onClearReminder}
             />
           );
         })}
@@ -278,6 +284,8 @@ interface ColumnProps {
   nextListLabel?: string;
   onMoveLeft?: (taskId: string) => void;
   onMoveRight?: (taskId: string) => void;
+  onSetReminder: (taskId: string, intervalMinutes: number, sound: ReminderSound, alarmEnabled?: boolean) => void;
+  onClearReminder: (taskId: string) => void;
 }
 
 const TodoColumn: React.FC<ColumnProps> = ({
@@ -285,6 +293,7 @@ const TodoColumn: React.FC<ColumnProps> = ({
   onAddTask, onUpdateTask, onDeleteTask,
   onCycleColor, canDelete, focusTaskId, onFocusConsumed,
   prevListLabel, nextListLabel, onMoveLeft, onMoveRight,
+  onSetReminder, onClearReminder,
 }) => {
   const [editingLabel, setEditingLabel] = useState(false);
   const labelRef = useRef<HTMLInputElement>(null);
@@ -371,6 +380,8 @@ const TodoColumn: React.FC<ColumnProps> = ({
               onMoveRight={onMoveRight ? () => onMoveRight(task.id) : undefined}
               prevListLabel={prevListLabel}
               nextListLabel={nextListLabel}
+              onSetReminder={onSetReminder}
+              onClearReminder={onClearReminder}
             />
           ))}
 
@@ -401,11 +412,20 @@ interface RowProps {
   onMoveRight?: () => void;
   prevListLabel?: string;
   nextListLabel?: string;
+  onSetReminder: (taskId: string, intervalMinutes: number, sound: ReminderSound, alarmEnabled?: boolean) => void;
+  onClearReminder: (taskId: string) => void;
 }
 
-const MiniTaskRow: React.FC<RowProps> = ({ task, accentColor, onChange, onDelete, onAddBelow, autoFocus, onFocusConsumed, onMoveLeft, onMoveRight, prevListLabel, nextListLabel }) => {
-  const [hovered, setHovered] = useState(false);
+const MiniTaskRow: React.FC<RowProps> = ({
+  task, accentColor, onChange, onDelete, onAddBelow, autoFocus, onFocusConsumed,
+  onMoveLeft, onMoveRight, prevListLabel, nextListLabel,
+  onSetReminder, onClearReminder,
+}) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [modalAnchor, setModalAnchor] = useState<DOMRect | null>(null);
+  const [hovered, setHovered] = useState(false);
+  const rowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (autoFocus && inputRef.current) {
@@ -414,8 +434,39 @@ const MiniTaskRow: React.FC<RowProps> = ({ task, accentColor, onChange, onDelete
     }
   }, [autoFocus, onFocusConsumed]);
 
+  // Countdown for reminder badge
+  const [countdown, setCountdown] = useState('');
+  useEffect(() => {
+    if (!task.reminder?.active) { setCountdown(''); return; }
+    function update() {
+      if (!task.reminder?.active) { setCountdown(''); return; }
+      const ms = task.reminder.fireAt - Date.now();
+      if (ms <= 0) { setCountdown('now'); return; }
+      const totalMins = Math.ceil(ms / 60000);
+      if (totalMins >= 60) {
+        const h = Math.floor(totalMins / 60), m = totalMins % 60;
+        setCountdown(`${h}h${m > 0 ? ` ${m}m` : ''}`);
+      } else {
+        setCountdown(`${totalMins}m`);
+      }
+    }
+    update();
+    const iv = setInterval(update, 15000);
+    return () => clearInterval(iv);
+  }, [task.reminder]);
+
+  function openModal() {
+    const el = rowRef.current;
+    const rect = el?.getBoundingClientRect() ?? new DOMRect(60, 200, 300, 24);
+    setModalAnchor(rect);
+    setShowModal(true);
+  }
+
+  const isPaused = task.reminder?.active && task.reminder.alarmEnabled === false;
+
   return (
     <div
+      ref={rowRef}
       className={`${styles.taskRow} ${task.completed ? styles.taskDone : ''}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -441,24 +492,63 @@ const MiniTaskRow: React.FC<RowProps> = ({ task, accentColor, onChange, onDelete
         }}
       />
 
-      {hovered && (
-        <div className={styles.rowActions}>
-          {onMoveLeft && (
-            <button
-              className={styles.moveBtn}
-              onClick={onMoveLeft}
-              title={`Move to "${prevListLabel ?? 'previous'}"`}
-            >◀</button>
-          )}
-          {onMoveRight && (
-            <button
-              className={styles.moveBtn}
-              onClick={onMoveRight}
-              title={`Move to "${nextListLabel ?? 'next'}"`}
-            >▶</button>
-          )}
-          <button className={styles.deleteBtn} onClick={onDelete} title="Delete item">×</button>
-        </div>
+      {/* Reminder badge shown when alarm active */}
+      {task.reminder?.active && countdown && (
+        <button
+          className={`${styles.reminderBadge} ${isPaused ? styles.reminderBadgePaused : ''}`}
+          onClick={openModal}
+          title={isPaused ? 'Alarm paused — click to edit' : 'Edit reminder'}
+        >
+          {isPaused ? '○' : '⏱'} {countdown}
+        </button>
+      )}
+
+      <div className={styles.rowActions}>
+        {/* Bell button — shown on hover */}
+        <button
+          className={`${styles.bellBtn} ${(hovered || showModal) ? styles.bellVisible : ''}`}
+          onClick={openModal}
+          title="Set reminder (Alt+T)"
+          tabIndex={-1}
+        >
+          🔔
+        </button>
+
+        {onMoveLeft && (
+          <button
+            className={styles.moveBtn}
+            onClick={onMoveLeft}
+            title={`Move to "${prevListLabel ?? 'previous'}"`}
+          >◀</button>
+        )}
+        {onMoveRight && (
+          <button
+            className={styles.moveBtn}
+            onClick={onMoveRight}
+            title={`Move to "${nextListLabel ?? 'next'}"`}
+          >▶</button>
+        )}
+        <button className={styles.deleteBtn} onClick={onDelete} title="Delete item">×</button>
+      </div>
+
+      {/* Timer Modal — portalled to body */}
+      {showModal && modalAnchor && ReactDOM.createPortal(
+        <TimerModal
+          taskId={task.id}
+          taskContent={task.content}
+          existing={task.reminder?.active ? task.reminder : undefined}
+          anchorRect={modalAnchor}
+          onSet={(mins, sound, alarmEnabled) => {
+            onSetReminder(task.id, mins, sound, alarmEnabled);
+            setShowModal(false);
+          }}
+          onClear={() => {
+            onClearReminder(task.id);
+            setShowModal(false);
+          }}
+          onClose={() => setShowModal(false)}
+        />,
+        document.body
       )}
     </div>
   );
