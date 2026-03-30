@@ -8,6 +8,7 @@ import { OptionsModal } from './components/OptionsModal';
 import { PlannerView } from './components/PlannerView';
 import { IntervalView } from './components/IntervalView';
 import { HabitsPage } from './components/HabitsPage';
+import { MultiTodoView } from './components/MultiTodoView';
 import { ContextMenu } from './components/ContextMenu';
 import { ClockDisplay } from './components/ClockDisplay';
 import type { Task, Reminder, ReminderSound, PageType, PlannerSubtype } from './types';
@@ -27,6 +28,7 @@ const PAGE_TYPES: { type: PageType; icon: string; label: string }[] = [
   { type: 'interval', icon: '⏱', label: 'Interval'       },
   { type: 'planner',  icon: '📅', label: 'Planner'       },
   { type: 'habits',   icon: '◉',  label: 'Habit Tracker' },
+  { type: 'multitodo', icon: '⊞', label: 'Multi-List'    },
 ];
 
 const PLANNER_SUBTYPES: { sub: PlannerSubtype; icon: string; label: string }[] = [
@@ -64,6 +66,7 @@ export default function App() {
     updateTasksForPage,
     updateIntervalTasksForPage,
     updateGoalsForPage,
+    updateTodoListsForPage,
     reorderPages,
   } = usePages();
 
@@ -311,6 +314,15 @@ export default function App() {
 
     if (type === 'habits') {
       return <HabitsPage pageId={currentPage.id} />;
+    }
+
+    if (type === 'multitodo') {
+      return (
+        <MultiTodoView
+          lists={currentPage.todoLists ?? []}
+          onChange={lists => updateTodoListsForPage(currentPage.id, lists)}
+        />
+      );
     }
 
     // notes + todo both use TaskEditor

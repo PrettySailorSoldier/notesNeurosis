@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { load } from '@tauri-apps/plugin-store';
-import type { Page, Task, PageType, PlannerSubtype } from '../types';
+import type { Page, Task, PageType, PlannerSubtype, TodoList } from '../types';
 
 const STORE_FILE = 'planner.json';
 const PAGES_KEY = 'pages';
@@ -9,6 +9,16 @@ const CURRENT_PAGE_KEY = 'currentPageId';
 
 function makeTask(content = '') {
   return { id: crypto.randomUUID(), content, type: 'plain' as const, completed: false, createdAt: Date.now() };
+}
+
+function makeTodoList(label = 'List'): TodoList {
+  return {
+    id: crypto.randomUUID(),
+    label,
+    tasks: [{ id: crypto.randomUUID(), content: '', type: 'plain' as const, completed: false, createdAt: Date.now() }],
+    collapsed: false,
+    createdAt: Date.now(),
+  };
 }
 
 const DEFAULT_PAGES: Page[] = [
@@ -116,6 +126,9 @@ export function usePages() {
       plannerSubtype: pageType === 'planner' ? (plannerSubtype ?? 'schedule') : undefined,
       intervalTasks: pageType === 'interval' ? [] : undefined,
       goals: pageType === 'planner' && plannerSubtype === 'goals' ? [] : undefined,
+      todoLists: pageType === 'multitodo'
+        ? [makeTodoList('To-Do'), makeTodoList('In Progress'), makeTodoList('Done')]
+        : undefined,
     };
     const nextPages = [...pages, newPage];
     updatePages(nextPages, newPage.id);
@@ -177,6 +190,11 @@ export function usePages() {
     updatePages(nextPages);
   }, [pages, updatePages]);
 
+  const updateTodoListsForPage = useCallback((pageId: string, todoLists: TodoList[]) => {
+    const nextPages = pages.map(p => p.id === pageId ? { ...p, todoLists } : p);
+    updatePages(nextPages);
+  }, [pages, updatePages]);
+
   const reorderPages = useCallback((fromId: string, toId: string) => {
     if (fromId === toId) return;
     const from = pages.findIndex(p => p.id === fromId);
@@ -204,5 +222,6 @@ export function usePages() {
     updateTasksForPage,
     updateIntervalTasksForPage,
     updateGoalsForPage,
+    updateTodoListsForPage,
   };
 }

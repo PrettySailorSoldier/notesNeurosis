@@ -1,6 +1,6 @@
 export type TaskType = 'bullet' | 'checkbox' | 'heading' | 'plain';
 
-export type PageType = 'notes' | 'todo' | 'interval' | 'planner' | 'habits';
+export type PageType = 'notes' | 'todo' | 'interval' | 'planner' | 'habits' | 'multitodo';
 export type PlannerSubtype = 'schedule' | 'caregiving' | 'goals';
 
 export interface Task {
@@ -67,6 +67,17 @@ export interface Page {
   plannerSubtype?: PlannerSubtype;
   intervalTasks?: IntervalTask[];
   goals?: GoalEntry[];
+  todoLists?: TodoList[];
+}
+
+// Multi-list to-do board — each TodoList is one column
+export interface TodoList {
+  id: string;
+  label: string;          // editable column header
+  color?: AccentColor;    // accent dot color
+  tasks: Task[];
+  collapsed: boolean;     // whether the column body is hidden
+  createdAt: number;
 }
 
 export interface PlannerBlock {

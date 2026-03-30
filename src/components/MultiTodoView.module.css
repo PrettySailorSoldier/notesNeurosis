@@ -1,0 +1,271 @@
+/* Multi-List Board */
+.board {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 2px 8px;
+  box-sizing: border-box;
+}
+
+.board::-webkit-scrollbar { height: 4px; }
+.board::-webkit-scrollbar-track { background: transparent; }
+.board::-webkit-scrollbar-thumb {
+  background: rgba(180, 140, 220, 0.2);
+  border-radius: 2px;
+}
+
+/* Column */
+.column {
+  flex-shrink: 0;
+  width: 210px;
+  min-width: 180px;
+  max-width: 240px;
+  display: flex;
+  flex-direction: column;
+  background: rgba(180, 130, 220, 0.06);
+  border: 1px solid rgba(180, 130, 220, 0.18);
+  border-top: 2px solid var(--col-accent, rgba(180,130,220,0.6));
+  border-radius: 6px;
+  overflow: hidden;
+  max-height: 100%;
+}
+
+/* Column Header */
+.colHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px 6px;
+  border-bottom: 1px solid rgba(180, 130, 220, 0.15);
+  background: rgba(180, 130, 220, 0.08);
+  flex-shrink: 0;
+}
+
+.accentDot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.85;
+  transition: transform 0.1s, opacity 0.1s;
+}
+.accentDot:hover { transform: scale(1.3); opacity: 1; }
+
+.colLabel {
+  flex: 1;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(220, 190, 255, 0.95);
+  cursor: default;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.02em;
+}
+
+.labelInput {
+  flex: 1;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(220, 190, 255, 0.95);
+  background: rgba(100, 60, 160, 0.3);
+  border: 1px solid rgba(180, 130, 220, 0.5);
+  border-radius: 3px;
+  padding: 1px 4px;
+  outline: none;
+  width: 0; /* flex will stretch it */
+}
+
+.colCount {
+  font-size: 10px;
+  color: rgba(180, 150, 220, 0.5);
+  font-family: 'Cormorant Garamond', serif;
+  flex-shrink: 0;
+}
+
+.colActions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.colBtn {
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: rgba(180, 150, 220, 0.5);
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  padding: 0;
+  transition: background 0.1s, color 0.1s;
+}
+.colBtn:hover { background: rgba(180, 130, 220, 0.15); color: rgba(210, 180, 255, 0.9); }
+.colBtnDanger:hover { background: rgba(180, 60, 80, 0.2); color: rgba(255, 140, 150, 0.9); }
+
+/* Task List */
+.taskList {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 6px 4px;
+  overflow-y: auto;
+  flex: 1;
+  gap: 1px;
+}
+
+.taskList::-webkit-scrollbar { width: 3px; }
+.taskList::-webkit-scrollbar-track { background: transparent; }
+.taskList::-webkit-scrollbar-thumb {
+  background: rgba(180, 140, 220, 0.15);
+  border-radius: 2px;
+}
+
+/* Task Row */
+.taskRow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 2px 2px 0;
+  border-radius: 3px;
+  min-height: 26px;
+  transition: background 0.1s;
+}
+.taskRow:hover {
+  background: rgba(180, 130, 220, 0.06);
+}
+
+.taskDone .taskInput {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+/* Checkbox button */
+.checkBtn {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border-width: 1.5px;
+  border-style: solid;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.12s;
+}
+
+.checkMark {
+  font-size: 9px;
+  color: white;
+  line-height: 1;
+}
+
+/* Task input */
+.taskInput {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: 'Crimson Pro', 'Cormorant Garamond', serif;
+  font-size: 13px;
+  color: rgba(210, 185, 245, 0.9);
+  caret-color: rgba(180, 130, 220, 0.8);
+  padding: 0;
+  min-width: 0;
+}
+.taskInput::placeholder { color: rgba(180, 150, 220, 0.3); }
+
+.deleteBtn {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border: none;
+  background: transparent;
+  color: rgba(180, 150, 220, 0.4);
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.1s, color 0.1s;
+}
+.taskRow:hover .deleteBtn { opacity: 1; }
+.deleteBtn:hover { color: rgba(255, 120, 130, 0.8); }
+
+/* Add item button */
+.addTaskBtn {
+  margin-top: 3px;
+  background: transparent;
+  border: none;
+  color: rgba(180, 150, 220, 0.35);
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 3px 2px;
+  text-align: left;
+  border-radius: 3px;
+  transition: color 0.1s, background 0.1s;
+  width: 100%;
+}
+.addTaskBtn:hover {
+  color: rgba(210, 180, 255, 0.7);
+  background: rgba(180, 130, 220, 0.06);
+}
+
+/* Add List button */
+.addListBtn {
+  flex-shrink: 0;
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 44px;
+  padding: 10px 6px;
+  margin-top: 2px;
+  background: rgba(180, 130, 220, 0.06);
+  border: 1px dashed rgba(180, 130, 220, 0.25);
+  border-radius: 6px;
+  cursor: pointer;
+  color: rgba(180, 150, 220, 0.45);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.addListBtn:hover {
+  background: rgba(180, 130, 220, 0.12);
+  border-color: rgba(180, 130, 220, 0.5);
+  color: rgba(210, 180, 255, 0.8);
+}
+
+.addListIcon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.addListLabel {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
