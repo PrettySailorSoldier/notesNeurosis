@@ -290,7 +290,6 @@ export default function App() {
     if (type === 'planner') {
       return (
         <PlannerView
-          settings={settings}
           pageId={currentPage.id}
           subtype={currentPage.plannerSubtype ?? 'schedule'}
           goals={currentPage.goals ?? []}
@@ -304,6 +303,8 @@ export default function App() {
         <IntervalView
           tasks={currentPage.intervalTasks ?? []}
           onChange={t => updateIntervalTasksForPage(currentPage.id, t)}
+          settings={settings}
+          pageId={currentPage.id}
         />
       );
     }

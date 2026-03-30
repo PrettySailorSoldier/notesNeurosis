@@ -1,10 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { IntervalTask, IntervalPhaseType, SavedSequence } from '../types';
+import { load } from '@tauri-apps/plugin-store';
+import type { IntervalTask, IntervalPhaseType, SavedSequence, ReminderSound } from '../types';
+import type { Settings } from '../hooks/useSettings';
+import { useAudio } from '../hooks/useAudio';
 import styles from './IntervalView.module.css';
 
 interface Props {
   tasks: IntervalTask[];
   onChange: (tasks: IntervalTask[]) => void;
+  settings: Settings;
+  pageId: string;
 }
 
 function makeId() {
@@ -17,6 +22,10 @@ function formatTime(seconds: number) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+function fmtClock(ms: number): string {
+  return new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
 const PHASE_ORDER: IntervalPhaseType[] = ['work', 'break', 'transition', 'buffer'];
 
 const PHASE_META: Record<IntervalPhaseType, { emoji: string; label: string }> = {
@@ -25,6 +34,20 @@ const PHASE_META: Record<IntervalPhaseType, { emoji: string; label: string }> = 
   transition: { emoji: '🟡', label: 'Trans'  },
   buffer:     { emoji: '⚪', label: 'Buffer' },
 };
+
+const DEFAULT_SOUNDS: ReminderSound[] = ['chime', 'bell', 'blip', 'soft_ding', 'none'];
+const SOUND_EMOJI: Record<string, string> = {
+  chime: '🎵', bell: '🔔', blip: '⚡', soft_ding: '✨', none: '🔇',
+};
+const SOUND_LABEL: Record<string, string> = {
+  chime: 'chime', bell: 'bell', blip: 'blip', soft_ding: 'ding', none: 'mute',
+};
+
+function cycleSoundFwd(current: ReminderSound | undefined): ReminderSound {
+  const idx = DEFAULT_SOUNDS.indexOf((current ?? 'chime') as ReminderSound);
+  if (idx === -1) return 'chime'; // was a custom tone — reset to default
+  return DEFAULT_SOUNDS[(idx + 1) % DEFAULT_SOUNDS.length];
+}
 
 // Change 5 — quick-start templates
 const QUICK_TEMPLATES: Record<string, Omit<IntervalTask, 'id' | 'completed'>[]> = {
@@ -49,7 +72,7 @@ const QUICK_TEMPLATES: Record<string, Omit<IntervalTask, 'id' | 'completed'>[]> 
   ],
 };
 
-export function IntervalView({ tasks, onChange }: Props) {
+export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
   // ── Core timer state ──────────────────────────────────────────────────────
   const [activeIdx,       setActiveIdx]       = useState<number | null>(null);
   const [secondsLeft,     setSecondsLeft]     = useState(0);
@@ -81,8 +104,106 @@ export function IntervalView({ tasks, onChange }: Props) {
   const [savingSequence,   setSavingSequence]   = useState(false);
   const [saveSequenceName, setSaveSequenceName] = useState('');
 
-  // ── Sync secondsLeft when idle ────────────────────────────────────────────
+  // ── Audio ─────────────────────────────────────────────────────────────────
+  const { playTone } = useAudio();
+  const settingsRef = useRef(settings);
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
+
+  const playSoundOnce = useCallback((sound: ReminderSound | undefined, fallback: ReminderSound = 'none') => {
+    const s = sound ?? fallback;
+    if (s === 'none') return;
+    const stop = playTone(s, settingsRef.current.volume, settingsRef.current.customTones);
+    setTimeout(stop, 2500);
+  }, [playTone]);
+
+  // ── Persistence ───────────────────────────────────────────────────────────
+  const loadedRef            = useRef(false);
+  const sequencesLoadedRef   = useRef(false);
+  const restoredFromPersistence = useRef(false);
+  const secondsLeftRef       = useRef(secondsLeft);
+  useEffect(() => { secondsLeftRef.current = secondsLeft; }, [secondsLeft]);
+
+  // Load on mount
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const store = await load(`interval-${pageId}.json`, { autoSave: false } as any);
+
+        const seqs = await store.get<SavedSequence[]>('sequences');
+        if (!cancelled && seqs) setSavedSequences(seqs);
+        sequencesLoadedRef.current = true;
+
+        const timerState = await store.get<{
+          activeIdx: number | null;
+          secondsLeft: number;
+          startedAt: number | null;
+        }>('timer-state');
+
+        if (!cancelled && timerState && timerState.activeIdx !== null && tasks[timerState.activeIdx]) {
+          let remaining = timerState.secondsLeft;
+          if (timerState.startedAt !== null) {
+            const elapsed = Math.floor((Date.now() - timerState.startedAt) / 1000);
+            remaining = Math.max(0, remaining - elapsed);
+          }
+          restoredFromPersistence.current = true;
+          setActiveIdx(timerState.activeIdx);
+          if (remaining > 0) setSecondsLeft(remaining);
+        }
+
+        if (!cancelled) loadedRef.current = true;
+      } catch (e) {
+        console.warn('[IntervalView] load error:', e);
+        loadedRef.current = true;
+        sequencesLoadedRef.current = true;
+      }
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageId]);
+
+  // Persist timer state when activeIdx / running changes, and every 15s while running
+  useEffect(() => {
+    if (!loadedRef.current) return;
+    const doSave = async () => {
+      try {
+        const store = await load(`interval-${pageId}.json`, { autoSave: false } as any);
+        await store.set('timer-state', {
+          activeIdx,
+          secondsLeft: secondsLeftRef.current,
+          startedAt: running ? Date.now() : null,
+        });
+        await store.save();
+      } catch (e) {
+        console.warn('[IntervalView] timer state save error:', e);
+      }
+    };
+    doSave();
+    if (!running) return;
+    const id = window.setInterval(doSave, 15_000);
+    return () => clearInterval(id);
+  }, [activeIdx, running, pageId]);
+
+  // Persist sequences
+  useEffect(() => {
+    if (!sequencesLoadedRef.current) return;
+    (async () => {
+      try {
+        const store = await load(`interval-${pageId}.json`, { autoSave: false } as any);
+        await store.set('sequences', savedSequences);
+        await store.save();
+      } catch (e) {
+        console.warn('[IntervalView] sequences save error:', e);
+      }
+    })();
+  }, [savedSequences, pageId]);
+
+  // ── Sync secondsLeft when idle (skip if restoring from persistence) ───────
+  useEffect(() => {
+    if (restoredFromPersistence.current) {
+      restoredFromPersistence.current = false;
+      return;
+    }
     if (!running && activeIdx !== null && tasks[activeIdx]) {
       setSecondsLeft(tasks[activeIdx].durationSeconds);
     }
@@ -111,12 +232,17 @@ export function IntervalView({ tasks, onChange }: Props) {
 
   const advanceToNext = useCallback(
     (currentIdx: number, currentTasks: IntervalTask[], shouldContinue = false) => {
+      // Fire completion sound for finished task
+      playSoundOnce(currentTasks[currentIdx]?.completionSound, 'chime');
+
       const updated = currentTasks.map((t, i) =>
         i === currentIdx ? { ...t, completed: true } : t
       );
       onChange(updated);
       const nextIdx = updated.findIndex((t, i) => i > currentIdx && !t.completed);
       if (nextIdx !== -1) {
+        // Fire start sound for next task
+        playSoundOnce(updated[nextIdx].startSound);
         setActiveIdx(nextIdx);
         setSecondsLeft(updated[nextIdx].durationSeconds);
         if (shouldContinue) setRunning(true);
@@ -126,7 +252,7 @@ export function IntervalView({ tasks, onChange }: Props) {
         setSessionComplete(true);
       }
     },
-    [onChange]
+    [onChange, playSoundOnce]
   );
 
   // ── Main countdown interval ───────────────────────────────────────────────
@@ -195,11 +321,12 @@ export function IntervalView({ tasks, onChange }: Props) {
       breakGateIntervalRef.current = null;
     }
     if (nextIdx !== null && tasks[nextIdx]) {
+      playSoundOnce(tasks[nextIdx].startSound);
       setActiveIdx(nextIdx);
       setSecondsLeft(tasks[nextIdx].durationSeconds);
       setRunning(true);
     }
-  }, [tasks]);
+  }, [tasks, playSoundOnce]);
 
   useEffect(() => {
     if (breakGate && breakGateCountdown === 0) handleBreakGateStart();
@@ -226,6 +353,7 @@ export function IntervalView({ tasks, onChange }: Props) {
       if (firstIdx === -1) return;
       setActiveIdx(firstIdx);
       setSecondsLeft(tasks[firstIdx].durationSeconds);
+      playSoundOnce(tasks[firstIdx].startSound);
     }
     setRunning(true);
   };
@@ -322,8 +450,8 @@ export function IntervalView({ tasks, onChange }: Props) {
     setSavedSequences(prev => [...prev, {
       id: makeId(),
       name: saveSequenceName.trim(),
-      tasks: tasks.map(({ id, label, durationSeconds, phaseType }) => ({
-        id, label, durationSeconds, phaseType,
+      tasks: tasks.map(({ id, label, durationSeconds, phaseType, completionSound, startSound }) => ({
+        id, label, durationSeconds, phaseType, completionSound, startSound,
       })),
     }]);
     setSavingSequence(false);
@@ -344,6 +472,18 @@ export function IntervalView({ tasks, onChange }: Props) {
   const completedCount   = tasks.filter(t => t.completed).length;
   const progressPercent  = totalSeconds > 0 ? Math.round((completedSeconds / totalSeconds) * 100) : 0;
   const totalMinutes     = Math.round(totalSeconds / 60);
+
+  // ── Clock-time projection ─────────────────────────────────────────────────
+  // For each task: when will it end based on current timer state?
+  const clockEndTimes: (number | null)[] = (() => {
+    let cursor = Date.now();
+    return tasks.map((task, idx) => {
+      if (task.completed) return null;
+      const secs = (idx === activeIdx && secondsLeft > 0) ? secondsLeft : task.durationSeconds;
+      cursor += secs * 1000;
+      return cursor;
+    });
+  })();
 
   // ════════════════════════════════════════════════════════════════════════
   //  SESSION COMPLETE OVERLAY
@@ -514,7 +654,7 @@ export function IntervalView({ tasks, onChange }: Props) {
           </button>
         </div>
 
-        {/* Change 8 — progress bar (CSS-only change, JSX unchanged) */}
+        {/* Change 8 — progress bar */}
         {totalSeconds > 0 && (
           <div className={styles.progressRow}>
             <div className={styles.progressBar}>
@@ -537,6 +677,10 @@ export function IntervalView({ tasks, onChange }: Props) {
           const phase      = task.phaseType ?? 'work';
           const phaseMeta  = PHASE_META[phase];
           const isBreakRow = phase === 'break';
+          const endTimeMs  = clockEndTimes[idx];
+          const soundKey   = task.completionSound ?? 'chime';
+          const soundEmoji = SOUND_EMOJI[soundKey] ?? '🔔';
+          const soundLabel = SOUND_LABEL[soundKey] ?? soundKey;
 
           return (
             <div
@@ -598,7 +742,7 @@ export function IntervalView({ tasks, onChange }: Props) {
                 )}
               </div>
 
-              {/* Change 3 — task label with visible affordance (CSS) */}
+              {/* Change 3 — task label */}
               <input
                 className={[
                   styles.taskLabel,
@@ -609,6 +753,13 @@ export function IntervalView({ tasks, onChange }: Props) {
                 onChange={e => updateTask(task.id, { label: e.target.value })}
                 onClick={e => e.stopPropagation()}
               />
+
+              {/* Projected end time */}
+              {endTimeMs !== null && (
+                <span className={styles.taskClockTime} title="Projected finish time">
+                  {fmtClock(endTimeMs)}
+                </span>
+              )}
 
               {/* Change 2 — durationGroup with ±5 step buttons */}
               <div className={styles.durationGroup}>
@@ -651,6 +802,20 @@ export function IntervalView({ tasks, onChange }: Props) {
                   +5
                 </button>
               </div>
+
+              {/* Completion sound cycle button */}
+              <button
+                className={styles.soundCycleBtn}
+                onClick={e => {
+                  e.stopPropagation();
+                  const next = cycleSoundFwd(task.completionSound);
+                  updateTask(task.id, { completionSound: next });
+                  playSoundOnce(next);
+                }}
+                title={`End sound: ${soundLabel} (click to change)`}
+              >
+                {soundEmoji}
+              </button>
 
               {/* Phase badge */}
               <button

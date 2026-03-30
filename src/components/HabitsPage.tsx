@@ -134,14 +134,13 @@ type LinearWindow = 'today' | '7d' | '30d' | '90d';
 
 interface LinearViewProps {
   habits: Habit[];
-  dotDates: string[];
   isLogged: (id: string, date: string) => boolean;
   getLogCount: (id: string, date: string) => number;
   toggleLog: (id: string, date: string) => void;
   setLogCount: (id: string, date: string, count: number) => void;
 }
 
-function LinearView({ habits, dotDates, isLogged, getLogCount, toggleLog, setLogCount }: LinearViewProps) {
+function LinearView({ habits, isLogged, getLogCount, toggleLog, setLogCount }: LinearViewProps) {
   const [win, setWin] = useState<LinearWindow>('today');
   // Draft values while user is typing (keyed by habitId)
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -396,7 +395,6 @@ export function HabitsPage({ pageId: _pageId }: Props) {
       {view === 'linear' && (
         <LinearView
           habits={habits}
-          dotDates={dotDates}
           isLogged={isLogged}
           getLogCount={getLogCount}
           toggleLog={toggleLog}

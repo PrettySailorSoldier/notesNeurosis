@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { load } from '@tauri-apps/plugin-store';
 import { usePlanner } from '../hooks/usePlanner';
 import type { AccentColor, PlannerBlock, Task, GoalEntry, PlannerSubtype } from '../types';
-import type { Settings } from '../hooks/useSettings';
 import { IntegratedSchedulePanel } from './IntegratedSchedulePanel';
 import { GoalsView } from './GoalsView';
 import { accentToHex } from '../utils/accentToHex';
@@ -240,14 +239,13 @@ function BlockEditor({ block, onUpdate, onClose, allBlocks, onTimeChange }: Bloc
 }
 
 interface Props {
-  settings: Settings;
   pageId: string;
   subtype?: PlannerSubtype;
   goals?: GoalEntry[];
   onGoalsChange?: (goals: GoalEntry[]) => void;
 }
 
-export function PlannerView({ settings, pageId, subtype = 'schedule', goals = [], onGoalsChange }: Props) {
+export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsChange }: Props) {
   const { ready, addBlock, updateBlock, batchUpdateBlocks, deleteBlock, getBlocksForDate } = usePlanner(pageId);
   const [currentDate, setCurrentDate] = useState(() => formatDate(new Date()));
   const [isToday, setIsToday] = useState(true);
