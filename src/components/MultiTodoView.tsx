@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { TodoList, Task, TaskType, AccentColor } from '../types';
 import styles from './MultiTodoView.module.css';
 
@@ -42,26 +42,31 @@ function makeTodoList(label = 'New List'): TodoList {
 }
 
 export const MultiTodoView: React.FC<Props> = ({ lists, onChange }) => {
-  // Bootstrap: if page loaded with empty lists array, seed three defaults
+  // Stable ref to onChange so the bootstrap effect never goes stale
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { onChangeRef.current = onChange; });
+
   const bootstrapped = useRef(false);
-  if (lists.length === 0 && !bootstrapped.current) {
-    bootstrapped.current = true;
-    setTimeout(() => {
-      onChange([
+
+  // Bootstrap: seed three default columns when the page has no lists yet.
+  // Must be a useEffect — hooks cannot appear after a conditional return.
+  useEffect(() => {
+    if (lists.length === 0 && !bootstrapped.current) {
+      bootstrapped.current = true;
+      onChangeRef.current([
         { ...makeTodoList('To-Do'),       color: 'plum'  },
         { ...makeTodoList('In Progress'), color: 'blue'  },
         { ...makeTodoList('Done'),        color: 'ghost' },
       ]);
-    }, 0);
-    return null;
-  }
+    }
+  }, [lists.length]);
 
   const updateList = useCallback((id: string, patch: Partial<TodoList>) => {
     onChange(lists.map(l => l.id === id ? { ...l, ...patch } : l));
   }, [lists, onChange]);
 
   const deleteList = useCallback((id: string) => {
-    if (lists.length <= 1) return; // keep at least one
+    if (lists.length <= 1) return;
     onChange(lists.filter(l => l.id !== id));
   }, [lists, onChange]);
 
@@ -102,6 +107,9 @@ export const MultiTodoView: React.FC<Props> = ({ lists, onChange }) => {
     const next = ACCENT_CYCLE[(idx + 1) % ACCENT_CYCLE.length];
     updateList(listId, { color: next });
   }, [updateList]);
+
+  // Render nothing while the bootstrap effect hasn't fired yet
+  if (lists.length === 0) return null;
 
   return (
     <div className={styles.board}>
