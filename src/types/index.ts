@@ -1,6 +1,6 @@
 export type TaskType = 'bullet' | 'checkbox' | 'heading' | 'plain';
 
-export type PageType = 'notes' | 'todo' | 'interval' | 'planner';
+export type PageType = 'notes' | 'todo' | 'interval' | 'planner' | 'habits';
 export type PlannerSubtype = 'schedule' | 'caregiving' | 'goals';
 
 export interface Task {
@@ -93,6 +93,26 @@ export type AccentColor =
   | 'indigo'
   | 'amber'
   | 'teal';
+
+export interface Habit {
+  id: string;
+  name: string;
+  emoji: string;        // single emoji, e.g. "💧"
+  color: AccentColor;
+  archivedAt?: number;  // if set, habit is soft-deleted
+  createdAt: number;
+}
+
+export interface HabitLog {
+  habitId: string;
+  date: string;         // ISO date "YYYY-MM-DD"
+  note?: string;        // optional one-line note for the day
+}
+
+export interface HabitStore {
+  habits: Habit[];
+  logs: HabitLog[];
+}
 
 export type CareCategory =
   | 'medication'

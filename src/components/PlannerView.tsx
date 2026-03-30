@@ -1,11 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { load } from '@tauri-apps/plugin-store';
 import { usePlanner } from '../hooks/usePlanner';
 import type { AccentColor, PlannerBlock, Task, GoalEntry, PlannerSubtype } from '../types';
 import type { Settings } from '../hooks/useSettings';
 import { IntegratedSchedulePanel } from './IntegratedSchedulePanel';
 import { GoalsView } from './GoalsView';
+import { accentToHex } from '../utils/accentToHex';
+import '../styles/planner.css';
 
 const COLORS: AccentColor[] = ['plum', 'rose', 'peach', 'orange', 'yellow', 'blue', 'ghost'];
+
+// Hours 6–26 (26 = 2am next day) for the timeline grid
+const TIMELINE_START = 6;
+const TIMELINE_END = 26;
+const HOURS = Array.from(
+  { length: TIMELINE_END - TIMELINE_START + 1 },
+  (_, i) => TIMELINE_START + i
+);
+
+function hourToPercent(h: number): number {
+  return ((h - TIMELINE_START) / (TIMELINE_END - TIMELINE_START)) * 100;
+}
+
+function formatHour(h: number): string {
+  const actual = h % 24;
+  if (actual === 0) return '12 am';
+  if (actual === 12) return '12 pm';
+  if (actual < 12) return `${actual} am`;
+  return `${actual - 12} pm`;
+}
 
 function formatDate(date: Date) {
   const year = date.getFullYear();
@@ -58,6 +81,108 @@ function timeToMinutes(t: string) {
   return h * 60 + (m || 0);
 }
 
+function roundToNearest15(date: Date): string {
+  const h = date.getHours();
+  let m = Math.round(date.getMinutes() / 15) * 15;
+  let adjustedH = h;
+  if (m === 60) { m = 0; adjustedH = (h + 1) % 24; }
+  return `${String(adjustedH).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+// ── Block editor sub-component (avoids contentEditable/re-render issues) ──
+interface BlockEditorProps {
+  block: PlannerBlock;
+  onUpdate: (changes: Partial<PlannerBlock>) => void;
+  onClose: () => void;
+  allBlocks: PlannerBlock[];
+  onTimeChange: (id: string, field: 'start' | 'end', val: string, all: PlannerBlock[]) => void;
+}
+
+function BlockEditor({ block, onUpdate, onClose, allBlocks, onTimeChange }: BlockEditorProps) {
+  const labelRef = useRef<HTMLDivElement>(null);
+  const notesRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (labelRef.current) {
+      labelRef.current.textContent = block.label;
+      labelRef.current.focus();
+      // Place cursor at end
+      const range = document.createRange();
+      const sel = window.getSelection();
+      range.selectNodeContents(labelRef.current);
+      range.collapse(false);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    }
+    if (notesRef.current) {
+      notesRef.current.textContent = block.notes;
+    }
+  }, []); // intentionally empty — only set content on mount
+
+  return (
+    <div className="planner-block-editor" onClick={e => e.stopPropagation()}>
+      {/* Label */}
+      <div
+        ref={labelRef}
+        className="planner-block-editor__label"
+        contentEditable
+        suppressContentEditableWarning
+        onBlur={() => {
+          const label = labelRef.current?.textContent?.trim() ?? '';
+          onUpdate({ label });
+        }}
+        onKeyDown={e => {
+          if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+          if (e.key === 'Enter') { e.preventDefault(); notesRef.current?.focus(); }
+        }}
+      />
+
+      {/* Times */}
+      <div className="planner-block-editor__times">
+        <input
+          type="time"
+          value={block.startTime}
+          onChange={e => onTimeChange(block.id, 'start', e.target.value, allBlocks)}
+        />
+        <span className="planner-block-editor__times-sep">–</span>
+        <input
+          type="time"
+          value={block.endTime}
+          onChange={e => onTimeChange(block.id, 'end', e.target.value, allBlocks)}
+        />
+      </div>
+
+      {/* Notes */}
+      <div
+        ref={notesRef}
+        className="planner-block-editor__notes"
+        contentEditable
+        suppressContentEditableWarning
+        onBlur={() => {
+          const notes = notesRef.current?.textContent?.trim() ?? '';
+          onUpdate({ notes });
+        }}
+        onKeyDown={e => {
+          if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+        }}
+      />
+
+      {/* Color picker */}
+      <div className="planner-color-picker">
+        {COLORS.map(c => (
+          <button
+            key={c}
+            className={`planner-color-dot ${block.color === c ? 'planner-color-dot--selected' : ''}`}
+            style={{ '--dot-color': accentToHex(c) } as React.CSSProperties}
+            onClick={() => onUpdate({ color: c })}
+            title={c}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 interface Props {
   settings: Settings;
   pageId: string;
@@ -75,12 +200,27 @@ export function PlannerView({ settings, pageId, subtype = 'schedule', goals = []
     return now.getHours() * 60 + now.getMinutes();
   });
 
+  // Quick-add state
+  const [quickAddValue, setQuickAddValue] = useState('');
+  const quickAddRef = useRef<HTMLInputElement>(null);
+
+  // Expanded block state
+  const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
+  const expandedCardRef = useRef<HTMLDivElement | null>(null);
+
+  // Pending label after addBlock (since addBlock doesn't return the id)
+  const pendingLabel = useRef<string | null>(null);
+  const pendingExpand = useRef(false);
+
+  // Energy rating state (per date, loaded from planner-meta.json)
+  const [energyRatings, setEnergyRatings] = useState<Record<string, number>>({});
+
   useEffect(() => {
     const todayStr = formatDate(new Date());
     setIsToday(currentDate === todayStr);
   }, [currentDate]);
 
-  // Update current time every second to stay in sync with the clock
+  // Clock ticker
   useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date();
@@ -89,25 +229,101 @@ export function PlannerView({ settings, pageId, subtype = 'schedule', goals = []
     return () => clearInterval(timer);
   }, []);
 
-  const goToToday = () => setCurrentDate(formatDate(new Date()));
+  // Load energy rating when date changes
+  useEffect(() => {
+    if (energyRatings[currentDate] !== undefined) return;
+    (async () => {
+      try {
+        const store = await load('planner-meta.json', { autoSave: false } as any);
+        const val = await store.get<number>(`energy-${currentDate}`);
+        setEnergyRatings(prev => ({ ...prev, [currentDate]: val ?? 0 }));
+      } catch {
+        // ignore
+      }
+    })();
+  }, [currentDate]);
 
+  const saveEnergy = async (date: string, rating: number) => {
+    setEnergyRatings(prev => ({ ...prev, [date]: rating }));
+    try {
+      const store = await load('planner-meta.json', { autoSave: false } as any);
+      await store.set(`energy-${date}`, rating);
+      await store.save();
+    } catch (err) {
+      console.error('[PlannerView] energy save error:', err);
+    }
+  };
+
+  // Apply pending label or expand after addBlock
+  const dailyBlocks = getBlocksForDate(currentDate);
+
+  useEffect(() => {
+    if (pendingLabel.current !== null) {
+      const unlabeled = dailyBlocks.filter(b => b.label === '');
+      if (unlabeled.length > 0) {
+        const latest = unlabeled[unlabeled.length - 1];
+        updateBlock(latest.id, { label: pendingLabel.current });
+        pendingLabel.current = null;
+      }
+    }
+    if (pendingExpand.current) {
+      const unlabeled = dailyBlocks.filter(b => b.label === '');
+      if (unlabeled.length > 0) {
+        const latest = unlabeled[unlabeled.length - 1];
+        setExpandedBlockId(latest.id);
+        pendingExpand.current = false;
+      }
+    }
+  }, [dailyBlocks]);
+
+  // Collapse expanded card when clicking outside
+  useEffect(() => {
+    if (!expandedBlockId) return;
+    const handleClick = (e: MouseEvent) => {
+      if (expandedCardRef.current && !expandedCardRef.current.contains(e.target as Node)) {
+        setExpandedBlockId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [expandedBlockId]);
+
+  // "/" shortcut to focus quick-add
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== '/') return;
+      const tag = (document.activeElement as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (document.activeElement as HTMLElement)?.isContentEditable) return;
+      e.preventDefault();
+      quickAddRef.current?.focus();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const goToToday = () => setCurrentDate(formatDate(new Date()));
   const goPrevWeek = () => {
     const [y, m, d] = currentDate.split('-').map(Number);
     setCurrentDate(formatDate(new Date(y, m - 1, d - 7)));
   };
-
   const goNextWeek = () => {
     const [y, m, d] = currentDate.split('-').map(Number);
     setCurrentDate(formatDate(new Date(y, m - 1, d + 7)));
   };
 
-  const handleAddBlock = () => {
-    const dailyBlocks = getBlocksForDate(currentDate);
-    let defaultTime = "09:00";
-    if (dailyBlocks.length > 0) {
-      defaultTime = dailyBlocks[dailyBlocks.length - 1].endTime;
-    }
-    addBlock(currentDate, defaultTime, settings.defaultBlockDuration);
+  const handleQuickAdd = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return;
+    const label = quickAddValue.trim();
+    if (!label) return;
+    pendingLabel.current = label;
+    addBlock(currentDate, roundToNearest15(new Date()), 60);
+    setQuickAddValue('');
+    quickAddRef.current?.focus();
+  };
+
+  const addBlockAtNow = () => {
+    pendingExpand.current = true;
+    addBlock(currentDate, roundToNearest15(new Date()), 60);
   };
 
   const minutesToTime = (m: number) => {
@@ -117,7 +333,7 @@ export function PlannerView({ settings, pageId, subtype = 'schedule', goals = []
     return `${hh}:${mm}`;
   };
 
-  const handleTimeChange = (id: string, field: 'start' | 'end', val: string, allBlocks: PlannerBlock[]) => {
+  const handleTimeChange = useCallback((id: string, field: 'start' | 'end', val: string, allBlocks: PlannerBlock[]) => {
     if (!val) return;
     const sorted = [...allBlocks].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
     const idx = sorted.findIndex(b => b.id === id);
@@ -137,7 +353,6 @@ export function PlannerView({ settings, pageId, subtype = 'schedule', goals = []
       const newEnd = minutesToTime(newMins + duration);
       updates.push({ id: block.id, changes: { startTime: val, endTime: newEnd } });
 
-      // Close the gap: if previous block ended exactly where this one started, stretch it
       if (idx > 0) {
         const prev = sorted[idx - 1];
         if (prev.endTime === block.startTime) {
@@ -145,7 +360,6 @@ export function PlannerView({ settings, pageId, subtype = 'schedule', goals = []
         }
       }
 
-      // Cascade all subsequent blocks by the same delta
       for (let j = idx + 1; j < sorted.length; j++) {
         const b = sorted[j];
         updates.push({
@@ -161,13 +375,11 @@ export function PlannerView({ settings, pageId, subtype = 'schedule', goals = []
       const delta = newMins - oldEndMins;
       if (delta === 0) return;
 
-      // Ensure end > start + 5 min
       const minEnd = timeToMinutes(block.startTime) + 5;
       const clampedEnd = minutesToTime(Math.max(newMins, minEnd));
       const clampedDelta = timeToMinutes(clampedEnd) - oldEndMins;
       updates.push({ id: block.id, changes: { endTime: clampedEnd } });
 
-      // Cascade all subsequent blocks
       for (let j = idx + 1; j < sorted.length; j++) {
         const b = sorted[j];
         updates.push({
@@ -181,7 +393,7 @@ export function PlannerView({ settings, pageId, subtype = 'schedule', goals = []
     }
 
     batchUpdateBlocks(updates);
-  };
+  }, [batchUpdateBlocks]);
 
   if (!ready) {
     return <div className="loading-hint">✦</div>;
@@ -198,7 +410,6 @@ export function PlannerView({ settings, pageId, subtype = 'schedule', goals = []
   }
 
   const currentWeekDays = getWeekDays(currentDate);
-  const dailyBlocks = getBlocksForDate(currentDate);
   const totalBlocks = dailyBlocks.length;
   const completedBlocks = dailyBlocks.filter(b => b.completed).length;
   const progressPercent = totalBlocks > 0 ? Math.round((completedBlocks / totalBlocks) * 100) : 0;
@@ -216,18 +427,15 @@ export function PlannerView({ settings, pageId, subtype = 'schedule', goals = []
   const hours = Math.floor(totalMin / 60);
   const mins = totalMin % 60;
 
-  // Current time display string for "now" badge
   const nowHH = String(Math.floor(currentMinutes / 60)).padStart(2, '0');
   const nowMM = String(currentMinutes % 60).padStart(2, '0');
   const nowStr = `${nowHH}:${nowMM}`;
 
-  // Block count per day for week strip indicators
   const weekBlockCounts = currentWeekDays.reduce((acc, day) => {
     acc[day] = getBlocksForDate(day).length;
     return acc;
   }, {} as Record<string, number>);
 
-  // Weekly arc data: total blocks + completion ratio per day
   const weekStats = currentWeekDays.map(day => {
     const blocks = getBlocksForDate(day);
     const total = blocks.length;
@@ -235,20 +443,18 @@ export function PlannerView({ settings, pageId, subtype = 'schedule', goals = []
     return { day, total, done, ratio: total > 0 ? done / total : 0 };
   });
 
-  // Max blocks in any single day this week (used to scale bar heights)
   const weekMaxBlocks = Math.max(1, ...weekStats.map(s => s.total));
 
-  // ── Proportional height config ─────────────────────
-  // 1.4px per minute. A 60-min block = 84px tall, 2h = 168px, 15-min = 21px.
-  // minHeight is enforced so even a 5-min block is legible.
-  const PX_PER_MINUTE = 1.4;
-  const BLOCK_MIN_HEIGHT = 64;   // px — never shorter than this
-  const COMPACT_THRESHOLD = 30;  // minutes — below this, use compact layout
-
-  // Sort blocks by start time for now-line insertion
   const sortedDailyBlocks = [...dailyBlocks].sort(
     (a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime)
   );
+
+  // First incomplete block for today
+  const firstBlock = sortedDailyBlocks.find(b => !b.completed);
+  const firstBlockTime = firstBlock?.startTime ?? '—';
+
+  // Energy rating for today
+  const energyToday = energyRatings[currentDate] ?? 0;
 
   return (
     <div className="planner-container">
@@ -261,203 +467,152 @@ export function PlannerView({ settings, pageId, subtype = 'schedule', goals = []
           )}
         </div>
 
-        {/* Single scrollable area: blocks + care schedule */}
+        {/* Quick-add bar */}
+        <div className="planner-quick-add-bar">
+          <input
+            ref={quickAddRef}
+            className="planner-quick-add-input"
+            type="text"
+            placeholder="+ add block — type a name, hit Enter…"
+            value={quickAddValue}
+            onChange={e => setQuickAddValue(e.target.value)}
+            onKeyDown={handleQuickAdd}
+          />
+          <button
+            className="planner-quick-add-time-btn"
+            onClick={addBlockAtNow}
+            title="Add empty block at current time"
+          >
+            now
+          </button>
+        </div>
+
+        {/* Scrollable timeline + blocks */}
         <div className="planner-scroll-area">
-          <div className="planner-blocks">
-            {dailyBlocks.length === 0 && (
-              <div className="planner-empty">No blocks scheduled. Press <em>+ add block</em> to begin.</div>
-            )}
+          {/* Timeline grid with hour lines */}
+          <div className="planner-timeline-grid">
+            {HOURS.map(h => (
+              <div
+                key={h}
+                className="planner-hour-row"
+                style={{ top: `${hourToPercent(h)}%` }}
+              >
+                {h % 2 === 0 && (
+                  <span className="planner-hour-label">{formatHour(h)}</span>
+                )}
+                <div className="planner-hour-line" />
+              </div>
+            ))}
 
-            {sortedDailyBlocks.map((block, idx) => {
-              const blockStart = timeToMinutes(block.startTime);
-              const blockEnd   = timeToMinutes(block.endTime);
-              const duration   = blockEnd > blockStart
-                ? blockEnd - blockStart
-                : Math.max(blockEnd + (24 * 60 - blockStart), 15);
-              const isCurrent  = isToday && currentMinutes >= blockStart && currentMinutes < blockEnd;
-              const isCompact  = duration < COMPACT_THRESHOLD;
+            {/* Blocks rendered on top of the grid */}
+            <div className="planner-timeline-blocks">
+              {dailyBlocks.length === 0 && (
+                <div className="planner-empty">
+                  No blocks scheduled. Type a name above and hit Enter, or press <em>now</em> to begin.
+                </div>
+              )}
 
-              // Proportional height: clamped to minimum so short blocks stay readable
-              const blockHeightPx = Math.max(BLOCK_MIN_HEIGHT, duration * PX_PER_MINUTE);
+              {sortedDailyBlocks.map((block, idx) => {
+                const blockStart = timeToMinutes(block.startTime);
+                const blockEnd   = timeToMinutes(block.endTime);
+                const isCurrent  = isToday && currentMinutes >= blockStart && currentMinutes < blockEnd;
+                const isExpanded = expandedBlockId === block.id;
 
-              // Spacer height = total proportional height minus fixed header content estimate.
-              // Fixed content (time row + title + padding) ~= 54px for normal, 36px compact.
-              const fixedContentEstimatePx = isCompact ? 36 : 54;
-              const spacerHeightPx = Math.max(0, blockHeightPx - fixedContentEstimatePx);
+                // Now-line before this block
+                const prevBlock = idx > 0 ? sortedDailyBlocks[idx - 1] : null;
+                const prevBlockEnd = prevBlock ? timeToMinutes(prevBlock.endTime) : 0;
+                const showNowLineBefore =
+                  isToday &&
+                  currentMinutes < blockStart &&
+                  currentMinutes >= prevBlockEnd;
 
-              // Should the now-line appear BEFORE this block?
-              const prevBlock = idx > 0 ? sortedDailyBlocks[idx - 1] : null;
-              const prevBlockEnd = prevBlock ? timeToMinutes(prevBlock.endTime) : 0;
-              const showNowLineBefore =
-                isToday &&
-                currentMinutes < blockStart &&
-                currentMinutes >= prevBlockEnd;
-
-              return (
-                <React.Fragment key={block.id}>
-                  {/* Now-line in a gap before this block */}
-                  {showNowLineBefore && (
-                    <div className="planner-now-line">
-                      <span className="planner-now-line-label">{nowStr}</span>
-                    </div>
-                  )}
-
-                  <div
-                    className={[
-                      'planner-block',
-                      `color-${block.color}`,
-                      block.completed ? 'completed' : '',
-                      isCurrent ? 'planner-block--current' : '',
-                      isCompact ? 'planner-block--compact' : '',
-                    ].filter(Boolean).join(' ')}
-                    style={{ minHeight: `${blockHeightPx}px` }}
-                  >
-                    <div className="planner-block-time">
-                      <input
-                        type="time"
-                        className="planner-time-input"
-                        value={block.startTime}
-                        onChange={(e) => handleTimeChange(block.id, 'start', e.target.value, dailyBlocks)}
-                      />
-                      <span>–</span>
-                      <input
-                        type="time"
-                        className="planner-time-input"
-                        value={block.endTime}
-                        onChange={(e) => handleTimeChange(block.id, 'end', e.target.value, dailyBlocks)}
-                      />
-                      {isCurrent && <span className="planner-current-indicator">● now</span>}
-                    </div>
-
-                    <input
-                      type="text"
-                      className="planner-block-label"
-                      value={block.label}
-                      placeholder="Block title..."
-                      autoFocus={block.label === ''}
-                      onChange={(e) => updateBlock(block.id, { label: e.target.value })}
-                    />
-
-                    <textarea
-                      className="planner-block-notes"
-                      value={block.notes}
-                      placeholder="Notes..."
-                      rows={1}
-                      onChange={(e) => {
-                        e.target.style.height = 'auto';
-                        e.target.style.height = e.target.scrollHeight + 'px';
-                        updateBlock(block.id, { notes: e.target.value });
-                      }}
-                    />
-
-                    <div className="planner-block-tasks">
-                      {(block.tasks || []).map(task => (
-                        <div key={task.id} className="planner-task-item">
-                          <button
-                            className={`planner-task-check ${task.completed ? 'checked' : ''}`}
-                            onClick={() => {
-                              const newTasks = (block.tasks || []).map(t =>
-                                t.id === task.id ? { ...t, completed: !t.completed } : t
-                              );
-                              updateBlock(block.id, { tasks: newTasks });
-                            }}
-                          >
-                            {task.completed ? '✓' : ''}
-                          </button>
-                          <input
-                            type="text"
-                            className={`planner-task-input ${task.completed ? 'completed' : ''}`}
-                            value={task.content}
-                            placeholder="Task..."
-                            onChange={(e) => {
-                              const newTasks = (block.tasks || []).map(t =>
-                                t.id === task.id ? { ...t, content: e.target.value } : t
-                              );
-                              updateBlock(block.id, { tasks: newTasks });
-                            }}
-                          />
-                          <button
-                            className="planner-task-delete"
-                            onClick={() => {
-                              const newTasks = (block.tasks || []).filter(t => t.id !== task.id);
-                              updateBlock(block.id, { tasks: newTasks });
-                            }}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                      <button
-                        className="planner-task-add-btn"
-                        onClick={() => {
-                          const newTask: Task = {
-                            id: Date.now().toString(36) + Math.random().toString(36).substring(2, 8),
-                            content: '',
-                            type: 'checkbox',
-                            completed: false,
-                            createdAt: Date.now(),
-                          };
-                          updateBlock(block.id, { tasks: [...(block.tasks || []), newTask] });
-                        }}
-                      >
-                        + add subtask
-                      </button>
-                    </div>
-
-                    {/* Proportional spacer — pushes block to its full duration height */}
-                    {!isCompact && spacerHeightPx > 0 && (
-                      <div className="planner-block-spacer" style={{ height: `${spacerHeightPx}px` }} />
+                return (
+                  <React.Fragment key={block.id}>
+                    {showNowLineBefore && (
+                      <div className="planner-now-line">
+                        <span className="planner-now-line-label">{nowStr}</span>
+                      </div>
                     )}
 
-                    <div className="planner-color-picker">
-                      {COLORS.map(c => (
-                        <div
-                          key={c}
-                          className={`planner-color-dot ${block.color === c ? 'active' : ''}`}
-                          style={{ background: getColorHex(c) }}
-                          onClick={() => updateBlock(block.id, { color: c })}
+                    <div
+                      ref={isExpanded ? expandedCardRef : undefined}
+                      className={[
+                        'planner-block-card',
+                        `planner-block-card--${block.color}`,
+                        block.completed ? 'planner-block-card--done' : '',
+                        isCurrent ? 'planner-block-card--current' : '',
+                        isExpanded ? 'planner-block-card--expanded' : '',
+                      ].filter(Boolean).join(' ')}
+                      onClick={() => {
+                        if (!isExpanded) setExpandedBlockId(block.id);
+                      }}
+                      onKeyDown={e => {
+                        if (e.key === 'Escape') setExpandedBlockId(null);
+                      }}
+                    >
+                      {/* Collapsed header — always visible */}
+                      <div className="planner-block-card__time">
+                        {block.startTime} – {block.endTime}
+                        {isCurrent && <span className="planner-current-indicator"> ● now</span>}
+                      </div>
+                      <div className={`planner-block-card__label ${!block.label ? 'planner-block-card__label--empty' : ''}`}>
+                        {block.label || 'Untitled block'}
+                      </div>
+
+                      {/* Action buttons (hover) */}
+                      <div className="planner-block-card__actions">
+                        <button
+                          className="planner-block-btn--check"
+                          onClick={e => { e.stopPropagation(); updateBlock(block.id, { completed: !block.completed }); }}
+                          title={block.completed ? 'Mark incomplete' : 'Mark complete'}
+                        >
+                          ✓
+                        </button>
+                        <button
+                          className="planner-block-btn--delete"
+                          onClick={e => { e.stopPropagation(); deleteBlock(block.id); }}
+                          title="Delete block"
+                        >
+                          ×
+                        </button>
+                      </div>
+
+                      {/* Expanded inline editor */}
+                      {isExpanded && (
+                        <BlockEditor
+                          key={block.id}
+                          block={block}
+                          onUpdate={changes => updateBlock(block.id, changes)}
+                          onClose={() => setExpandedBlockId(null)}
+                          allBlocks={dailyBlocks}
+                          onTimeChange={handleTimeChange}
                         />
-                      ))}
+                      )}
                     </div>
+                  </React.Fragment>
+                );
+              })}
 
-                    <div className="planner-block-actions">
-                      <button
-                        className={`planner-action-btn ${block.completed ? 'done' : ''}`}
-                        onClick={() => updateBlock(block.id, { completed: !block.completed })}
-                        title={block.completed ? 'Mark incomplete' : 'Mark complete'}
-                      >✓</button>
-                      <button
-                        className="planner-action-btn delete"
-                        onClick={() => deleteBlock(block.id)}
-                        title="Delete block"
-                      >×</button>
-                    </div>
-                  </div>
-                </React.Fragment>
-              );
-            })}
+              {/* Now-line after all blocks */}
+              {isToday && sortedDailyBlocks.length > 0 && (() => {
+                const last = sortedDailyBlocks[sortedDailyBlocks.length - 1];
+                return currentMinutes >= timeToMinutes(last.endTime);
+              })() && (
+                <div className="planner-now-line">
+                  <span className="planner-now-line-label">{nowStr}</span>
+                </div>
+              )}
 
-            {/* Now-line after all blocks (if today and current time is past all blocks) */}
-            {isToday && sortedDailyBlocks.length > 0 && (() => {
-              const lastBlock = sortedDailyBlocks[sortedDailyBlocks.length - 1];
-              return currentMinutes >= timeToMinutes(lastBlock.endTime);
-            })() && (
-              <div className="planner-now-line">
-                <span className="planner-now-line-label">{nowStr}</span>
-              </div>
-            )}
-
-            {/* Now-line when there are no blocks */}
-            {isToday && sortedDailyBlocks.length === 0 && (
-              <div className="planner-now-line">
-                <span className="planner-now-line-label">{nowStr}</span>
-              </div>
-            )}
-
-            <button className="planner-add-btn" onClick={handleAddBlock}>+ add block</button>
+              {/* Now-line when no blocks */}
+              {isToday && sortedDailyBlocks.length === 0 && (
+                <div className="planner-now-line">
+                  <span className="planner-now-line-label">{nowStr}</span>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Care schedule — only shown on caregiving subtype */}
+          {/* Care schedule — caregiving subtype only */}
           {subtype === 'caregiving' && (
             <div className="planner-care-section">
               <div className="planner-care-divider">
@@ -506,8 +661,7 @@ export function PlannerView({ settings, pageId, subtype = 'schedule', goals = []
         </div>
 
         <div className="planner-day-summary">
-
-          {/* ── Weekly Energy Arc ── */}
+          {/* Weekly arc */}
           <div className="planner-week-arc">
             <span className="planner-week-arc-label">this week</span>
             <div className="planner-week-arc-bars">
@@ -546,9 +700,7 @@ export function PlannerView({ settings, pageId, subtype = 'schedule', goals = []
                         style={{
                           height: `${barHeightPct}%`,
                           background: barColor,
-                          boxShadow: ratio >= 1
-                            ? '0 0 6px rgba(90,142,252,0.4)'
-                            : 'none',
+                          boxShadow: ratio >= 1 ? '0 0 6px rgba(90,142,252,0.4)' : 'none',
                         }}
                       />
                     </div>
@@ -564,10 +716,9 @@ export function PlannerView({ settings, pageId, subtype = 'schedule', goals = []
             </div>
           </div>
 
-          {/* ── Divider ── */}
           <div className="planner-summary-divider" />
 
-          {/* ── Daily Stats ── */}
+          {/* Daily stats */}
           <h3 className="summary-title">today</h3>
 
           <div className="summary-stat">
@@ -583,6 +734,27 @@ export function PlannerView({ settings, pageId, subtype = 'schedule', goals = []
             </span>
           </div>
 
+          {/* First block */}
+          <div className="summary-stat">
+            <span className="stat-label">first block</span>
+            <span className="stat-value">{firstBlockTime}</span>
+          </div>
+
+          {/* Energy rating */}
+          <div className="summary-stat">
+            <span className="stat-label">energy</span>
+            <div className="planner-energy-dots">
+              {[1, 2, 3, 4, 5].map(n => (
+                <button
+                  key={n}
+                  className={`planner-energy-dot ${n <= energyToday ? 'planner-energy-dot--filled' : 'planner-energy-dot--empty'}`}
+                  onClick={() => saveEnergy(currentDate, n === energyToday ? 0 : n)}
+                  title={`Energy: ${n}`}
+                />
+              ))}
+            </div>
+          </div>
+
           {totalBlocks > 0 && (
             <>
               <div className="summary-progress">
@@ -595,21 +767,4 @@ export function PlannerView({ settings, pageId, subtype = 'schedule', goals = []
       </div>
     </div>
   );
-}
-
-function getColorHex(color: AccentColor) {
-  switch (color) {
-    case 'plum': return '#661A4E';
-    case 'rose': return '#B55F7C';
-    case 'peach': return '#FD8D79';
-    case 'orange': return '#FCA324';
-    case 'yellow': return '#FCCD38';
-    case 'blue': return '#5A8EFC';
-    case 'violet': return '#a78bfa';
-    case 'indigo': return '#818cf8';
-    case 'amber': return '#fbbf24';
-    case 'teal': return '#2dd4bf';
-    case 'ghost': return 'rgba(180,140,220,0.2)';
-    default: return 'transparent';
-  }
 }

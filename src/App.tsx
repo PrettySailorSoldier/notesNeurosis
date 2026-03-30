@@ -7,6 +7,7 @@ import { useSettings } from './hooks/useSettings';
 import { OptionsModal } from './components/OptionsModal';
 import { PlannerView } from './components/PlannerView';
 import { IntervalView } from './components/IntervalView';
+import { HabitsPage } from './components/HabitsPage';
 import { ContextMenu } from './components/ContextMenu';
 import { ClockDisplay } from './components/ClockDisplay';
 import type { Task, Reminder, ReminderSound, PageType, PlannerSubtype } from './types';
@@ -21,10 +22,11 @@ function makeId() {
 
 // Page type metadata
 const PAGE_TYPES: { type: PageType; icon: string; label: string }[] = [
-  { type: 'notes',    icon: '📝', label: 'Notes'    },
-  { type: 'todo',     icon: '✅', label: 'To-Do'    },
-  { type: 'interval', icon: '⏱', label: 'Interval'  },
-  { type: 'planner',  icon: '📅', label: 'Planner'  },
+  { type: 'notes',    icon: '📝', label: 'Notes'         },
+  { type: 'todo',     icon: '✅', label: 'To-Do'         },
+  { type: 'interval', icon: '⏱', label: 'Interval'       },
+  { type: 'planner',  icon: '📅', label: 'Planner'       },
+  { type: 'habits',   icon: '◉',  label: 'Habit Tracker' },
 ];
 
 const PLANNER_SUBTYPES: { sub: PlannerSubtype; icon: string; label: string }[] = [
@@ -39,6 +41,7 @@ function pageTypeIcon(type?: PageType, subtype?: PlannerSubtype): string {
   }
   return PAGE_TYPES.find(p => p.type === type)?.icon ?? '📝';
 }
+
 
 interface TabContextMenu {
   x: number;
@@ -303,6 +306,10 @@ export default function App() {
           onChange={t => updateIntervalTasksForPage(currentPage.id, t)}
         />
       );
+    }
+
+    if (type === 'habits') {
+      return <HabitsPage pageId={currentPage.id} />;
     }
 
     // notes + todo both use TaskEditor
