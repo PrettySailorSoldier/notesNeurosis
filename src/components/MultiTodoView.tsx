@@ -75,54 +75,59 @@ export const MultiTodoView: React.FC<Props> = ({ boards, onChange }) => {
     }
   }, [boards, activeBoardId]);
 
-  if (boards.length === 0) return null;
-
+  // ── Derived active board (may be undefined while boards is empty) ──
   const activeBoard = boards.find(b => b.id === activeBoardId) ?? boards[0];
 
-  // ── Board-level operations ──────────────────
-  const updateBoard = (id: string, patch: Partial<TodoBoard>) => {
-    onChange(boards.map(b => b.id === id ? { ...b, ...patch } : b));
-  };
+  // ══ ALL hooks must appear before any conditional return ══
 
-  const addBoard = () => {
+  // Board-level
+  const updateBoard = useCallback((id: string, patch: Partial<TodoBoard>) => {
+    onChange(boards.map(b => b.id === id ? { ...b, ...patch } : b));
+  }, [boards, onChange]);
+
+  const addBoard = useCallback(() => {
     const num = boards.length + 1;
     const b = makeBoard(`Board ${num}`);
     onChange([...boards, b]);
     setActiveBoardId(b.id);
-  };
+  }, [boards, onChange]);
 
-  const deleteBoard = (id: string) => {
+  const deleteBoard = useCallback((id: string) => {
     if (boards.length <= 1) return;
     const remaining = boards.filter(b => b.id !== id);
     onChange(remaining);
     if (activeBoardId === id) setActiveBoardId(remaining[0].id);
-  };
+  }, [boards, onChange, activeBoardId]);
 
-  // ── List-level operations (within active board) ─
+  // List-level (within active board — guarded by activeBoard check)
   const updateList = useCallback((listId: string, patch: Partial<TodoList>) => {
+    if (!activeBoard) return;
     updateBoard(activeBoard.id, {
       lists: activeBoard.lists.map(l => l.id === listId ? { ...l, ...patch } : l),
     });
-  }, [activeBoard, boards, onChange]);
+  }, [activeBoard, updateBoard]);
 
   const deleteList = useCallback((listId: string) => {
-    if (activeBoard.lists.length <= 1) return;
+    if (!activeBoard || activeBoard.lists.length <= 1) return;
     updateBoard(activeBoard.id, { lists: activeBoard.lists.filter(l => l.id !== listId) });
-  }, [activeBoard, boards, onChange]);
+  }, [activeBoard, updateBoard]);
 
   const addList = useCallback(() => {
+    if (!activeBoard) return;
     const colorIdx = activeBoard.lists.length % ACCENT_CYCLE.length;
     const newList = { ...makeTodoList(), color: ACCENT_CYCLE[colorIdx] };
     updateBoard(activeBoard.id, { lists: [...activeBoard.lists, newList] });
-  }, [activeBoard, boards, onChange]);
+  }, [activeBoard, updateBoard]);
 
   const updateTask = useCallback((listId: string, updated: Task) => {
+    if (!activeBoard) return;
     const list = activeBoard.lists.find(l => l.id === listId);
     if (!list) return;
     updateList(listId, { tasks: list.tasks.map(t => t.id === updated.id ? updated : t) });
   }, [activeBoard, updateList]);
 
   const addTask = useCallback((listId: string, afterId?: string) => {
+    if (!activeBoard) return;
     const list = activeBoard.lists.find(l => l.id === listId);
     if (!list) return;
     const newTask = makeTask();
@@ -138,6 +143,7 @@ export const MultiTodoView: React.FC<Props> = ({ boards, onChange }) => {
   }, [activeBoard, updateList]);
 
   const deleteTask = useCallback((listId: string, taskId: string) => {
+    if (!activeBoard) return;
     const list = activeBoard.lists.find(l => l.id === listId);
     if (!list) return;
     const next = list.tasks.filter(t => t.id !== taskId);
@@ -149,6 +155,9 @@ export const MultiTodoView: React.FC<Props> = ({ boards, onChange }) => {
     const next = ACCENT_CYCLE[(idx + 1) % ACCENT_CYCLE.length];
     updateList(listId, { color: next });
   }, [updateList]);
+
+  // ── Early return ONLY after all hooks ──
+  if (boards.length === 0 || !activeBoard) return null;
 
   return (
     <div className={styles.root}>
