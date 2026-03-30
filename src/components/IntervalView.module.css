@@ -737,20 +737,26 @@
   user-select: none;
 }
 
-.soundCycleBtn {
-  background: none;
+.soundSelect {
+  background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(180, 100, 220, 0.18);
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.78rem;
-  padding: 1px 4px;
+  font-size: 0.72rem;
+  padding: 1px 2px;
   line-height: 1.4;
   flex-shrink: 0;
+  color: rgba(200, 160, 240, 0.75);
+  max-width: 80px;
   transition: border-color 0.12s, background 0.12s;
-  color: rgba(80, 35, 120, 0.65);
 }
 
-.soundCycleBtn:hover {
+.soundSelect:hover {
   background: rgba(120, 60, 160, 0.1);
   border-color: rgba(180, 100, 220, 0.38);
+}
+
+.soundSelect option {
+  background: #1a0d2e;
+  color: #d4b8f0;
 }

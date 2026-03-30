@@ -434,6 +434,13 @@ export default function App() {
             updateTasksForPage(pageId, nextTasks);
           }}
           onUpdateTimerSettings={handleUpdateTimerSettings}
+          onUpdateIntervalTask={(pageId, taskId, sound) => {
+            const p = pages.find(pg => pg.id === pageId);
+            if (!p) return;
+            updateIntervalTasksForPage(pageId, (p.intervalTasks ?? []).map(t =>
+              t.id === taskId ? { ...t, completionSound: sound } : t
+            ));
+          }}
           onAddCustomTone={addCustomTone}
           onRemoveCustomTone={removeCustomTone}
           onSetVolume={setVolume}

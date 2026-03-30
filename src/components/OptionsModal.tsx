@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import type { Page, ReminderSound } from '../types';
+import type { Page, ReminderSound, IntervalTask } from '../types';
 import type { Settings, CustomTone } from '../hooks/useSettings';
 import { useAudio } from '../hooks/useAudio';
 import styles from './OptionsModal.module.css';
@@ -16,6 +16,7 @@ interface Props {
   onRemoveCustomTone: (id: string) => void;
   onSetVolume: (volume: number) => void;
   onUpdateSettings: (patch: Partial<Settings>) => void;
+  onUpdateIntervalTask: (pageId: string, taskId: string, sound: ReminderSound) => void;
 }
 
 type Tab = 'timers' | 'sounds' | 'settings';
@@ -68,6 +69,7 @@ export const OptionsModal: React.FC<Props> = ({
   onRemoveCustomTone,
   onSetVolume,
   onUpdateSettings,
+  onUpdateIntervalTask,
 }) => {
   const { playTone } = useAudio();
   const [tab, setTab] = useState<Tab>('timers');
@@ -298,6 +300,69 @@ export const OptionsModal: React.FC<Props> = ({
               )}
             </>
           )}
+
+          {/* ── INTERVAL SEQUENCES (inside Timers tab) ── */}
+          {tab === 'timers' && (() => {
+            const intervalPages = pages.filter(p => p.pageType === 'interval' && (p.intervalTasks ?? []).length > 0);
+            if (intervalPages.length === 0) return null;
+            return (
+              <>
+                <div className={styles.sectionTitle} style={{ marginTop: activeTimers.length > 0 ? 14 : 0 }}>
+                  ⏱ Interval Sequences
+                </div>
+                {intervalPages.map(p => {
+                  const tasks: IntervalTask[] = p.intervalTasks ?? [];
+                  const totalSec = tasks.reduce((s, t) => s + t.durationSeconds, 0);
+                  const totalMin = Math.round(totalSec / 60);
+                  return (
+                    <div key={p.id} className={styles.timerItem}>
+                      <div className={styles.timerTopRow}>
+                        <div className={styles.timerInfo}>
+                          <div className={styles.timerText}>{p.name}</div>
+                          <div className={styles.timerMeta}>
+                            <span className={styles.timerInterval}>{tasks.length} blocks · {totalMin}m total</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {tasks.map(task => {
+                          const sound = task.completionSound ?? 'chime';
+                          const taskMin = Math.round(task.durationSeconds / 60);
+                          return (
+                            <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.78rem', color: 'rgba(200,170,240,0.7)' }}>
+                              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {task.label || 'Untitled'} · {taskMin}m
+                              </span>
+                              <select
+                                className={styles.editSelect}
+                                value={sound}
+                                style={{ fontSize: '0.72rem', padding: '1px 2px', maxWidth: 100 }}
+                                onChange={e => onUpdateIntervalTask(p.id, task.id, e.target.value as ReminderSound)}
+                              >
+                                {SOUND_OPTIONS.map(s => (
+                                  <option key={s.value} value={s.value}>{s.label}</option>
+                                ))}
+                                {settings.customTones.map(tone => (
+                                  <option key={tone.id} value={tone.id}>🔈 {tone.name}</option>
+                                ))}
+                              </select>
+                              <button
+                                className={styles.previewSoundBtn}
+                                onClick={() => togglePreview(sound)}
+                                style={previewingId === sound ? { color: '#ffa0a0' } : {}}
+                              >
+                                {previewingId === sound ? '■' : '▶'}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            );
+          })()}
 
           {/* ── SOUNDS TAB ── */}
           {tab === 'sounds' && (

@@ -43,12 +43,6 @@ const SOUND_LABEL: Record<string, string> = {
   chime: 'chime', bell: 'bell', blip: 'blip', soft_ding: 'ding', none: 'mute',
 };
 
-function cycleSoundFwd(current: ReminderSound | undefined): ReminderSound {
-  const idx = DEFAULT_SOUNDS.indexOf((current ?? 'chime') as ReminderSound);
-  if (idx === -1) return 'chime'; // was a custom tone — reset to default
-  return DEFAULT_SOUNDS[(idx + 1) % DEFAULT_SOUNDS.length];
-}
-
 // Change 5 — quick-start templates
 const QUICK_TEMPLATES: Record<string, Omit<IntervalTask, 'id' | 'completed'>[]> = {
   pomodoro: [
@@ -678,9 +672,7 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
           const phaseMeta  = PHASE_META[phase];
           const isBreakRow = phase === 'break';
           const endTimeMs  = clockEndTimes[idx];
-          const soundKey   = task.completionSound ?? 'chime';
-          const soundEmoji = SOUND_EMOJI[soundKey] ?? '🔔';
-          const soundLabel = SOUND_LABEL[soundKey] ?? soundKey;
+          const soundKey = task.completionSound ?? 'chime';
 
           return (
             <div
@@ -804,18 +796,27 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
               </div>
 
               {/* Completion sound cycle button */}
-              <button
-                className={styles.soundCycleBtn}
-                onClick={e => {
-                  e.stopPropagation();
-                  const next = cycleSoundFwd(task.completionSound);
+              {/* Completion sound select */}
+              <select
+                className={styles.soundSelect}
+                value={soundKey}
+                onClick={e => e.stopPropagation()}
+                onChange={e => {
+                  const next = e.target.value as ReminderSound;
                   updateTask(task.id, { completionSound: next });
                   playSoundOnce(next);
                 }}
-                title={`End sound: ${soundLabel} (click to change)`}
+                title="End sound"
               >
-                {soundEmoji}
-              </button>
+                {DEFAULT_SOUNDS.map(s => (
+                  <option key={s} value={s}>
+                    {SOUND_EMOJI[s]} {SOUND_LABEL[s]}
+                  </option>
+                ))}
+                {settings.customTones.map(tone => (
+                  <option key={tone.id} value={tone.id}>🔈 {tone.name}</option>
+                ))}
+              </select>
 
               {/* Phase badge */}
               <button
