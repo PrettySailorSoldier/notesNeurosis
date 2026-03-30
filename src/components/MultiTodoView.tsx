@@ -48,6 +48,9 @@ export const MultiTodoView: React.FC<Props> = ({ lists, onChange }) => {
 
   const bootstrapped = useRef(false);
 
+  // Track which task should be auto-focused after the next render
+  const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
+
   // Bootstrap: seed three default columns when the page has no lists yet.
   // Must be a useEffect — hooks cannot appear after a conditional return.
   useEffect(() => {
@@ -85,6 +88,7 @@ export const MultiTodoView: React.FC<Props> = ({ lists, onChange }) => {
     const list = lists.find(l => l.id === listId);
     if (!list) return;
     const newTask = makeTask();
+    setFocusTaskId(newTask.id);
     if (!afterId) {
       updateList(listId, { tasks: [...list.tasks, newTask] });
       return;
@@ -125,6 +129,8 @@ export const MultiTodoView: React.FC<Props> = ({ lists, onChange }) => {
           onDeleteTask={taskId => deleteTask(list.id, taskId)}
           onCycleColor={() => cycleColor(list.id, list.color)}
           canDelete={lists.length > 1}
+          focusTaskId={focusTaskId}
+          onFocusConsumed={() => setFocusTaskId(null)}
         />
       ))}
 
@@ -149,12 +155,14 @@ interface ColumnProps {
   onDeleteTask: (id: string) => void;
   onCycleColor: () => void;
   canDelete: boolean;
+  focusTaskId: string | null;
+  onFocusConsumed: () => void;
 }
 
 const TodoColumn: React.FC<ColumnProps> = ({
   list, accentColor, onUpdate, onDelete,
   onAddTask, onUpdateTask, onDeleteTask,
-  onCycleColor, canDelete,
+  onCycleColor, canDelete, focusTaskId, onFocusConsumed,
 }) => {
   const [editingLabel, setEditingLabel] = useState(false);
   const labelRef = useRef<HTMLInputElement>(null);
@@ -235,6 +243,8 @@ const TodoColumn: React.FC<ColumnProps> = ({
               onChange={onUpdateTask}
               onDelete={() => onDeleteTask(task.id)}
               onAddBelow={() => onAddTask(task.id)}
+              autoFocus={focusTaskId === task.id}
+              onFocusConsumed={onFocusConsumed}
             />
           ))}
 
@@ -259,11 +269,20 @@ interface RowProps {
   onChange: (task: Task) => void;
   onDelete: () => void;
   onAddBelow: () => void;
+  autoFocus?: boolean;
+  onFocusConsumed?: () => void;
 }
 
-const MiniTaskRow: React.FC<RowProps> = ({ task, accentColor, onChange, onDelete, onAddBelow }) => {
+const MiniTaskRow: React.FC<RowProps> = ({ task, accentColor, onChange, onDelete, onAddBelow, autoFocus, onFocusConsumed }) => {
   const [hovered, setHovered] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (autoFocus && inputRef.current) {
+      inputRef.current.focus();
+      onFocusConsumed?.();
+    }
+  }, [autoFocus, onFocusConsumed]);
 
   return (
     <div

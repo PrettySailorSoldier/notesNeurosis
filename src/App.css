@@ -151,6 +151,11 @@ html, body {
   border-radius: 2px;
 }
 
+/* Multi-list board: reduce right padding so columns aren't clipped */
+.writing-zone--board {
+  padding-right: 8px;
+}
+
 /* ── Loading indicator ── */
 /* Fix 5 — properly centered loading hint */
 .loading-hint {

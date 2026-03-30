@@ -417,7 +417,7 @@ export default function App() {
       )}
 
       {/* Writing zone */}
-      <div className="writing-zone">
+      <div className={`writing-zone${(currentPage?.pageType === 'multitodo') ? ' writing-zone--board' : ''}`}>
         {renderPageContent()}
       </div>
 
