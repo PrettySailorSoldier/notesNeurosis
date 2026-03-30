@@ -169,6 +169,440 @@
   opacity: 1;
 }
 
+/* ── Type badge ── */
+.habits-card__type-badge {
+  font-size: 8px;
+  font-family: system-ui, sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+
+/* ── Count grid ── */
+.habits-count-grid {
+  grid-template-columns: repeat(7, 20px);
+  gap: 3px;
+}
+
+.habits-count-grid .habits-dot-weekdays {
+  grid-template-columns: repeat(7, 20px);
+  gap: 3px;
+}
+
+.habits-count-cell {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background-color: color-mix(in srgb, var(--habit-color) calc(var(--fill-opacity, 0) * 100%), var(--border));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.1s;
+}
+
+.habits-count-cell--today {
+  outline: 2px solid var(--habit-color);
+  outline-offset: 1px;
+}
+
+.habits-count-cell__tap {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 9px;
+  font-family: system-ui, sans-serif;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 4px;
+}
+
+.habits-count-cell--active .habits-count-cell__tap {
+  color: var(--text);
+}
+
+.habits-count-cell__dec {
+  position: absolute;
+  top: -6px;
+  right: -5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 8px;
+  line-height: 1;
+  padding: 1px 3px;
+  cursor: pointer;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.12s;
+  z-index: 2;
+}
+
+.habits-count-cell:hover .habits-count-cell__dec {
+  opacity: 1;
+}
+
+/* ── Type toggle in add form ── */
+.habits-type-toggle {
+  display: flex;
+  gap: 6px;
+}
+
+.habits-type-btn {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: system-ui, sans-serif;
+  padding: 5px 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.habits-type-btn--active {
+  border-color: var(--plum);
+  color: var(--plum);
+  background: color-mix(in srgb, var(--plum) 10%, transparent);
+}
+
+/* ── View toggle (grid / linear) ── */
+.habits-view-toggle {
+  display: flex;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.habits-view-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
+  font-size: 12px;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  line-height: 1;
+}
+
+.habits-view-btn--active {
+  background: color-mix(in srgb, var(--plum) 15%, transparent);
+  color: var(--plum);
+}
+
+/* ── Linear view ── */
+.habits-linear {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.habits-linear-controls {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.habits-linear-win-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-family: system-ui, sans-serif;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+}
+
+.habits-linear-win-btn--active {
+  border-color: var(--plum);
+  color: var(--plum);
+  background: color-mix(in srgb, var(--plum) 10%, transparent);
+}
+
+.habits-linear-empty {
+  color: var(--text-faint);
+  font-size: 12px;
+  font-style: italic;
+  text-align: center;
+  margin-top: 16px;
+}
+
+.habits-linear-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 64px;
+  align-items: center;
+  gap: 10px;
+}
+
+.habits-linear-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.habits-linear-emoji {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.habits-linear-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.habits-linear-track {
+  height: 18px;
+  background: color-mix(in srgb, var(--border) 40%, transparent);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.habits-linear-segments {
+  display: flex;
+  height: 100%;
+  border-radius: 4px;
+  overflow: hidden;
+  min-width: 2px;
+  transition: width 0.3s ease;
+}
+
+.habits-linear-seg {
+  height: 100%;
+  transition: opacity 0.1s;
+}
+
+.habits-linear-seg:hover {
+  opacity: 1 !important;
+  outline: 1px solid rgba(255,255,255,0.3);
+}
+
+.habits-linear-total {
+  font-size: 11px;
+  font-family: system-ui, sans-serif;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.habits-linear-axis {
+  display: flex;
+  justify-content: space-between;
+  padding-left: 150px;
+  padding-right: 74px;
+  margin-top: -4px;
+}
+
+.habits-linear-tick {
+  font-size: 8px;
+  color: var(--text-faint);
+  font-family: system-ui, sans-serif;
+}
+
+/* ── Today breakdown ── */
+.habits-today-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.habits-today-bar {
+  display: flex;
+  height: 28px;
+  border-radius: 6px;
+  overflow: hidden;
+  gap: 2px;
+}
+
+.habits-today-bar__seg {
+  border-radius: 3px;
+  transition: flex 0.3s ease, opacity 0.15s;
+  cursor: default;
+  min-width: 4px;
+}
+
+.habits-today-bar__seg:hover {
+  filter: brightness(1.15);
+}
+
+.habits-today-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.habits-today-legend-item {
+  display: grid;
+  grid-template-columns: 10px 1fr auto auto;
+  align-items: center;
+  gap: 7px;
+}
+
+.habits-today-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.habits-today-legend-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.habits-today-legend-val {
+  font-size: 11px;
+  font-family: system-ui, sans-serif;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.habits-today-legend-pct {
+  font-size: 10px;
+  font-family: system-ui, sans-serif;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  width: 32px;
+  text-align: right;
+}
+
+.habits-today-summary {
+  font-size: 10px;
+  color: var(--text-faint);
+  font-family: system-ui, sans-serif;
+  font-style: italic;
+  text-align: right;
+}
+
+/* ── Today editable rows ── */
+.habits-today-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.habits-today-row {
+  display: grid;
+  grid-template-columns: 4px 22px 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  border-radius: 6px;
+  transition: background 0.1s;
+}
+
+.habits-today-row:hover {
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+}
+
+.habits-today-row__bar {
+  width: 4px;
+  height: 28px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  transition: opacity 0.2s;
+}
+
+.habits-today-row__emoji {
+  font-size: 15px;
+  text-align: center;
+}
+
+.habits-today-row__name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 14px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.habits-today-row__count-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.habits-today-row__input {
+  width: 52px;
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  padding: 3px 6px;
+  text-align: right;
+  outline: none;
+  transition: border-color 0.15s;
+  -moz-appearance: textfield;
+}
+
+.habits-today-row__input::-webkit-inner-spin-button,
+.habits-today-row__input::-webkit-outer-spin-button {
+  opacity: 0.4;
+}
+
+.habits-today-row__input:focus {
+  border-color: var(--plum);
+}
+
+.habits-today-row__unit {
+  font-size: 10px;
+  color: var(--text-faint);
+  font-family: system-ui, sans-serif;
+  white-space: nowrap;
+}
+
+.habits-today-row__toggle {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: system-ui, sans-serif;
+  padding: 3px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.12s, color 0.12s;
+}
+
+.habits-today-row__toggle--on {
+  font-weight: 600;
+}
+
+.habits-today-row__pct {
+  font-size: 10px;
+  font-family: system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  width: 30px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
 /* ── Add Form ── */
 .habits-add-form {
   background: color-mix(in srgb, var(--surface) 60%, transparent);

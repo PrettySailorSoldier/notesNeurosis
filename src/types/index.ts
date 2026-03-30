@@ -38,6 +38,8 @@ export interface IntervalTask {
   durationSeconds: number;
   completed: boolean;
   phaseType?: IntervalPhaseType;
+  completionSound?: ReminderSound;  // tone played when this task finishes
+  startSound?: ReminderSound;       // tone played when this task begins
 }
 
 export interface SavedSequence {
@@ -94,11 +96,15 @@ export type AccentColor =
   | 'amber'
   | 'teal';
 
+export type HabitType = 'binary' | 'count';
+
 export interface Habit {
   id: string;
   name: string;
   emoji: string;        // single emoji, e.g. "💧"
   color: AccentColor;
+  habitType: HabitType; // 'binary' = did/didn't, 'count' = how many times/hours
+  unit?: string;        // for count habits: "hrs", "×", "glasses", etc.
   archivedAt?: number;  // if set, habit is soft-deleted
   createdAt: number;
 }
@@ -106,6 +112,7 @@ export interface Habit {
 export interface HabitLog {
   habitId: string;
   date: string;         // ISO date "YYYY-MM-DD"
+  count?: number;       // for count habits: the recorded amount
   note?: string;        // optional one-line note for the day
 }
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { load } from '@tauri-apps/plugin-store';
-import type { Habit, HabitLog, HabitStore, AccentColor } from '../types';
+import type { Habit, HabitLog, HabitStore, AccentColor, HabitType } from '../types';
 
 const STORE_FILE = 'habits.json';
 const STORE_KEY = 'habit-data';
@@ -89,8 +89,8 @@ export function useHabits() {
 
   // ── Mutations ──────────────────────────────────────────
 
-  const addHabit = useCallback((name: string, emoji: string, color: AccentColor) => {
-    const habit: Habit = { id: makeId(), name, emoji, color, createdAt: Date.now() };
+  const addHabit = useCallback((name: string, emoji: string, color: AccentColor, habitType: HabitType = 'binary', unit?: string) => {
+    const habit: Habit = { id: makeId(), name, emoji, color, habitType, unit, createdAt: Date.now() };
     setHabits(prev => {
       const next = [...prev, habit];
       habitsRef.current = next;
@@ -128,6 +128,28 @@ export function useHabits() {
       return next;
     });
   }, []);
+
+  // For count habits: set the numeric count for a date (0 removes the log entry)
+  const setLogCount = useCallback((habitId: string, date: string, count: number) => {
+    setLogs(prev => {
+      const idx = prev.findIndex(l => l.habitId === habitId && l.date === date);
+      let next: HabitLog[];
+      if (count <= 0) {
+        next = prev.filter(l => !(l.habitId === habitId && l.date === date));
+      } else if (idx === -1) {
+        next = [...prev, { habitId, date, count }];
+      } else {
+        next = prev.map((l, i) => i === idx ? { ...l, count } : l);
+      }
+      logsRef.current = next;
+      scheduleSave(habitsRef.current, next);
+      return next;
+    });
+  }, []);
+
+  const getLogCount = useCallback((habitId: string, date: string): number => {
+    return logs.find(l => l.habitId === habitId && l.date === date)?.count ?? 0;
+  }, [logs]);
 
   const updateLogNote = useCallback((habitId: string, date: string, note: string) => {
     setLogs(prev => {
@@ -206,6 +228,8 @@ export function useHabits() {
     removeHabit,
     renameHabit,
     toggleLog,
+    setLogCount,
+    getLogCount,
     updateLogNote,
     isLogged,
     getLogsForHabit,

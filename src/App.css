@@ -536,7 +536,8 @@ html, body {
 .page-tabs {
   position: absolute;
   top: calc(var(--zone-top) + var(--zone-height) + 12px);
-  left: var(--zone-left);
+  left: calc(8% + 50px);
+  max-width: calc(var(--zone-left) + var(--zone-width) - 8% - 50px);
   display: flex;
   gap: 4px;
   z-index: 20;
@@ -1320,14 +1321,15 @@ html, body {
 
 /* ── Now Line ── */
 .planner-now-line {
-  position: relative;
+  position: absolute;
+  left: 0;
+  right: 0;
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 0 0 0 0;
   pointer-events: none;
-  z-index: 10;
-  flex-shrink: 0;
+  z-index: 5;
+  transform: translateY(-50%);
 }
 .planner-now-line::before {
   content: '';

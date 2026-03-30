@@ -14,6 +14,105 @@
   --shadow-glass: 0 4px 16px rgba(0,0,0,0.08);
 }
 
+/* ── All-day / reminders strip ── */
+.planner-allday-section {
+  border-bottom: 1px solid var(--border);
+  padding: 6px 12px;
+  background: color-mix(in srgb, var(--surface) 50%, transparent);
+}
+
+.planner-allday-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.planner-allday-label {
+  font-size: 9px;
+  font-family: system-ui, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  flex-shrink: 0;
+  width: 36px;
+}
+
+.planner-allday-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 13px;
+  padding: 2px 0;
+  outline: none;
+}
+
+.planner-allday-input::placeholder {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.planner-allday-input:focus {
+  border-bottom: 1px dashed var(--border);
+}
+
+.planner-allday-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  padding-left: 46px;
+}
+
+.planner-allday-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.planner-allday-item--done .planner-allday-text {
+  text-decoration: line-through;
+  opacity: 0.45;
+}
+
+.planner-allday-check {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 0;
+  width: 14px;
+  flex-shrink: 0;
+}
+
+.planner-allday-item--done .planner-allday-check {
+  color: var(--plum);
+}
+
+.planner-allday-text {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 13px;
+  color: var(--text);
+  flex: 1;
+}
+
+.planner-allday-remove {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-faint);
+  padding: 0 2px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.planner-allday-item:hover .planner-allday-remove {
+  opacity: 1;
+}
+
 /* ── Quick-add bar ── */
 .planner-quick-add-bar {
   display: flex;
@@ -68,13 +167,13 @@
 
 /* ── Block cards ── */
 .planner-block-card {
-  position: relative;
+  box-sizing: border-box;
   background: color-mix(in srgb, var(--surface) 70%, transparent);
   border: 1px solid var(--border);
   border-left: 3px solid var(--border);
   border-radius: var(--radius, 8px);
-  margin: 4px 0;
-  padding: 8px 10px;
+  padding: 6px 10px;
+  overflow: hidden;
   cursor: pointer;
   transition: border-color 0.15s, box-shadow 0.15s;
   backdrop-filter: blur(4px);
@@ -82,6 +181,11 @@
 
 .planner-block-card:hover {
   box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+.planner-block-card--expanded {
+  overflow: visible;
+  z-index: 20;
 }
 
 .planner-block-card--done {
@@ -258,11 +362,104 @@
   border-color: var(--text);
 }
 
+/* ── Subtask list inside block editor ── */
+.planner-subtasks {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.planner-subtask-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.planner-subtask-check {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  width: 16px;
+  height: 16px;
+  font-size: 9px;
+  cursor: pointer;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: border-color 0.12s, color 0.12s;
+}
+
+.planner-subtask-check--done {
+  border-color: var(--plum);
+  color: var(--plum);
+}
+
+.planner-subtask-text {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 13px;
+  color: var(--text);
+  flex: 1;
+}
+
+.planner-subtask-text--done {
+  text-decoration: line-through;
+  opacity: 0.45;
+}
+
+.planner-subtask-remove {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-faint);
+  padding: 0 2px;
+  opacity: 0;
+  transition: opacity 0.12s;
+  flex-shrink: 0;
+}
+
+.planner-subtask-row:hover .planner-subtask-remove {
+  opacity: 1;
+}
+
+.planner-subtask-add-bullet {
+  font-size: 12px;
+  color: var(--text-faint);
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+
+.planner-subtask-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed transparent;
+  color: var(--text-muted);
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 13px;
+  outline: none;
+  padding: 1px 0;
+  transition: border-bottom-color 0.15s;
+}
+
+.planner-subtask-input::placeholder {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.planner-subtask-input:focus {
+  border-bottom-color: var(--border);
+}
+
 /* ── Timeline grid ── */
 .planner-timeline-grid {
   position: relative;
   min-height: 900px;
-  padding: 0 8px 0 40px;
+  padding: 0;
 }
 
 .planner-hour-row {
@@ -292,9 +489,9 @@
 }
 
 .planner-timeline-blocks {
-  position: relative;
+  position: absolute;
+  inset: 0;
   z-index: 1;
-  padding-top: 4px;
 }
 
 /* ── Energy dots (sidebar) ── */
