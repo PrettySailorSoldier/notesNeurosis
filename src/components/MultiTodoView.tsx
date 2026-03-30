@@ -156,6 +156,24 @@ export const MultiTodoView: React.FC<Props> = ({ boards, onChange }) => {
     updateList(listId, { color: next });
   }, [updateList]);
 
+  const moveTask = useCallback((fromListId: string, taskId: string, toListId: string) => {
+    if (!activeBoard) return;
+    const fromList = activeBoard.lists.find(l => l.id === fromListId);
+    const toList   = activeBoard.lists.find(l => l.id === toListId);
+    if (!fromList || !toList) return;
+    const task = fromList.tasks.find(t => t.id === taskId);
+    if (!task) return;
+    const newFromTasks = fromList.tasks.filter(t => t.id !== taskId);
+    const newToTasks   = [...toList.tasks, task];
+    updateBoard(activeBoard.id, {
+      lists: activeBoard.lists.map(l => {
+        if (l.id === fromListId) return { ...l, tasks: newFromTasks.length > 0 ? newFromTasks : [makeTask()] };
+        if (l.id === toListId)   return { ...l, tasks: newToTasks };
+        return l;
+      }),
+    });
+  }, [activeBoard, updateBoard]);
+
   // ── Early return ONLY after all hooks ──
   if (boards.length === 0 || !activeBoard) return null;
 
@@ -207,22 +225,30 @@ export const MultiTodoView: React.FC<Props> = ({ boards, onChange }) => {
 
       {/* Column area */}
       <div className={styles.board}>
-        {activeBoard.lists.map(list => (
-          <TodoColumn
-            key={list.id}
-            list={list}
-            accentColor={list.color ? ACCENT_MAP[list.color] : ACCENT_MAP.plum}
-            onUpdate={patch => updateList(list.id, patch)}
-            onDelete={() => deleteList(list.id)}
-            onAddTask={(afterId) => addTask(list.id, afterId)}
-            onUpdateTask={task => updateTask(list.id, task)}
-            onDeleteTask={taskId => deleteTask(list.id, taskId)}
-            onCycleColor={() => cycleColor(list.id, list.color)}
-            canDelete={activeBoard.lists.length > 1}
-            focusTaskId={focusTaskId}
-            onFocusConsumed={() => setFocusTaskId(null)}
-          />
-        ))}
+        {activeBoard.lists.map((list, idx) => {
+          const prevList = activeBoard.lists[idx - 1];
+          const nextList = activeBoard.lists[idx + 1];
+          return (
+            <TodoColumn
+              key={list.id}
+              list={list}
+              accentColor={list.color ? ACCENT_MAP[list.color] : ACCENT_MAP.plum}
+              onUpdate={patch => updateList(list.id, patch)}
+              onDelete={() => deleteList(list.id)}
+              onAddTask={(afterId) => addTask(list.id, afterId)}
+              onUpdateTask={task => updateTask(list.id, task)}
+              onDeleteTask={taskId => deleteTask(list.id, taskId)}
+              onCycleColor={() => cycleColor(list.id, list.color)}
+              canDelete={activeBoard.lists.length > 1}
+              focusTaskId={focusTaskId}
+              onFocusConsumed={() => setFocusTaskId(null)}
+              prevListLabel={prevList?.label}
+              nextListLabel={nextList?.label}
+              onMoveLeft={prevList  ? (taskId) => moveTask(list.id, taskId, prevList.id)  : undefined}
+              onMoveRight={nextList ? (taskId) => moveTask(list.id, taskId, nextList.id) : undefined}
+            />
+          );
+        })}
 
         <button className={styles.addListBtn} onClick={addList} title="Add a new list">
           <span className={styles.addListIcon}>+</span>
@@ -248,12 +274,17 @@ interface ColumnProps {
   canDelete: boolean;
   focusTaskId: string | null;
   onFocusConsumed: () => void;
+  prevListLabel?: string;
+  nextListLabel?: string;
+  onMoveLeft?: (taskId: string) => void;
+  onMoveRight?: (taskId: string) => void;
 }
 
 const TodoColumn: React.FC<ColumnProps> = ({
   list, accentColor, onUpdate, onDelete,
   onAddTask, onUpdateTask, onDeleteTask,
   onCycleColor, canDelete, focusTaskId, onFocusConsumed,
+  prevListLabel, nextListLabel, onMoveLeft, onMoveRight,
 }) => {
   const [editingLabel, setEditingLabel] = useState(false);
   const labelRef = useRef<HTMLInputElement>(null);
@@ -336,6 +367,10 @@ const TodoColumn: React.FC<ColumnProps> = ({
               onAddBelow={() => onAddTask(task.id)}
               autoFocus={focusTaskId === task.id}
               onFocusConsumed={onFocusConsumed}
+              onMoveLeft={onMoveLeft ? () => onMoveLeft(task.id) : undefined}
+              onMoveRight={onMoveRight ? () => onMoveRight(task.id) : undefined}
+              prevListLabel={prevListLabel}
+              nextListLabel={nextListLabel}
             />
           ))}
 
@@ -362,9 +397,13 @@ interface RowProps {
   onAddBelow: () => void;
   autoFocus?: boolean;
   onFocusConsumed?: () => void;
+  onMoveLeft?: () => void;
+  onMoveRight?: () => void;
+  prevListLabel?: string;
+  nextListLabel?: string;
 }
 
-const MiniTaskRow: React.FC<RowProps> = ({ task, accentColor, onChange, onDelete, onAddBelow, autoFocus, onFocusConsumed }) => {
+const MiniTaskRow: React.FC<RowProps> = ({ task, accentColor, onChange, onDelete, onAddBelow, autoFocus, onFocusConsumed, onMoveLeft, onMoveRight, prevListLabel, nextListLabel }) => {
   const [hovered, setHovered] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -403,7 +442,23 @@ const MiniTaskRow: React.FC<RowProps> = ({ task, accentColor, onChange, onDelete
       />
 
       {hovered && (
-        <button className={styles.deleteBtn} onClick={onDelete} title="Delete item">×</button>
+        <div className={styles.rowActions}>
+          {onMoveLeft && (
+            <button
+              className={styles.moveBtn}
+              onClick={onMoveLeft}
+              title={`Move to "${prevListLabel ?? 'previous'}"`}
+            >◀</button>
+          )}
+          {onMoveRight && (
+            <button
+              className={styles.moveBtn}
+              onClick={onMoveRight}
+              title={`Move to "${nextListLabel ?? 'next'}"`}
+            >▶</button>
+          )}
+          <button className={styles.deleteBtn} onClick={onDelete} title="Delete item">×</button>
+        </div>
       )}
     </div>
   );

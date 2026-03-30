@@ -309,11 +309,42 @@
   justify-content: center;
   padding: 0;
   line-height: 1;
-  opacity: 0;
-  transition: opacity 0.1s, color 0.1s;
+  transition: color 0.1s;
 }
-.taskRow:hover .deleteBtn { opacity: 1; }
 .deleteBtn:hover { color: #FF7E6B; }
+
+/* Row action group (move arrows + delete, shown on hover) */
+.rowActions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.taskRow:hover .rowActions { opacity: 1; }
+
+.moveBtn {
+  width: 14px;
+  height: 14px;
+  border: none;
+  background: transparent;
+  color: rgba(58, 10, 42, 0.35);
+  cursor: pointer;
+  font-size: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  border-radius: 2px;
+  transition: color 0.1s, background 0.1s;
+}
+.moveBtn:hover {
+  color: #7B35C0;
+  background: rgba(123, 53, 192, 0.1);
+}
+
 
 /* Add item button */
 .addTaskBtn {
