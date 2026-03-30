@@ -67,7 +67,8 @@ export interface Page {
   plannerSubtype?: PlannerSubtype;
   intervalTasks?: IntervalTask[];
   goals?: GoalEntry[];
-  todoLists?: TodoList[];
+  todoLists?: TodoList[];   // legacy — migrated to todoBoards on first load
+  todoBoards?: TodoBoard[];
 }
 
 // Multi-list to-do board — each TodoList is one column
@@ -77,6 +78,14 @@ export interface TodoList {
   color?: AccentColor;    // accent dot color
   tasks: Task[];
   collapsed: boolean;     // whether the column body is hidden
+  createdAt: number;
+}
+
+// A named board holds multiple columns; one MultiTodo page can have many boards
+export interface TodoBoard {
+  id: string;
+  name: string;           // board tab label, e.g. "Week 1"
+  lists: TodoList[];
   createdAt: number;
 }
 

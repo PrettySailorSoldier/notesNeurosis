@@ -66,7 +66,7 @@ export default function App() {
     updateTasksForPage,
     updateIntervalTasksForPage,
     updateGoalsForPage,
-    updateTodoListsForPage,
+    updateTodoBoardsForPage,
     reorderPages,
   } = usePages();
 
@@ -319,8 +319,8 @@ export default function App() {
     if (type === 'multitodo') {
       return (
         <MultiTodoView
-          lists={currentPage.todoLists ?? []}
-          onChange={lists => updateTodoListsForPage(currentPage.id, lists)}
+          boards={currentPage.todoBoards ?? []}
+          onChange={boards => updateTodoBoardsForPage(currentPage.id, boards)}
         />
       );
     }

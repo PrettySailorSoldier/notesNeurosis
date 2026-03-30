@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { load } from '@tauri-apps/plugin-store';
-import type { Page, Task, PageType, PlannerSubtype, TodoList } from '../types';
+import type { Page, Task, PageType, PlannerSubtype, TodoList, TodoBoard } from '../types';
 
 const STORE_FILE = 'planner.json';
 const PAGES_KEY = 'pages';
@@ -18,6 +18,30 @@ function makeTodoList(label = 'List'): TodoList {
     tasks: [{ id: crypto.randomUUID(), content: '', type: 'plain' as const, completed: false, createdAt: Date.now() }],
     collapsed: false,
     createdAt: Date.now(),
+  };
+}
+
+function makeTodoBoard(name = 'Board'): TodoBoard {
+  return {
+    id: crypto.randomUUID(),
+    name,
+    lists: [
+      { ...makeTodoList('To-Do'),       color: 'plum'  as const },
+      { ...makeTodoList('In Progress'), color: 'blue'  as const },
+      { ...makeTodoList('Done'),        color: 'ghost' as const },
+    ],
+    createdAt: Date.now(),
+  };
+}
+
+/** Migrate a page that has only legacy todoLists into the new todoBoards shape */
+function migrateTodoBoards(p: Page): Page {
+  if (p.pageType !== 'multitodo') return p;
+  if (p.todoBoards && p.todoBoards.length > 0) return p; // already migrated
+  const lists = p.todoLists ?? [];
+  return {
+    ...p,
+    todoBoards: [{ id: crypto.randomUUID(), name: 'Board 1', lists, createdAt: Date.now() }],
   };
 }
 
@@ -42,11 +66,10 @@ export function usePages() {
 
         if (!cancelled) {
           if (storedPages && storedPages.length > 0) {
-            // Migrate: pages without a pageType default to 'notes'
-            const migrated = storedPages.map(p => ({
-              ...p,
-              pageType: p.pageType ?? 'notes' as PageType,
-            }));
+            // Migrate: pages without a pageType default to 'notes'; multitodo pages get todoBoards
+            const migrated = storedPages
+              .map(p => ({ ...p, pageType: p.pageType ?? 'notes' as PageType }))
+              .map(migrateTodoBoards);
             setPages(migrated);
             setCurrentPageId(storedPageId && migrated.find(p => p.id === storedPageId) ? storedPageId : migrated[0].id);
           } else {
@@ -54,10 +77,9 @@ export function usePages() {
             const backupPages = await store.get<Page[]>(PAGES_BACKUP_KEY);
             if (backupPages && backupPages.length > 0) {
               console.warn('[usePages] main key empty, restoring from backup');
-              const migrated = backupPages.map(p => ({
-                ...p,
-                pageType: p.pageType ?? 'notes' as PageType,
-              }));
+              const migrated = backupPages
+                .map(p => ({ ...p, pageType: p.pageType ?? 'notes' as PageType }))
+                .map(migrateTodoBoards);
               setPages(migrated);
               setCurrentPageId(storedPageId && migrated.find(p => p.id === storedPageId) ? storedPageId : migrated[0].id);
               // Restore main key immediately
@@ -126,9 +148,7 @@ export function usePages() {
       plannerSubtype: pageType === 'planner' ? (plannerSubtype ?? 'schedule') : undefined,
       intervalTasks: pageType === 'interval' ? [] : undefined,
       goals: pageType === 'planner' && plannerSubtype === 'goals' ? [] : undefined,
-      todoLists: pageType === 'multitodo'
-        ? [makeTodoList('To-Do'), makeTodoList('In Progress'), makeTodoList('Done')]
-        : undefined,
+      todoBoards: pageType === 'multitodo' ? [makeTodoBoard('Board 1')] : undefined,
     };
     const nextPages = [...pages, newPage];
     updatePages(nextPages, newPage.id);
@@ -195,6 +215,11 @@ export function usePages() {
     updatePages(nextPages);
   }, [pages, updatePages]);
 
+  const updateTodoBoardsForPage = useCallback((pageId: string, todoBoards: TodoBoard[]) => {
+    const nextPages = pages.map(p => p.id === pageId ? { ...p, todoBoards } : p);
+    updatePages(nextPages);
+  }, [pages, updatePages]);
+
   const reorderPages = useCallback((fromId: string, toId: string) => {
     if (fromId === toId) return;
     const from = pages.findIndex(p => p.id === fromId);
@@ -223,5 +248,6 @@ export function usePages() {
     updateIntervalTasksForPage,
     updateGoalsForPage,
     updateTodoListsForPage,
+    updateTodoBoardsForPage,
   };
 }

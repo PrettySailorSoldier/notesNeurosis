@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import type { TodoList, Task, TaskType, AccentColor } from '../types';
+import type { TodoBoard, TodoList, Task, TaskType, AccentColor } from '../types';
 import styles from './MultiTodoView.module.css';
 
 interface Props {
-  lists: TodoList[];
-  onChange: (lists: TodoList[]) => void;
+  boards: TodoBoard[];
+  onChange: (boards: TodoBoard[]) => void;
 }
 
 const ACCENT_MAP: Record<AccentColor, string> = {
@@ -23,69 +23,107 @@ const ACCENT_MAP: Record<AccentColor, string> = {
 
 const ACCENT_CYCLE: AccentColor[] = ['plum', 'rose', 'peach', 'orange', 'yellow', 'blue', 'ghost'];
 
-function makeId() {
-  return crypto.randomUUID();
-}
+function makeId() { return crypto.randomUUID(); }
 
 function makeTask(type: TaskType = 'checkbox'): Task {
   return { id: makeId(), content: '', type, completed: false, createdAt: Date.now() };
 }
 
 function makeTodoList(label = 'New List'): TodoList {
+  return { id: makeId(), label, tasks: [makeTask()], collapsed: false, createdAt: Date.now() };
+}
+
+function makeBoard(name = 'Board'): TodoBoard {
   return {
     id: makeId(),
-    label,
-    tasks: [makeTask()],
-    collapsed: false,
+    name,
+    lists: [
+      { ...makeTodoList('To-Do'),       color: 'plum'  },
+      { ...makeTodoList('In Progress'), color: 'blue'  },
+      { ...makeTodoList('Done'),        color: 'ghost' },
+    ],
     createdAt: Date.now(),
   };
 }
 
-export const MultiTodoView: React.FC<Props> = ({ lists, onChange }) => {
-  // Stable ref to onChange so the bootstrap effect never goes stale
+// ─────────────────────────────────────────────
+// MultiTodoView — top-level with board tabs
+// ─────────────────────────────────────────────
+export const MultiTodoView: React.FC<Props> = ({ boards, onChange }) => {
   const onChangeRef = useRef(onChange);
   useEffect(() => { onChangeRef.current = onChange; });
 
   const bootstrapped = useRef(false);
-
-  // Track which task should be auto-focused after the next render
+  const [activeBoardId, setActiveBoardId] = useState<string>('');
   const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
+  const [editingBoardId, setEditingBoardId] = useState<string | null>(null);
 
-  // Bootstrap: seed three default columns when the page has no lists yet.
-  // Must be a useEffect — hooks cannot appear after a conditional return.
+  // Bootstrap: seed one default board when there are none
   useEffect(() => {
-    if (lists.length === 0 && !bootstrapped.current) {
+    if (boards.length === 0 && !bootstrapped.current) {
       bootstrapped.current = true;
-      onChangeRef.current([
-        { ...makeTodoList('To-Do'),       color: 'plum'  },
-        { ...makeTodoList('In Progress'), color: 'blue'  },
-        { ...makeTodoList('Done'),        color: 'ghost' },
-      ]);
+      const first = makeBoard('Board 1');
+      onChangeRef.current([first]);
+      setActiveBoardId(first.id);
     }
-  }, [lists.length]);
+  }, [boards.length]);
 
-  const updateList = useCallback((id: string, patch: Partial<TodoList>) => {
-    onChange(lists.map(l => l.id === id ? { ...l, ...patch } : l));
-  }, [lists, onChange]);
+  // If activeBoardId is stale (e.g. after delete), snap to first board
+  useEffect(() => {
+    if (boards.length > 0 && !boards.find(b => b.id === activeBoardId)) {
+      setActiveBoardId(boards[0].id);
+    }
+  }, [boards, activeBoardId]);
 
-  const deleteList = useCallback((id: string) => {
-    if (lists.length <= 1) return;
-    onChange(lists.filter(l => l.id !== id));
-  }, [lists, onChange]);
+  if (boards.length === 0) return null;
+
+  const activeBoard = boards.find(b => b.id === activeBoardId) ?? boards[0];
+
+  // ── Board-level operations ──────────────────
+  const updateBoard = (id: string, patch: Partial<TodoBoard>) => {
+    onChange(boards.map(b => b.id === id ? { ...b, ...patch } : b));
+  };
+
+  const addBoard = () => {
+    const num = boards.length + 1;
+    const b = makeBoard(`Board ${num}`);
+    onChange([...boards, b]);
+    setActiveBoardId(b.id);
+  };
+
+  const deleteBoard = (id: string) => {
+    if (boards.length <= 1) return;
+    const remaining = boards.filter(b => b.id !== id);
+    onChange(remaining);
+    if (activeBoardId === id) setActiveBoardId(remaining[0].id);
+  };
+
+  // ── List-level operations (within active board) ─
+  const updateList = useCallback((listId: string, patch: Partial<TodoList>) => {
+    updateBoard(activeBoard.id, {
+      lists: activeBoard.lists.map(l => l.id === listId ? { ...l, ...patch } : l),
+    });
+  }, [activeBoard, boards, onChange]);
+
+  const deleteList = useCallback((listId: string) => {
+    if (activeBoard.lists.length <= 1) return;
+    updateBoard(activeBoard.id, { lists: activeBoard.lists.filter(l => l.id !== listId) });
+  }, [activeBoard, boards, onChange]);
 
   const addList = useCallback(() => {
-    const colorIdx = lists.length % ACCENT_CYCLE.length;
-    onChange([...lists, { ...makeTodoList(), color: ACCENT_CYCLE[colorIdx] }]);
-  }, [lists, onChange]);
+    const colorIdx = activeBoard.lists.length % ACCENT_CYCLE.length;
+    const newList = { ...makeTodoList(), color: ACCENT_CYCLE[colorIdx] };
+    updateBoard(activeBoard.id, { lists: [...activeBoard.lists, newList] });
+  }, [activeBoard, boards, onChange]);
 
   const updateTask = useCallback((listId: string, updated: Task) => {
-    const list = lists.find(l => l.id === listId);
+    const list = activeBoard.lists.find(l => l.id === listId);
     if (!list) return;
     updateList(listId, { tasks: list.tasks.map(t => t.id === updated.id ? updated : t) });
-  }, [lists, updateList]);
+  }, [activeBoard, updateList]);
 
   const addTask = useCallback((listId: string, afterId?: string) => {
-    const list = lists.find(l => l.id === listId);
+    const list = activeBoard.lists.find(l => l.id === listId);
     if (!list) return;
     const newTask = makeTask();
     setFocusTaskId(newTask.id);
@@ -97,14 +135,14 @@ export const MultiTodoView: React.FC<Props> = ({ lists, onChange }) => {
     const next = [...list.tasks];
     next.splice(idx + 1, 0, newTask);
     updateList(listId, { tasks: next });
-  }, [lists, updateList]);
+  }, [activeBoard, updateList]);
 
   const deleteTask = useCallback((listId: string, taskId: string) => {
-    const list = lists.find(l => l.id === listId);
+    const list = activeBoard.lists.find(l => l.id === listId);
     if (!list) return;
     const next = list.tasks.filter(t => t.id !== taskId);
     updateList(listId, { tasks: next.length > 0 ? next : [makeTask()] });
-  }, [lists, updateList]);
+  }, [activeBoard, updateList]);
 
   const cycleColor = useCallback((listId: string, current?: AccentColor) => {
     const idx = ACCENT_CYCLE.indexOf(current ?? 'ghost');
@@ -112,32 +150,76 @@ export const MultiTodoView: React.FC<Props> = ({ lists, onChange }) => {
     updateList(listId, { color: next });
   }, [updateList]);
 
-  // Render nothing while the bootstrap effect hasn't fired yet
-  if (lists.length === 0) return null;
-
   return (
-    <div className={styles.board}>
-      {lists.map(list => (
-        <TodoColumn
-          key={list.id}
-          list={list}
-          accentColor={list.color ? ACCENT_MAP[list.color] : ACCENT_MAP.plum}
-          onUpdate={patch => updateList(list.id, patch)}
-          onDelete={() => deleteList(list.id)}
-          onAddTask={(afterId) => addTask(list.id, afterId)}
-          onUpdateTask={task => updateTask(list.id, task)}
-          onDeleteTask={taskId => deleteTask(list.id, taskId)}
-          onCycleColor={() => cycleColor(list.id, list.color)}
-          canDelete={lists.length > 1}
-          focusTaskId={focusTaskId}
-          onFocusConsumed={() => setFocusTaskId(null)}
-        />
-      ))}
+    <div className={styles.root}>
+      {/* Board tab strip */}
+      <div className={styles.boardTabs}>
+        {boards.map(board => (
+          <div
+            key={board.id}
+            className={`${styles.boardTab} ${board.id === activeBoard.id ? styles.boardTabActive : ''}`}
+          >
+            {editingBoardId === board.id ? (
+              <input
+                className={styles.boardTabInput}
+                defaultValue={board.name}
+                autoFocus
+                onBlur={e => {
+                  updateBoard(board.id, { name: e.target.value.trim() || board.name });
+                  setEditingBoardId(null);
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === 'Escape') (e.target as HTMLInputElement).blur();
+                }}
+              />
+            ) : (
+              <span
+                className={styles.boardTabLabel}
+                onClick={() => setActiveBoardId(board.id)}
+                onDoubleClick={() => setEditingBoardId(board.id)}
+                title="Click to switch · Double-click to rename"
+              >
+                {board.name}
+              </span>
+            )}
+            {boards.length > 1 && (
+              <button
+                className={styles.boardTabClose}
+                onClick={e => { e.stopPropagation(); deleteBoard(board.id); }}
+                title="Delete board"
+              >×</button>
+            )}
+          </div>
+        ))}
+        <button className={styles.addBoardBtn} onClick={addBoard} title="Add a new board">
+          + board
+        </button>
+      </div>
 
-      <button className={styles.addListBtn} onClick={addList} title="Add a new list">
-        <span className={styles.addListIcon}>+</span>
-        <span className={styles.addListLabel}>Add List</span>
-      </button>
+      {/* Column area */}
+      <div className={styles.board}>
+        {activeBoard.lists.map(list => (
+          <TodoColumn
+            key={list.id}
+            list={list}
+            accentColor={list.color ? ACCENT_MAP[list.color] : ACCENT_MAP.plum}
+            onUpdate={patch => updateList(list.id, patch)}
+            onDelete={() => deleteList(list.id)}
+            onAddTask={(afterId) => addTask(list.id, afterId)}
+            onUpdateTask={task => updateTask(list.id, task)}
+            onDeleteTask={taskId => deleteTask(list.id, taskId)}
+            onCycleColor={() => cycleColor(list.id, list.color)}
+            canDelete={activeBoard.lists.length > 1}
+            focusTaskId={focusTaskId}
+            onFocusConsumed={() => setFocusTaskId(null)}
+          />
+        ))}
+
+        <button className={styles.addListBtn} onClick={addList} title="Add a new list">
+          <span className={styles.addListIcon}>+</span>
+          <span className={styles.addListLabel}>Add List</span>
+        </button>
+      </div>
     </div>
   );
 };
