@@ -62,6 +62,23 @@ export const MultiTodoView: React.FC<Props> = ({ boards, onChange, onSetReminder
   const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
   const [editingBoardId, setEditingBoardId] = useState<string | null>(null);
 
+  // ── Drag state: track which task is being dragged and from which list ──
+  const [dragState, setDragState] = useState<{ taskId: string; fromListId: string } | null>(null);
+  const [dragOverListId, setDragOverListId] = useState<string | null>(null);
+
+  const handleDragStart = useCallback((taskId: string, fromListId: string) => {
+    setDragState({ taskId, fromListId });
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    setDragState(null);
+    setDragOverListId(null);
+  }, []);
+
+  const handleDragOverList = useCallback((listId: string) => {
+    setDragOverListId(listId);
+  }, []);
+
   // Bootstrap: seed one default board when there are none
   useEffect(() => {
     if (boards.length === 0 && !bootstrapped.current) {
@@ -178,6 +195,17 @@ export const MultiTodoView: React.FC<Props> = ({ boards, onChange, onSetReminder
     });
   }, [activeBoard, updateBoard]);
 
+  // Drop handler for columns — resolves drag state and calls moveTask
+  const handleColumnDrop = useCallback((toListId: string) => {
+    if (!dragState) return;
+    const { taskId, fromListId } = dragState;
+    if (fromListId !== toListId) {
+      moveTask(fromListId, taskId, toListId);
+    }
+    setDragState(null);
+    setDragOverListId(null);
+  }, [dragState, moveTask]);
+
   // ── Early return ONLY after all hooks ──
   if (boards.length === 0 || !activeBoard) return null;
 
@@ -252,6 +280,12 @@ export const MultiTodoView: React.FC<Props> = ({ boards, onChange, onSetReminder
               onMoveRight={nextList ? (taskId) => moveTask(list.id, taskId, nextList.id) : undefined}
               onSetReminder={onSetReminder}
               onClearReminder={onClearReminder}
+              isDragOver={dragOverListId === list.id && dragState?.fromListId !== list.id}
+              onDragOverList={() => handleDragOverList(list.id)}
+              onDropOnList={() => handleColumnDrop(list.id)}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              draggingTaskId={dragState?.taskId ?? null}
             />
           );
         })}
@@ -286,6 +320,13 @@ interface ColumnProps {
   onMoveRight?: (taskId: string) => void;
   onSetReminder: (taskId: string, intervalMinutes: number, sound: ReminderSound, alarmEnabled?: boolean) => void;
   onClearReminder: (taskId: string) => void;
+  // Drag-and-drop
+  isDragOver: boolean;
+  onDragOverList: () => void;
+  onDropOnList: () => void;
+  onDragStart: (taskId: string, fromListId: string) => void;
+  onDragEnd: () => void;
+  draggingTaskId: string | null;
 }
 
 const TodoColumn: React.FC<ColumnProps> = ({
@@ -294,6 +335,7 @@ const TodoColumn: React.FC<ColumnProps> = ({
   onCycleColor, canDelete, focusTaskId, onFocusConsumed,
   prevListLabel, nextListLabel, onMoveLeft, onMoveRight,
   onSetReminder, onClearReminder,
+  isDragOver, onDragOverList, onDropOnList, onDragStart, onDragEnd, draggingTaskId,
 }) => {
   const [editingLabel, setEditingLabel] = useState(false);
   const labelRef = useRef<HTMLInputElement>(null);
@@ -308,8 +350,16 @@ const TodoColumn: React.FC<ColumnProps> = ({
 
   return (
     <div
-      className={styles.column}
+      className={`${styles.column} ${isDragOver ? styles.columnDragOver : ''}`}
       style={{ '--col-accent': accentColor } as React.CSSProperties}
+      onDragOver={e => { e.preventDefault(); onDragOverList(); }}
+      onDragLeave={e => {
+        // Only reset if leaving the column entirely (not entering a child)
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+          // parent's dragOverListId will persist until drop or another column gets it
+        }
+      }}
+      onDrop={e => { e.preventDefault(); onDropOnList(); }}
     >
       {/* Column Header */}
       <div className={styles.colHeader}>
@@ -382,6 +432,9 @@ const TodoColumn: React.FC<ColumnProps> = ({
               nextListLabel={nextListLabel}
               onSetReminder={onSetReminder}
               onClearReminder={onClearReminder}
+              onDragStart={() => onDragStart(task.id, list.id)}
+              onDragEnd={onDragEnd}
+              isDragging={draggingTaskId === task.id}
             />
           ))}
 
@@ -414,12 +467,17 @@ interface RowProps {
   nextListLabel?: string;
   onSetReminder: (taskId: string, intervalMinutes: number, sound: ReminderSound, alarmEnabled?: boolean) => void;
   onClearReminder: (taskId: string) => void;
+  // Drag-and-drop
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  isDragging: boolean;
 }
 
 const MiniTaskRow: React.FC<RowProps> = ({
   task, accentColor, onChange, onDelete, onAddBelow, autoFocus, onFocusConsumed,
   onMoveLeft, onMoveRight, prevListLabel, nextListLabel,
   onSetReminder, onClearReminder,
+  onDragStart, onDragEnd, isDragging,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [showModal, setShowModal] = useState(false);
@@ -467,7 +525,15 @@ const MiniTaskRow: React.FC<RowProps> = ({
   return (
     <div
       ref={rowRef}
-      className={`${styles.taskRow} ${task.completed ? styles.taskDone : ''}`}
+      className={`${styles.taskRow} ${task.completed ? styles.taskDone : ''} ${isDragging ? styles.taskRowDragging : ''}`}
+      draggable
+      onDragStart={e => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', task.id);
+        // Slight delay so the ghost renders before we apply dragging style
+        setTimeout(onDragStart, 0);
+      }}
+      onDragEnd={onDragEnd}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
