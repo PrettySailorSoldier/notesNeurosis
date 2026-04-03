@@ -62,23 +62,6 @@ export const MultiTodoView: React.FC<Props> = ({ boards, onChange, onSetReminder
   const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
   const [editingBoardId, setEditingBoardId] = useState<string | null>(null);
 
-  // ── Drag state: track which task is being dragged and from which list ──
-  const [dragState, setDragState] = useState<{ taskId: string; fromListId: string } | null>(null);
-  const [dragOverListId, setDragOverListId] = useState<string | null>(null);
-
-  const handleDragStart = useCallback((taskId: string, fromListId: string) => {
-    setDragState({ taskId, fromListId });
-  }, []);
-
-  const handleDragEnd = useCallback(() => {
-    setDragState(null);
-    setDragOverListId(null);
-  }, []);
-
-  const handleDragOverList = useCallback((listId: string) => {
-    setDragOverListId(listId);
-  }, []);
-
   // Bootstrap: seed one default board when there are none
   useEffect(() => {
     if (boards.length === 0 && !bootstrapped.current) {
@@ -177,6 +160,7 @@ export const MultiTodoView: React.FC<Props> = ({ boards, onChange, onSetReminder
     updateList(listId, { color: next });
   }, [updateList]);
 
+  // Move within the same board
   const moveTask = useCallback((fromListId: string, taskId: string, toListId: string) => {
     if (!activeBoard) return;
     const fromList = activeBoard.lists.find(l => l.id === fromListId);
@@ -195,16 +179,57 @@ export const MultiTodoView: React.FC<Props> = ({ boards, onChange, onSetReminder
     });
   }, [activeBoard, updateBoard]);
 
-  // Drop handler for columns — resolves drag state and calls moveTask
-  const handleColumnDrop = useCallback((toListId: string) => {
-    if (!dragState) return;
-    const { taskId, fromListId } = dragState;
-    if (fromListId !== toListId) {
-      moveTask(fromListId, taskId, toListId);
+  // Move across boards (or within same board, works for both)
+  const moveTaskAcrossBoards = useCallback((
+    fromBoardId: string, fromListId: string, taskId: string,
+    toBoardId: string,   toListId: string,
+  ) => {
+    // Find the task first
+    const fromBoard = boards.find(b => b.id === fromBoardId);
+    if (!fromBoard) return;
+    const fromList = fromBoard.lists.find(l => l.id === fromListId);
+    if (!fromList) return;
+    const task = fromList.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const newFromTasks = fromList.tasks.filter(t => t.id !== taskId);
+
+    if (fromBoardId === toBoardId) {
+      // Same board — single updateBoard call
+      updateBoard(fromBoardId, {
+        lists: fromBoard.lists.map(l => {
+          if (l.id === fromListId) return { ...l, tasks: newFromTasks.length > 0 ? newFromTasks : [makeTask()] };
+          if (l.id === toListId)   return { ...l, tasks: [...l.tasks, task] };
+          return l;
+        }),
+      });
+    } else {
+      // Different boards — update both boards in a single onChange call
+      onChange(boards.map(b => {
+        if (b.id === fromBoardId) {
+          return {
+            ...b,
+            lists: b.lists.map(l =>
+              l.id === fromListId
+                ? { ...l, tasks: newFromTasks.length > 0 ? newFromTasks : [makeTask()] }
+                : l,
+            ),
+          };
+        }
+        if (b.id === toBoardId) {
+          return {
+            ...b,
+            lists: b.lists.map(l =>
+              l.id === toListId
+                ? { ...l, tasks: [...l.tasks, task] }
+                : l,
+            ),
+          };
+        }
+        return b;
+      }));
     }
-    setDragState(null);
-    setDragOverListId(null);
-  }, [dragState, moveTask]);
+  }, [boards, onChange, updateBoard]);
 
   // ── Early return ONLY after all hooks ──
   if (boards.length === 0 || !activeBoard) return null;
@@ -280,12 +305,13 @@ export const MultiTodoView: React.FC<Props> = ({ boards, onChange, onSetReminder
               onMoveRight={nextList ? (taskId) => moveTask(list.id, taskId, nextList.id) : undefined}
               onSetReminder={onSetReminder}
               onClearReminder={onClearReminder}
-              isDragOver={dragOverListId === list.id && dragState?.fromListId !== list.id}
-              onDragOverList={() => handleDragOverList(list.id)}
-              onDropOnList={() => handleColumnDrop(list.id)}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              draggingTaskId={dragState?.taskId ?? null}
+              // "Move to" dropdown data
+              boards={boards}
+              currentBoardId={activeBoard.id}
+              currentListId={list.id}
+              onMoveToDestination={(taskId, toBoardId, toListId) =>
+                moveTaskAcrossBoards(activeBoard.id, list.id, taskId, toBoardId, toListId)
+              }
             />
           );
         })}
@@ -320,13 +346,11 @@ interface ColumnProps {
   onMoveRight?: (taskId: string) => void;
   onSetReminder: (taskId: string, intervalMinutes: number, sound: ReminderSound, alarmEnabled?: boolean) => void;
   onClearReminder: (taskId: string) => void;
-  // Drag-and-drop
-  isDragOver: boolean;
-  onDragOverList: () => void;
-  onDropOnList: () => void;
-  onDragStart: (taskId: string, fromListId: string) => void;
-  onDragEnd: () => void;
-  draggingTaskId: string | null;
+  // Move-to dropdown
+  boards: TodoBoard[];
+  currentBoardId: string;
+  currentListId: string;
+  onMoveToDestination: (taskId: string, toBoardId: string, toListId: string) => void;
 }
 
 const TodoColumn: React.FC<ColumnProps> = ({
@@ -335,7 +359,7 @@ const TodoColumn: React.FC<ColumnProps> = ({
   onCycleColor, canDelete, focusTaskId, onFocusConsumed,
   prevListLabel, nextListLabel, onMoveLeft, onMoveRight,
   onSetReminder, onClearReminder,
-  isDragOver, onDragOverList, onDropOnList, onDragStart, onDragEnd, draggingTaskId,
+  boards, currentBoardId, currentListId, onMoveToDestination,
 }) => {
   const [editingLabel, setEditingLabel] = useState(false);
   const labelRef = useRef<HTMLInputElement>(null);
@@ -350,16 +374,8 @@ const TodoColumn: React.FC<ColumnProps> = ({
 
   return (
     <div
-      className={`${styles.column} ${isDragOver ? styles.columnDragOver : ''}`}
+      className={styles.column}
       style={{ '--col-accent': accentColor } as React.CSSProperties}
-      onDragOver={e => { e.preventDefault(); onDragOverList(); }}
-      onDragLeave={e => {
-        // Only reset if leaving the column entirely (not entering a child)
-        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-          // parent's dragOverListId will persist until drop or another column gets it
-        }
-      }}
-      onDrop={e => { e.preventDefault(); onDropOnList(); }}
     >
       {/* Column Header */}
       <div className={styles.colHeader}>
@@ -432,9 +448,12 @@ const TodoColumn: React.FC<ColumnProps> = ({
               nextListLabel={nextListLabel}
               onSetReminder={onSetReminder}
               onClearReminder={onClearReminder}
-              onDragStart={() => onDragStart(task.id, list.id)}
-              onDragEnd={onDragEnd}
-              isDragging={draggingTaskId === task.id}
+              boards={boards}
+              currentBoardId={currentBoardId}
+              currentListId={currentListId}
+              onMoveToDestination={(toBoardId, toListId) =>
+                onMoveToDestination(task.id, toBoardId, toListId)
+              }
             />
           ))}
 
@@ -467,23 +486,26 @@ interface RowProps {
   nextListLabel?: string;
   onSetReminder: (taskId: string, intervalMinutes: number, sound: ReminderSound, alarmEnabled?: boolean) => void;
   onClearReminder: (taskId: string) => void;
-  // Drag-and-drop
-  onDragStart: () => void;
-  onDragEnd: () => void;
-  isDragging: boolean;
+  // Move-to dropdown
+  boards: TodoBoard[];
+  currentBoardId: string;
+  currentListId: string;
+  onMoveToDestination: (toBoardId: string, toListId: string) => void;
 }
 
 const MiniTaskRow: React.FC<RowProps> = ({
   task, accentColor, onChange, onDelete, onAddBelow, autoFocus, onFocusConsumed,
   onMoveLeft, onMoveRight, prevListLabel, nextListLabel,
   onSetReminder, onClearReminder,
-  onDragStart, onDragEnd, isDragging,
+  boards, currentBoardId, currentListId, onMoveToDestination,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [showModal, setShowModal] = useState(false);
   const [modalAnchor, setModalAnchor] = useState<DOMRect | null>(null);
   const [hovered, setHovered] = useState(false);
+  const [showMoveMenu, setShowMoveMenu] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
+  const moveMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (autoFocus && inputRef.current) {
@@ -491,6 +513,18 @@ const MiniTaskRow: React.FC<RowProps> = ({
       onFocusConsumed?.();
     }
   }, [autoFocus, onFocusConsumed]);
+
+  // Close move menu on outside click
+  useEffect(() => {
+    if (!showMoveMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (moveMenuRef.current && !moveMenuRef.current.contains(e.target as Node)) {
+        setShowMoveMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showMoveMenu]);
 
   // Countdown for reminder badge
   const [countdown, setCountdown] = useState('');
@@ -522,18 +556,18 @@ const MiniTaskRow: React.FC<RowProps> = ({
 
   const isPaused = task.reminder?.active && task.reminder.alarmEnabled === false;
 
+  // Build destination list for the move menu
+  // Each option: { boardId, boardName, listId, listLabel }
+  const moveDestinations = boards.flatMap(board =>
+    board.lists
+      .filter(l => !(board.id === currentBoardId && l.id === currentListId))
+      .map(l => ({ boardId: board.id, boardName: board.name, listId: l.id, listLabel: l.label }))
+  );
+
   return (
     <div
       ref={rowRef}
-      className={`${styles.taskRow} ${task.completed ? styles.taskDone : ''} ${isDragging ? styles.taskRowDragging : ''}`}
-      draggable
-      onDragStart={e => {
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', task.id);
-        // Slight delay so the ghost renders before we apply dragging style
-        setTimeout(onDragStart, 0);
-      }}
-      onDragEnd={onDragEnd}
+      className={`${styles.taskRow} ${task.completed ? styles.taskDone : ''}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -594,6 +628,40 @@ const MiniTaskRow: React.FC<RowProps> = ({
             title={`Move to "${nextListLabel ?? 'next'}"`}
           >▶</button>
         )}
+
+        {/* Move-to dropdown trigger */}
+        {moveDestinations.length > 0 && (
+          <div className={styles.moveMenuWrapper} ref={moveMenuRef}>
+            <button
+              className={`${styles.moveToBtn} ${(hovered || showMoveMenu) ? styles.moveToVisible : ''}`}
+              onClick={() => setShowMoveMenu(v => !v)}
+              title="Move to…"
+            >
+              ⇢
+            </button>
+            {showMoveMenu && (
+              <div className={styles.moveMenu}>
+                <div className={styles.moveMenuTitle}>Move to…</div>
+                {moveDestinations.map(dest => (
+                  <button
+                    key={`${dest.boardId}__${dest.listId}`}
+                    className={styles.moveMenuItem}
+                    onClick={() => {
+                      onMoveToDestination(dest.boardId, dest.listId);
+                      setShowMoveMenu(false);
+                    }}
+                  >
+                    {boards.length > 1 && (
+                      <span className={styles.moveMenuBoard}>{dest.boardName} /</span>
+                    )}
+                    <span className={styles.moveMenuList}>{dest.listLabel}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <button className={styles.deleteBtn} onClick={onDelete} title="Delete item">×</button>
       </div>
 
