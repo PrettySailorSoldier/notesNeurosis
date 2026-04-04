@@ -760,3 +760,194 @@
   background: #1a0d2e;
   color: #d4b8f0;
 }
+
+/* ════════════════════════════════════════════════════════════════
+   Phase card left-border visual system
+   ════════════════════════════════════════════════════════════════ */
+.phaseCard--work       { border-left: 3px solid #661A4E; }
+.phaseCard--break      { border-left: 3px solid #5A8EFC; }
+.phaseCard--transition { border-left: 3px solid #B55F7C; }
+.phaseCard--buffer     { border-left: 3px solid #8A8A8A; }
+
+/* ════════════════════════════════════════════════════════════════
+   Strip header (total label + Run button on same row)
+   ════════════════════════════════════════════════════════════════ */
+.intervalStripHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Templates panel (collapsible, 200ms slide)
+   ════════════════════════════════════════════════════════════════ */
+.intervalTemplatesPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.intervalTemplatesToggle {
+  background: none;
+  border: none;
+  color: rgba(90, 40, 130, 0.6);
+  font-size: 0.76rem;
+  cursor: pointer;
+  padding: 2px 0;
+  text-align: left;
+  letter-spacing: 0.02em;
+  transition: color 0.12s;
+}
+
+.intervalTemplatesToggle:hover {
+  color: rgba(60, 20, 90, 0.85);
+}
+
+.intervalTemplatesBody {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease;
+}
+
+.intervalTemplatesBodyOpen {
+  max-height: 220px;
+}
+
+.intervalTemplatesList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 0 4px;
+}
+
+.intervalSavedEntry {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.intervalSavedDelete {
+  background: none;
+  border: none;
+  color: rgba(200, 100, 120, 0.4);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0 3px;
+  line-height: 1;
+  transition: color 0.12s;
+}
+
+.intervalSavedDelete:hover {
+  color: rgba(240, 80, 100, 0.8);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   RUN mode layout
+   ════════════════════════════════════════════════════════════════ */
+.runModeCenter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 6px 0;
+}
+
+.runArcWrapper {
+  position: relative;
+  width: 160px;
+  height: 160px;
+}
+
+.runArcSvg {
+  display: block;
+}
+
+.runArcInner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  pointer-events: none;
+}
+
+/* 48px-ish Inter tabular-nums countdown */
+.runDigits {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 3rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: rgba(40, 10, 70, 0.95);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.runLabel {
+  font-size: 0.78rem;
+  color: rgba(70, 30, 100, 0.65);
+  text-align: center;
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.runMutedBadge {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(80, 35, 110, 0.45);
+}
+
+/* Upcoming 2-phase strip */
+.runUpcoming {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  max-width: 240px;
+}
+
+.runUpcomingLabel {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(100, 50, 140, 0.4);
+}
+
+.runUpcomingItem {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.78rem;
+  color: rgba(55, 20, 85, 0.6);
+  width: 100%;
+}
+
+.runUpcomingDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.runUpcomingName {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.runUpcomingTime {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.71rem;
+  color: rgba(100, 50, 140, 0.45);
+  flex-shrink: 0;
+}
+
+.mutedBtn {
+  opacity: 0.6;
+}

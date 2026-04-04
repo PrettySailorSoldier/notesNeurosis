@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import type { TodoBoard, TodoList, Task, TaskType, AccentColor, ReminderSound } from '../types';
 import { TimerModal } from './TimerModal';
+import { ContextMenu } from './ContextMenu';
 import styles from './MultiTodoView.module.css';
 
 interface Props {
@@ -504,6 +505,7 @@ const MiniTaskRow: React.FC<RowProps> = ({
   const [modalAnchor, setModalAnchor] = useState<DOMRect | null>(null);
   const [hovered, setHovered] = useState(false);
   const [showMoveMenu, setShowMoveMenu] = useState(false);
+  const [taskContextMenu, setTaskContextMenu] = useState<{ x: number; y: number } | null>(null);
   const rowRef = useRef<HTMLDivElement>(null);
   const moveMenuRef = useRef<HTMLDivElement>(null);
 
@@ -570,6 +572,7 @@ const MiniTaskRow: React.FC<RowProps> = ({
       className={`${styles.taskRow} ${task.completed ? styles.taskDone : ''}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onContextMenu={e => { e.preventDefault(); setTaskContextMenu({ x: e.clientX, y: e.clientY }); }}
     >
       <button
         className={styles.checkBtn}
@@ -681,6 +684,37 @@ const MiniTaskRow: React.FC<RowProps> = ({
             setShowModal(false);
           }}
           onClose={() => setShowModal(false)}
+        />,
+        document.body
+      )}
+
+      {/* Right-click context menu — portalled to body */}
+      {taskContextMenu && ReactDOM.createPortal(
+        <ContextMenu
+          x={taskContextMenu.x}
+          y={taskContextMenu.y}
+          onClose={() => setTaskContextMenu(null)}
+          options={[
+            ...moveDestinations.map(dest => ({
+              icon: '⇢',
+              label: boards.length > 1
+                ? `${dest.boardName} / ${dest.listLabel}`
+                : dest.listLabel,
+              onClick: () => {
+                onMoveToDestination(dest.boardId, dest.listId);
+                setTaskContextMenu(null);
+              },
+            })),
+            ...(moveDestinations.length > 0
+              ? [{ divider: true as const, label: '', onClick: () => {} }]
+              : []),
+            {
+              icon: '✕',
+              label: 'Delete',
+              danger: true,
+              onClick: () => { onDelete(); setTaskContextMenu(null); },
+            },
+          ]}
         />,
         document.body
       )}

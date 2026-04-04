@@ -3,7 +3,6 @@ import { load } from '@tauri-apps/plugin-store';
 import { usePlanner } from '../hooks/usePlanner';
 import type { AccentColor, PlannerBlock, Task, GoalEntry, PlannerSubtype } from '../types';
 import { IntegratedSchedulePanel } from './IntegratedSchedulePanel';
-import { GoalsView } from './GoalsView';
 import { accentToHex } from '../utils/accentToHex';
 import '../styles/planner.css';
 
@@ -92,6 +91,20 @@ function roundToNearest15(date: Date): string {
   let adjustedH = h;
   if (m === 60) { m = 0; adjustedH = (h + 1) % 24; }
   return `${String(adjustedH).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function roundToNextHalfHour(date: Date): string {
+  const h = date.getHours();
+  const m = date.getMinutes();
+  let newH = h;
+  let newM: number;
+  if (m < 30) {
+    newM = 30;
+  } else {
+    newM = 0;
+    newH = (h + 1) % 24;
+  }
+  return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
 }
 
 // ── Block editor sub-component (avoids contentEditable/re-render issues) ──
@@ -254,8 +267,30 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
     return now.getHours() * 60 + now.getMinutes();
   });
 
+  // Scroll refs for now-line auto-scroll
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const nowLineRef = useRef<HTMLDivElement>(null);
+
+  const scrollToNow = () => {
+    const container = scrollContainerRef.current;
+    const line = nowLineRef.current;
+    if (!container || !line) return;
+    container.scrollTop = line.offsetTop - container.clientHeight / 2;
+  };
+
+  // Auto-scroll to now-line once on mount (schedule subtype only)
+  useEffect(() => {
+    if (subtype !== 'schedule') return;
+    // After paint so offsetTop is accurate
+    const id = requestAnimationFrame(() => scrollToNow());
+    return () => cancelAnimationFrame(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, subtype]);
+
   // Quick-add state
   const [quickAddValue, setQuickAddValue] = useState('');
+  const [quickAddFocused, setQuickAddFocused] = useState(false);
+  const [quickAddDuration, setQuickAddDuration] = useState(60);
   const quickAddRef = useRef<HTMLInputElement>(null);
 
   // Expanded block state
@@ -416,8 +451,10 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
     const label = quickAddValue.trim();
     if (!label) return;
     pendingLabel.current = label;
-    addBlock(currentDate, roundToNearest15(new Date()), 60);
+    addBlock(currentDate, roundToNextHalfHour(new Date()), quickAddDuration);
     setQuickAddValue('');
+    setQuickAddDuration(60);
+    setQuickAddFocused(false);
     quickAddRef.current?.focus();
   };
 
@@ -502,7 +539,7 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
   // Goals subtype — completely different UI
   if (subtype === 'goals') {
     return (
-      <GoalsView
+      <GoalsPanel
         goals={goals}
         onChange={onGoalsChange ?? (() => {})}
       />
@@ -614,18 +651,48 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
             value={quickAddValue}
             onChange={e => setQuickAddValue(e.target.value)}
             onKeyDown={handleQuickAdd}
+            onFocus={() => setQuickAddFocused(true)}
+            onBlur={() => setQuickAddFocused(false)}
           />
           <button
             className="planner-quick-add-time-btn"
             onClick={addBlockAtNow}
             title="Add empty block at current time"
           >
-            now
+            {quickAddFocused ? roundToNextHalfHour(new Date()) : 'now'}
           </button>
         </div>
+        {quickAddFocused && (
+          <div className="planner-duration-pills">
+            {([['30m', 30], ['45m', 45], ['1h', 60], ['90m', 90], ['2h', 120]] as [string, number][]).map(([label, mins]) => (
+              <button
+                key={label}
+                className={`planner-duration-pill${quickAddDuration === mins ? ' planner-duration-pill--active' : ''}`}
+                onMouseDown={e => { e.preventDefault(); setQuickAddDuration(mins); }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Focus bar — pinned short-horizon goals, schedule subtype only */}
+        {(() => {
+          const pinned = goals.filter(g => g.pinned && !g.completed);
+          return pinned.length > 0 ? (
+            <div className="planner-focus-bar">
+              <span className="planner-focus-bar-label">focus</span>
+              {pinned.map(g => (
+                <span key={g.id} className="planner-focus-bar-chip">
+                  {g.title || 'Untitled'}
+                </span>
+              ))}
+            </div>
+          ) : null;
+        })()}
 
         {/* Scrollable timeline + blocks */}
-        <div className="planner-scroll-area">
+        <div className="planner-scroll-area" ref={scrollContainerRef}>
           {/* Timeline grid with hour lines + now-line */}
           <div className="planner-timeline-grid">
             {/* Hour grid lines */}
@@ -645,6 +712,7 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
             {/* Now-line — absolutely positioned at the correct time */}
             {isToday && (
               <div
+                ref={nowLineRef}
                 className="planner-now-line"
                 style={{ top: `${minutesToPercent(currentMinutes)}%` }}
               >
@@ -667,6 +735,7 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
                 const heightPct     = Math.max(0, minutesToPercent(blockEndMin) - topPct);
                 const isCurrent     = isToday && currentMinutes >= blockStartMin && currentMinutes < blockEndMin;
                 const isExpanded    = expandedBlockId === block.id;
+                const isCompact     = (blockEndMin - blockStartMin) < 30;
 
                 return (
                   <div
@@ -678,6 +747,7 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
                       block.completed ? 'planner-block-card--done' : '',
                       isCurrent ? 'planner-block-card--current' : '',
                       isExpanded ? 'planner-block-card--expanded' : '',
+                      isExpanded && isCompact ? 'planner-block-card--expanded-compact' : '',
                     ].filter(Boolean).join(' ')}
                     style={{
                       position: 'absolute',
@@ -746,6 +816,16 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
               </div>
               <IntegratedSchedulePanel date={currentDate} />
             </div>
+          )}
+
+          {/* Jump to now button — sticky inside scroll area */}
+          {isToday && (
+            <button
+              className="planner-jump-now-btn"
+              onClick={scrollToNow}
+            >
+              ↓ now
+            </button>
           )}
         </div>
       </div>
@@ -890,6 +970,221 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
             </>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// GoalCard — single goal with contenteditable inline editing
+// ─────────────────────────────────────────────
+interface GoalCardProps {
+  goal: GoalEntry;
+  onToggle: () => void;
+  onUpdate: (changes: Partial<GoalEntry>) => void;
+  onRemove: () => void;
+  onPin: () => void;
+  pinDisabled: boolean;
+}
+
+function GoalCard({ goal, onToggle, onUpdate, onRemove, onPin, pinDisabled }: GoalCardProps) {
+  const titleRef = useRef<HTMLDivElement>(null);
+  const notesRef = useRef<HTMLDivElement>(null);
+  const [hovered, setHovered] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(!!goal.notes);
+
+  // Keep DOM in sync with prop without clobbering cursor
+  useEffect(() => {
+    if (titleRef.current && titleRef.current.textContent !== goal.title) {
+      titleRef.current.textContent = goal.title;
+    }
+  }, [goal.title]);
+
+  useEffect(() => {
+    if (notesRef.current && notesRef.current.textContent !== goal.notes) {
+      notesRef.current.textContent = goal.notes;
+    }
+  }, [goal.notes]);
+
+  return (
+    <div
+      className={`planner-goals-card${goal.completed ? ' planner-goals-card--done' : ''}`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div className="planner-goals-card-row">
+        {/* Completion dot */}
+        <button
+          className={`planner-goals-dot${goal.completed ? ' planner-goals-dot--done' : ''}`}
+          onClick={onToggle}
+          title={goal.completed ? 'Mark incomplete' : 'Mark complete'}
+        />
+
+        {/* Title — contenteditable */}
+        <div
+          ref={titleRef}
+          className="planner-goals-title"
+          contentEditable
+          suppressContentEditableWarning
+          data-placeholder="Goal…"
+          onInput={() => onUpdate({ title: titleRef.current?.textContent ?? '' })}
+          onKeyDown={e => {
+            if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLElement).blur(); }
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              if (titleRef.current) titleRef.current.textContent = goal.title;
+              (e.target as HTMLElement).blur();
+            }
+          }}
+          onClick={() => setNotesOpen(true)}
+        />
+
+        {/* Pin button */}
+        <button
+          className={`planner-goals-pin${goal.pinned ? ' planner-goals-pin--active' : ''}`}
+          onClick={onPin}
+          disabled={pinDisabled}
+          title={goal.pinned ? "Unpin from today's focus" : "Pin to today's focus (max 3)"}
+          style={{ opacity: hovered || goal.pinned ? 1 : 0, transition: 'opacity 0.15s' }}
+        >◈</button>
+
+        {/* Delete button — hover only */}
+        {hovered && (
+          <button className="planner-goals-delete" onClick={onRemove} title="Delete goal">×</button>
+        )}
+      </div>
+
+      {/* Notes — contenteditable, revealed on title click */}
+      {notesOpen && (
+        <div
+          ref={notesRef}
+          className="planner-goals-notes"
+          contentEditable
+          suppressContentEditableWarning
+          data-placeholder="Notes, milestones, context…"
+          onInput={() => onUpdate({ notes: notesRef.current?.textContent ?? '' })}
+          onKeyDown={e => {
+            if (e.key === 'Escape') { e.preventDefault(); (e.target as HTMLElement).blur(); }
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// GoalsPanel — tabs, list, quick-entry, focus chips
+// ─────────────────────────────────────────────
+interface GoalsPanelProps {
+  goals: GoalEntry[];
+  onChange: (goals: GoalEntry[]) => void;
+}
+
+function GoalsPanel({ goals, onChange }: GoalsPanelProps) {
+  const [activeHorizon, setActiveHorizon] = useState<'short' | 'long'>('short');
+  const [goalInput, setGoalInput] = useState('');
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const filteredGoals = goals.filter(g => g.horizon === activeHorizon);
+  const pinnedGoals = goals.filter(g => g.pinned && !g.completed);
+  const pinnedCount = goals.filter(g => g.pinned).length;
+
+  const addGoal = () => {
+    const title = goalInput.trim();
+    if (!title) return;
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    const newGoal: GoalEntry = {
+      id, title, notes: '', horizon: activeHorizon,
+      completed: false, createdAt: Date.now(),
+    };
+    onChange([...goals, newGoal]);
+    setGoalInput('');
+    if (inputRef.current) inputRef.current.style.height = 'auto';
+  };
+
+  const updateGoal = (id: string, changes: Partial<GoalEntry>) =>
+    onChange(goals.map(g => g.id === id ? { ...g, ...changes } : g));
+
+  const removeGoal = (id: string) =>
+    onChange(goals.filter(g => g.id !== id));
+
+  const toggleComplete = (id: string) =>
+    onChange(goals.map(g => g.id === id ? { ...g, completed: !g.completed } : g));
+
+  const togglePin = (id: string) => {
+    const goal = goals.find(g => g.id === id);
+    if (!goal) return;
+    if (!goal.pinned && pinnedCount >= 3) return;
+    onChange(goals.map(g => g.id === id ? { ...g, pinned: !g.pinned } : g));
+  };
+
+  return (
+    <div className="planner-goals-container">
+      {/* Today's focus chips — above horizon tabs */}
+      {pinnedGoals.length > 0 && (
+        <div className="planner-goals-focus-chips">
+          <span className="planner-goals-focus-label">today's focus</span>
+          {pinnedGoals.map(g => (
+            <span key={g.id} className="planner-goals-focus-chip">
+              {g.title || 'Untitled'}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Horizon tabs */}
+      <div className="planner-goals-tabs">
+        {(['short', 'long'] as const).map(h => (
+          <button
+            key={h}
+            className={`planner-goals-tab ${activeHorizon === h ? 'planner-goals-tab--active' : 'planner-goals-tab--inactive'}`}
+            onClick={() => setActiveHorizon(h)}
+          >
+            {h === 'short' ? 'This Season' : 'Long Arc'}
+          </button>
+        ))}
+      </div>
+
+      {/* Goal list */}
+      <div className="planner-goals-list">
+        {filteredGoals.length === 0 && (
+          <div className="planner-goals-empty">No goals here yet.</div>
+        )}
+        {filteredGoals.map(goal => (
+          <GoalCard
+            key={goal.id}
+            goal={goal}
+            onToggle={() => toggleComplete(goal.id)}
+            onUpdate={changes => updateGoal(goal.id, changes)}
+            onRemove={() => removeGoal(goal.id)}
+            onPin={() => togglePin(goal.id)}
+            pinDisabled={!goal.pinned && pinnedCount >= 3}
+          />
+        ))}
+      </div>
+
+      {/* Quick-entry bar */}
+      <div className="planner-goals-quick-bar">
+        <textarea
+          ref={inputRef}
+          className="planner-goals-quick-input"
+          rows={1}
+          placeholder={activeHorizon === 'short' ? 'a goal for this season…' : 'a long-arc goal…'}
+          value={goalInput}
+          onChange={e => {
+            setGoalInput(e.target.value);
+            e.target.style.height = 'auto';
+            e.target.style.height = Math.min(e.target.scrollHeight, 56) + 'px';
+          }}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addGoal(); }
+          }}
+        />
+        <button
+          className="planner-goals-quick-btn"
+          onClick={addGoal}
+          disabled={!goalInput.trim()}
+        >Add</button>
       </div>
     </div>
   );

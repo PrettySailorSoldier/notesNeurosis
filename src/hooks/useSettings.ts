@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { load } from '@tauri-apps/plugin-store';
-import type { ReminderSound } from '../types';
+import type { ReminderSound, SavedSequence } from '../types';
 
 const STORE_FILE = 'notes-neurosis-settings.json';
 const SETTINGS_BACKUP_KEY = 'settings_backup';
@@ -17,6 +17,7 @@ export interface Settings {
   defaultReminderMinutes: number;
   defaultReminderSound: ReminderSound;
   defaultBlockDuration: number;
+  savedSequences: SavedSequence[];
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -25,6 +26,7 @@ const DEFAULT_SETTINGS: Settings = {
   defaultReminderMinutes: 30,
   defaultReminderSound: 'chime',
   defaultBlockDuration: 60,
+  savedSequences: [],
 };
 
 export function useSettings() {
@@ -39,6 +41,7 @@ export function useSettings() {
         const defMin = await store.get<number>('defaultReminderMinutes');
         const defSound = await store.get<ReminderSound>('defaultReminderSound');
         const defBlock = await store.get<number>('defaultBlockDuration');
+        const seqs = await store.get<SavedSequence[]>('savedSequences');
 
         const hasData = tones || vol != null || defMin != null || defSound || defBlock != null;
 
@@ -65,6 +68,7 @@ export function useSettings() {
           defaultReminderMinutes: defMin ?? prev.defaultReminderMinutes,
           defaultReminderSound: defSound ?? prev.defaultReminderSound,
           defaultBlockDuration: defBlock ?? prev.defaultBlockDuration,
+          savedSequences: seqs ?? prev.savedSequences,
         }));
       } catch (err) {
         console.warn("[useSettings] load error:", err);
@@ -81,6 +85,7 @@ export function useSettings() {
       await store.set('defaultReminderMinutes', newSettings.defaultReminderMinutes);
       await store.set('defaultReminderSound', newSettings.defaultReminderSound);
       await store.set('defaultBlockDuration', newSettings.defaultBlockDuration);
+      await store.set('savedSequences', newSettings.savedSequences);
       await store.set(SETTINGS_BACKUP_KEY, newSettings);
       await store.save();
     } catch (e) {

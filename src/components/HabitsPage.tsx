@@ -32,6 +32,63 @@ function formatShortDate(iso: string): string {
   return `${parseInt(m)}/${parseInt(d)}`;
 }
 
+// ── Weekly helpers ────────────────────────────────────────
+function isoWeekKey(d: Date): string {
+  const date = new Date(d.getTime());
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+  const week1 = new Date(date.getFullYear(), 0, 4);
+  const weekNum = 1 + Math.round(
+    ((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7
+  );
+  return `${date.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+}
+
+function getLast10Weeks(): string[] {
+  const weeks: string[] = [];
+  const cursor = new Date();
+  for (let i = 9; i >= 0; i--) {
+    const d = new Date(cursor);
+    d.setDate(cursor.getDate() - i * 7);
+    const w = isoWeekKey(d);
+    if (!weeks.includes(w)) weeks.push(w);
+  }
+  return weeks;
+}
+
+function computeWeeklyStreak(habitId: string, logs: { habitId: string; date: string }[]): number {
+  const current = isoWeekKey(new Date());
+  if (!logs.some(l => l.habitId === habitId && l.date === current)) return 0;
+  let streak = 0;
+  const cursor = new Date();
+  const seen = new Set<string>();
+  for (let i = 0; i < 200; i++) {
+    const w = isoWeekKey(cursor);
+    if (seen.has(w)) { cursor.setDate(cursor.getDate() - 1); continue; }
+    seen.add(w);
+    if (!logs.some(l => l.habitId === habitId && l.date === w)) break;
+    streak++;
+    cursor.setDate(cursor.getDate() - 7);
+  }
+  return streak;
+}
+
+function computeWeeklyLongest(habitId: string, logs: { habitId: string; date: string }[]): number {
+  const weeks = [...new Set(
+    logs.filter(l => l.habitId === habitId && /^\d{4}-W\d{2}$/.test(l.date)).map(l => l.date)
+  )].sort();
+  if (weeks.length === 0) return 0;
+  let longest = 1, current = 1;
+  for (let i = 1; i < weeks.length; i++) {
+    const [y1, w1] = weeks[i - 1].split('-W').map(Number);
+    const [y2, w2] = weeks[i].split('-W').map(Number);
+    const diff = (y2 - y1) * 53 + (w2 - w1);
+    if (diff === 1) { current++; if (current > longest) longest = current; }
+    else current = 1;
+  }
+  return longest;
+}
+
 // ── Binary dot grid ───────────────────────────────────────
 interface BinaryGridProps {
   habit: Habit;
@@ -65,6 +122,43 @@ function BinaryGrid({ habit, dotDates, todayISO, isLogged, toggleLog }: BinaryGr
             onClick={() => toggleLog(habit.id, date)}
             title={date}
           />
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Weekly dot grid ───────────────────────────────────────
+interface WeeklyGridProps {
+  habit: Habit;
+  weekKeys: string[];
+  currentWeek: string;
+  isLogged: (id: string, date: string) => boolean;
+  toggleLog: (id: string, date: string) => void;
+}
+
+function WeeklyGrid({ habit, weekKeys, currentWeek, isLogged, toggleLog }: WeeklyGridProps) {
+  const hexColor = accentToHex(habit.color);
+  return (
+    <div className="habits-weekly-grid">
+      {weekKeys.map(w => {
+        const logged = isLogged(habit.id, w);
+        const isCurrentWeek = w === currentWeek;
+        const shortLabel = w.replace(/^\d{4}-/, '');
+        return (
+          <button
+            key={w}
+            className={[
+              'habits-weekly-dot',
+              logged ? 'habits-weekly-dot--logged' : '',
+              isCurrentWeek ? 'habits-weekly-dot--current' : '',
+            ].filter(Boolean).join(' ')}
+            style={{ '--habit-color': hexColor } as React.CSSProperties}
+            onClick={() => toggleLog(habit.id, w)}
+            title={w}
+          >
+            <span className="habits-weekly-dot-label">{shortLabel}</span>
+          </button>
         );
       })}
     </div>
@@ -142,7 +236,6 @@ interface LinearViewProps {
 
 function LinearView({ habits, isLogged, getLogCount, toggleLog, setLogCount }: LinearViewProps) {
   const [win, setWin] = useState<LinearWindow>('today');
-  // Draft values while user is typing (keyed by habitId)
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
   const today = new Date();
@@ -186,7 +279,6 @@ function LinearView({ habits, isLogged, getLogCount, toggleLog, setLogCount }: L
 
   return (
     <div className="habits-linear">
-      {/* Window toggle */}
       <div className="habits-linear-controls">
         {(['today', '7d', '30d', '90d'] as LinearWindow[]).map(w => (
           <button
@@ -201,11 +293,8 @@ function LinearView({ habits, isLogged, getLogCount, toggleLog, setLogCount }: L
         <div className="habits-linear-empty">No habits yet — add some from the grid view.</div>
       )}
 
-      {/* ── TODAY: editable list + stacked bar ── */}
       {isToday && activeHabits.length > 0 && (
         <div className="habits-today-section">
-
-          {/* Stacked bar — only when something is logged */}
           {grandTotal > 0 && (
             <div className="habits-today-bar">
               {sorted.filter(x => x.total > 0).map(({ habit, total }) => (
@@ -219,7 +308,6 @@ function LinearView({ habits, isLogged, getLogCount, toggleLog, setLogCount }: L
             </div>
           )}
 
-          {/* Editable rows — every habit */}
           <div className="habits-today-rows">
             {activeHabits.map(h => {
               const hexColor = accentToHex(h.color);
@@ -231,14 +319,9 @@ function LinearView({ habits, isLogged, getLogCount, toggleLog, setLogCount }: L
 
               return (
                 <div key={h.id} className="habits-today-row">
-                  {/* Color bar on left */}
                   <div className="habits-today-row__bar" style={{ backgroundColor: hexColor, opacity: total > 0 ? 0.85 : 0.18 }} />
-
-                  {/* Emoji + name */}
                   <span className="habits-today-row__emoji">{h.emoji}</span>
                   <span className="habits-today-row__name">{h.name}</span>
-
-                  {/* Input: number for count habits, checkbox toggle for binary */}
                   {isCount ? (
                     <div className="habits-today-row__count-wrap">
                       <input
@@ -263,8 +346,6 @@ function LinearView({ habits, isLogged, getLogCount, toggleLog, setLogCount }: L
                       {logged ? '✓ done' : '○ log'}
                     </button>
                   )}
-
-                  {/* Percentage — only if something logged */}
                   <span className="habits-today-row__pct" style={{ color: hexColor }}>
                     {total > 0 ? `${pct}%` : ''}
                   </span>
@@ -283,7 +364,6 @@ function LinearView({ habits, isLogged, getLogCount, toggleLog, setLogCount }: L
         </div>
       )}
 
-      {/* ── MULTI-DAY: segmented bar rows ── */}
       {!isToday && sorted.map(({ habit, total }) => {
         const hexColor = accentToHex(habit.color);
         const barPct = (total / maxTotal) * 100;
@@ -340,11 +420,11 @@ type ViewMode = 'grid' | 'linear';
 
 export function HabitsPage({ pageId: _pageId }: Props) {
   const {
-    habits, ready,
-    addHabit, removeHabit,
+    habits, logs, ready,
+    addHabit, removeHabit, unarchiveHabit, deleteHabit,
     isLogged, toggleLog,
     getLogCount, setLogCount,
-    getStreakForHabit,
+    getStreakForHabit, getLongestStreak,
   } = useHabits();
 
   const [view, setView] = useState<ViewMode>('grid');
@@ -354,24 +434,33 @@ export function HabitsPage({ pageId: _pageId }: Props) {
   const [newColor, setNewColor] = useState<AccentColor>('plum');
   const [newType, setNewType] = useState<HabitType>('binary');
   const [newUnit, setNewUnit] = useState('');
+  const [newFrequency, setNewFrequency] = useState<'daily' | 'weekly'>('daily');
+
+  // "⋯" card menu
+  const [menuHabitId, setMenuHabitId] = useState<string | null>(null);
+  // Archived section
+  const [showArchived, setShowArchived] = useState(false);
 
   const todayISO = formatDate(new Date());
   const dotDates = getLast35Days();
+  const weekKeys = getLast10Weeks();
+  const currentWeek = isoWeekKey(new Date());
   const activeHabits = habits.filter(h => !h.archivedAt);
+  const archivedHabits = habits.filter(h => !!h.archivedAt);
 
   const handleAddHabit = () => {
     const name = newName.trim();
     if (!name) return;
-    addHabit(name, newEmoji || '●', newColor, newType, newUnit.trim() || undefined);
+    addHabit(name, newEmoji || '●', newColor, newType, newUnit.trim() || undefined, newFrequency === 'weekly' ? 'weekly' : undefined);
     setNewName(''); setNewEmoji(''); setNewColor('plum');
-    setNewType('binary'); setNewUnit('');
+    setNewType('binary'); setNewUnit(''); setNewFrequency('daily');
     setShowAddForm(false);
   };
 
   if (!ready) return <div className="loading-hint">✦</div>;
 
   return (
-    <div className="habits-page">
+    <div className="habits-page" onClick={() => setMenuHabitId(null)}>
       {/* Header */}
       <div className="habits-header">
         <h2 className="habits-title">Rhythm Tracker</h2>
@@ -406,34 +495,77 @@ export function HabitsPage({ pageId: _pageId }: Props) {
       {view === 'grid' && (
         <>
           {activeHabits.map(habit => {
-            const streak = getStreakForHabit(habit.id);
-            const isCount = habit.habitType === 'count';
+            const isWeekly = habit.frequency === 'weekly';
+            const isCount  = habit.habitType === 'count';
+            const streak   = isWeekly
+              ? computeWeeklyStreak(habit.id, logs)
+              : getStreakForHabit(habit.id);
+            const longest  = isWeekly
+              ? computeWeeklyLongest(habit.id, logs)
+              : getLongestStreak(habit.id);
+            const streakUnit = isWeekly ? 'w' : 'd';
             const totalCount = isCount
               ? dotDates.reduce((s, d) => s + getLogCount(habit.id, d), 0)
               : null;
 
             return (
-              <div key={habit.id} className="habits-card">
+              <div key={habit.id} className="habits-card" onClick={e => e.stopPropagation()}>
                 <div className="habits-card__header">
                   <span className="habits-card__emoji">{habit.emoji}</span>
                   <span className="habits-card__name">{habit.name}</span>
-                  {isCount && totalCount !== null && totalCount > 0 && (
+
+                  {/* Streak display: current / best */}
+                  {isCount && totalCount !== null && totalCount > 0 ? (
                     <span className="habits-card__streak">
                       {totalCount}{habit.unit ? ' ' + habit.unit : ''} / 5w
                     </span>
-                  )}
-                  {!isCount && streak > 0 && (
-                    <span className="habits-card__streak">{streak}d</span>
-                  )}
-                  <span className="habits-card__type-badge">{isCount ? 'count' : 'binary'}</span>
-                  <button
-                    className="habits-card__archive"
-                    onClick={() => removeHabit(habit.id)}
-                    title="Archive habit"
-                  >×</button>
+                  ) : streak > 0 ? (
+                    <span className="habits-card__streak" title={`Best: ${longest}${streakUnit}`}>
+                      {streak}{streakUnit}
+                      {longest > streak && (
+                        <span className="habits-card__streak-best"> / {longest}{streakUnit}</span>
+                      )}
+                    </span>
+                  ) : null}
+
+                  <span className="habits-card__type-badge">
+                    {isWeekly ? 'weekly' : isCount ? 'count' : 'daily'}
+                  </span>
+
+                  {/* ⋯ menu button */}
+                  <div className="habits-card__menu-wrap">
+                    <button
+                      className="habits-card__menu-btn"
+                      onClick={e => {
+                        e.stopPropagation();
+                        setMenuHabitId(menuHabitId === habit.id ? null : habit.id);
+                      }}
+                      title="Options"
+                    >⋯</button>
+                    {menuHabitId === habit.id && (
+                      <div className="habits-card__popover" onClick={e => e.stopPropagation()}>
+                        <button
+                          className="habits-card__popover-item"
+                          onClick={() => { removeHabit(habit.id); setMenuHabitId(null); }}
+                        >Archive</button>
+                        <button
+                          className="habits-card__popover-item habits-card__popover-item--danger"
+                          onClick={() => { deleteHabit(habit.id); setMenuHabitId(null); }}
+                        >Delete</button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {isCount ? (
+                {isWeekly ? (
+                  <WeeklyGrid
+                    habit={habit}
+                    weekKeys={weekKeys}
+                    currentWeek={currentWeek}
+                    isLogged={isLogged}
+                    toggleLog={toggleLog}
+                  />
+                ) : isCount ? (
                   <CountGrid
                     habit={habit}
                     dotDates={dotDates}
@@ -459,10 +591,41 @@ export function HabitsPage({ pageId: _pageId }: Props) {
               No habits yet — click <em>+ habit</em> to begin.
             </div>
           )}
+
+          {/* Archived section */}
+          {archivedHabits.length > 0 && (
+            <div className="habits-archived-section">
+              <button
+                className="habits-archived-toggle"
+                onClick={() => setShowArchived(v => !v)}
+              >
+                {showArchived ? '▾' : '▸'} Archived ({archivedHabits.length})
+              </button>
+              {showArchived && (
+                <div className="habits-archived-list">
+                  {archivedHabits.map(h => (
+                    <div key={h.id} className="habits-archived-item">
+                      <span className="habits-archived-emoji">{h.emoji}</span>
+                      <span className="habits-archived-name">{h.name}</span>
+                      <button
+                        className="habits-archived-restore"
+                        onClick={() => unarchiveHabit(h.id)}
+                      >Restore</button>
+                      <button
+                        className="habits-archived-delete"
+                        onClick={() => deleteHabit(h.id)}
+                        title="Delete permanently"
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
 
-      {/* Add form — shown in both views */}
+      {/* Add form */}
       {showAddForm && (
         <div className="habits-add-form">
           <input
@@ -496,6 +659,18 @@ export function HabitsPage({ pageId: _pageId }: Props) {
               onKeyDown={e => { if (e.key === 'Enter') handleAddHabit(); }}
             />
           )}
+
+          {/* Frequency toggle */}
+          <div className="habits-type-toggle">
+            <button
+              className={`habits-type-btn ${newFrequency === 'daily' ? 'habits-type-btn--active' : ''}`}
+              onClick={() => setNewFrequency('daily')}
+            >📅 daily</button>
+            <button
+              className={`habits-type-btn ${newFrequency === 'weekly' ? 'habits-type-btn--active' : ''}`}
+              onClick={() => setNewFrequency('weekly')}
+            >📆 weekly</button>
+          </div>
 
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input

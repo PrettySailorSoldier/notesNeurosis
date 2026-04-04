@@ -89,8 +89,8 @@ export function useHabits() {
 
   // ── Mutations ──────────────────────────────────────────
 
-  const addHabit = useCallback((name: string, emoji: string, color: AccentColor, habitType: HabitType = 'binary', unit?: string) => {
-    const habit: Habit = { id: makeId(), name, emoji, color, habitType, unit, createdAt: Date.now() };
+  const addHabit = useCallback((name: string, emoji: string, color: AccentColor, habitType: HabitType = 'binary', unit?: string, frequency?: 'daily' | 'weekly') => {
+    const habit: Habit = { id: makeId(), name, emoji, color, habitType, unit, frequency, createdAt: Date.now() };
     setHabits(prev => {
       const next = [...prev, habit];
       habitsRef.current = next;
@@ -102,6 +102,24 @@ export function useHabits() {
   const removeHabit = useCallback((id: string) => {
     setHabits(prev => {
       const next = prev.map(h => h.id === id ? { ...h, archivedAt: Date.now() } : h);
+      habitsRef.current = next;
+      scheduleSave(next, logsRef.current);
+      return next;
+    });
+  }, []);
+
+  const unarchiveHabit = useCallback((id: string) => {
+    setHabits(prev => {
+      const next = prev.map(h => h.id === id ? { ...h, archivedAt: undefined } : h);
+      habitsRef.current = next;
+      scheduleSave(next, logsRef.current);
+      return next;
+    });
+  }, []);
+
+  const deleteHabit = useCallback((id: string) => {
+    setHabits(prev => {
+      const next = prev.filter(h => h.id !== id);
       habitsRef.current = next;
       scheduleSave(next, logsRef.current);
       return next;
@@ -226,6 +244,8 @@ export function useHabits() {
     ready,
     addHabit,
     removeHabit,
+    unarchiveHabit,
+    deleteHabit,
     renameHabit,
     toggleLog,
     setLogCount,

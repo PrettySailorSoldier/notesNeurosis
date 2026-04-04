@@ -58,6 +58,7 @@ export interface GoalEntry {
   horizon: 'short' | 'long';
   completed: boolean;
   createdAt: number;
+  pinned?: boolean;
 }
 
 export interface Page {
@@ -129,6 +130,7 @@ export interface Habit {
   habitType: HabitType; // 'binary' = did/didn't, 'count' = how many times/hours
   unit?: string;        // for count habits: "hrs", "×", "glasses", etc.
   archivedAt?: number;  // if set, habit is soft-deleted
+  frequency?: 'daily' | 'weekly';
   createdAt: number;
 }
 

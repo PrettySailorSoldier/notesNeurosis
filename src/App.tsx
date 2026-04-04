@@ -257,21 +257,72 @@ export default function App() {
 
   const closeTabMenu = () => setTabMenu(null);
 
+  // ── Global keyboard shortcuts ──
+  useEffect(() => {
+    function isEditableTarget(e: Event) {
+      const t = e.target as HTMLElement | null;
+      if (!t) return false;
+      const tag = t.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+      if (t.isContentEditable) return true;
+      return false;
+    }
+
+    function onKeyDown(e: KeyboardEvent) {
+      // Escape — close any open menu
+      if (e.key === 'Escape') {
+        // Don't call e.preventDefault() so content-editable IME can still cancel
+        setTabMenu(null);
+        return;
+      }
+
+      // Don't fire shortcuts while typing
+      if (isEditableTarget(e)) return;
+
+      if (e.ctrlKey && e.shiftKey && e.key === 'N') {
+        e.preventDefault();
+        // Open the page-type picker centered on screen
+        setTabMenu({
+          x: Math.round(window.innerWidth / 2 - 70),
+          y: Math.round(window.innerHeight / 2 - 80),
+          pageId: '__new__',
+          phase: 'type',
+        });
+        return;
+      }
+
+      if (e.ctrlKey && e.key === 'n') {
+        e.preventDefault();
+        addPage('New Page', 'notes');
+        return;
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [addPage]);
+
+
   // Build context menu options based on current phase
   const buildMenuOptions = () => {
     if (!tabMenu) return [];
     const page = pages.find(p => p.id === tabMenu.pageId);
-    if (!page) return [];
+    // '__new__' sentinel for the new-page type picker — page will be undefined, that's fine
+    if (!page && tabMenu.pageId !== '__new__') return [];
 
     if (tabMenu.phase === 'type') {
+      const isNewPage = tabMenu.pageId === '__new__';
       return PAGE_TYPES.map(pt => ({
         icon: pt.icon,
         label: pt.label,
         onClick: () => {
           if (pt.type === 'planner') {
             setTabMenu(prev => prev ? { ...prev, phase: 'subtype' } : null);
+          } else if (isNewPage) {
+            addPage('New Page', pt.type);
+            closeTabMenu();
           } else {
-            changePageType(page.id, pt.type);
+            changePageType(page?.id ?? '', pt.type);
             closeTabMenu();
           }
         },
@@ -279,17 +330,23 @@ export default function App() {
     }
 
     if (tabMenu.phase === 'subtype') {
+      const isNewPage = tabMenu.pageId === '__new__';
       return PLANNER_SUBTYPES.map(ps => ({
         icon: ps.icon,
         label: ps.label,
         onClick: () => {
-          changePageType(page.id, 'planner', ps.sub);
+          if (isNewPage) {
+            addPage('New Page', 'planner', ps.sub);
+          } else {
+            changePageType(page?.id ?? '', 'planner', ps.sub);
+          }
           closeTabMenu();
         },
       }));
     }
 
     if (tabMenu.phase === 'todostyle') {
+      if (!page) return [];
       return TODO_SUBTYPES.map(ts => ({
         icon: ts.icon,
         label: ts.label,
@@ -300,7 +357,8 @@ export default function App() {
       }));
     }
 
-    // main phase
+    // main phase — only reachable via right-click on a real tab, so page is always defined
+    if (!page) return [];
     const options: Parameters<typeof ContextMenu>[0]['options'] = [
       {
         icon: '🎨',
@@ -372,6 +430,7 @@ export default function App() {
           tasks={currentPage.intervalTasks ?? []}
           onChange={t => updateIntervalTasksForPage(currentPage.id, t)}
           settings={settings}
+          onUpdateSettings={updateSettings}
           pageId={currentPage.id}
         />
       );

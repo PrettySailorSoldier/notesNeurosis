@@ -42,6 +42,49 @@ export function IntegratedSchedulePanel({ date }: IntegratedSchedulePanelProps) 
 
   const [dragIdx, setDragIdx] = useState<number | null>(null);
 
+  // Quick-add bar state
+  const [quickLabel, setQuickLabel] = useState('');
+  const [quickTime, setQuickTime] = useState(() => {
+    const d = new Date();
+    const h = d.getHours();
+    const m = d.getMinutes();
+    const newH = m < 30 ? h : (h + 1) % 24;
+    const newM = m < 30 ? 30 : 0;
+    return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
+  });
+
+  // Flash overlay state (entry id → show flash)
+  const [flashId, setFlashId] = useState<string | null>(null);
+
+  const handleQuickAdd = async () => {
+    if (!quickLabel.trim()) return;
+    await addEntry(date, {
+      time: quickTime,
+      endTime: quickTime,
+      label: quickLabel.trim(),
+      person: 'Donna',
+      category: 'check-in',
+      notes: '',
+      completed: false,
+      recurring: false,
+      recurringDays: [],
+    });
+    setQuickLabel('');
+    // Reset to next half-hour
+    const d = new Date();
+    const h = d.getHours();
+    const m = d.getMinutes();
+    const newH = m < 30 ? h : (h + 1) % 24;
+    const newM = m < 30 ? 30 : 0;
+    setQuickTime(`${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`);
+  };
+
+  const handleToggleWithAnimation = async (id: string) => {
+    setFlashId(id);
+    setTimeout(() => setFlashId(null), 800);
+    await toggleComplete(date, id);
+  };
+
   // Live clock
   useEffect(() => {
     const timer = setInterval(() => {
@@ -58,7 +101,12 @@ export function IntegratedSchedulePanel({ date }: IntegratedSchedulePanelProps) 
 
   if (!ready) return null;
 
-  const entries = getEntriesForDate(date);
+  const rawEntries = getEntriesForDate(date);
+  // Done entries sorted to bottom
+  const entries = [
+    ...rawEntries.filter(e => !e.completed),
+    ...rawEntries.filter(e => e.completed),
+  ];
   const completedCount = entries.filter(e => e.completed).length;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,6 +168,31 @@ export function IntegratedSchedulePanel({ date }: IntegratedSchedulePanelProps) 
 
       {isExpanded && (
         <div className="planner-schedule-content">
+          {/* Sticky quick-add bar */}
+          <div className="planner-care-quick-add">
+            <input
+              type="time"
+              className="planner-schedule-time-input"
+              value={quickTime}
+              onChange={e => setQuickTime(e.target.value)}
+            />
+            <input
+              type="text"
+              className="planner-care-quick-label"
+              placeholder="care task…"
+              value={quickLabel}
+              onChange={e => setQuickLabel(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleQuickAdd(); }}
+            />
+            <button
+              className="planner-care-quick-add-btn"
+              onClick={handleQuickAdd}
+              disabled={!quickLabel.trim()}
+            >
+              + Add
+            </button>
+          </div>
+
           <div className="planner-schedule-list">
             {entries.map((entry: CareEntry, i: number) => {
               const isCurrent = entry.time <= now && now < entry.endTime;
@@ -142,9 +215,10 @@ export function IntegratedSchedulePanel({ date }: IntegratedSchedulePanelProps) 
               else if (isOverdue) statusClass = 'planner-schedule-row--overdue';
 
               return (
-                <div 
-                  key={entry.id} 
-                  className={`planner-schedule-row ${statusClass} ${dragIdx === i ? 'planner-schedule-row--dragging' : ''}`}
+                <div
+                  key={entry.id}
+                  className={`planner-schedule-row ${statusClass} ${entry.completed ? 'care-task-done' : ''} ${dragIdx === i ? 'planner-schedule-row--dragging' : ''}`}
+                  style={{ position: 'relative', transition: 'all 0.25s ease' }}
                   draggable
                   onDragStart={() => setDragIdx(i)}
                   onDragOver={(e: React.DragEvent) => e.preventDefault()}
@@ -157,27 +231,31 @@ export function IntegratedSchedulePanel({ date }: IntegratedSchedulePanelProps) 
                     setDragIdx(null);
                   }}
                 >
+                  {/* Done flash overlay */}
+                  {flashId === entry.id && (
+                    <span className="care-done-flash">✓</span>
+                  )}
                   <div className="planner-schedule-dot" style={{ background: CATEGORY_COLORS[entry.category] }} />
                   <div className="planner-schedule-time">
-                    <input 
-                      type="time" 
-                      className="planner-schedule-time-input" 
-                      value={entry.time} 
+                    <input
+                      type="time"
+                      className="planner-schedule-time-input"
+                      value={entry.time}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateEntry(date, entry.id, { time: e.target.value })}
                     />
                     <span>–</span>
-                    <input 
-                      type="time" 
-                      className="planner-schedule-time-input" 
-                      value={entry.endTime} 
+                    <input
+                      type="time"
+                      className="planner-schedule-time-input"
+                      value={entry.endTime}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateEntry(date, entry.id, { endTime: e.target.value })}
                     />
                   </div>
                   <div className="planner-schedule-label-group">
-                    <input 
-                      type="text" 
-                      className="planner-schedule-label" 
-                      value={entry.label} 
+                    <input
+                      type="text"
+                      className="planner-schedule-label"
+                      value={entry.label}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateEntry(date, entry.id, { label: e.target.value })}
                     />
                     <textarea
@@ -191,14 +269,14 @@ export function IntegratedSchedulePanel({ date }: IntegratedSchedulePanelProps) 
                     />
                   </div>
                   <div className="planner-schedule-actions">
-                    <button 
-                      className={`planner-action-btn ${entry.completed ? 'done' : ''}`} 
-                      onClick={() => toggleComplete(date, entry.id)}
+                    <button
+                      className={`planner-action-btn ${entry.completed ? 'done' : ''}`}
+                      onClick={() => handleToggleWithAnimation(entry.id)}
                     >
                       ✓
                     </button>
-                    <button 
-                      className="planner-action-btn delete" 
+                    <button
+                      className="planner-action-btn delete"
                       onClick={() => deleteEntry(date, entry.id)}
                     >
                       ×

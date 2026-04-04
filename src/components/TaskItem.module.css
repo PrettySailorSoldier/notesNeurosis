@@ -199,6 +199,51 @@
   font-style: italic;
 }
 
+/* Type toggle gutter button */
+.typeToggle {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: monospace;
+  color: #661A4E;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 3px;
+  transition: background 0.15s;
+  opacity: 0;
+}
+
+.typeToggleVisible {
+  opacity: 0.7;
+}
+
+.typeToggle:hover {
+  opacity: 1 !important;
+  background: rgba(102, 26, 78, 0.12);
+}
+
+.typeToggle:focus-visible {
+  opacity: 1 !important;
+  outline: 2px solid rgba(102, 26, 78, 0.5);
+  outline-offset: 2px;
+}
+
+@keyframes typeHintPulse {
+  0%   { opacity: 0.15; }
+  50%  { opacity: 0.45; }
+  100% { opacity: 0;    }
+}
+
+.typeHint {
+  animation: typeHintPulse 1.2s ease-in-out 1 forwards;
+}
+
 /* Bell button */
 .bellBtn {
   background: none;

@@ -67,6 +67,7 @@ export const TaskItem: React.FC<Props> = ({
   const [modalAnchor, setModalAnchor] = useState<DOMRect | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
   const [hovered, setHovered] = useState(false);
+  const [typeHint, setTypeHint] = useState(isNew ?? false);
   const composingRef = useRef(false);
   const savedRangeRef = useRef<Range | null>(null);
 
@@ -198,6 +199,17 @@ export const TaskItem: React.FC<Props> = ({
     sel?.addRange(savedRangeRef.current);
   };
 
+  const TASK_TYPE_CYCLE: TaskType[] = ['plain', 'bullet', 'checkbox', 'heading'];
+  const TYPE_ICONS: Record<TaskType, string> = {
+    plain: 'T', bullet: '•', checkbox: '☐', heading: 'H',
+  };
+
+  function cycleType() {
+    const cycle = TASK_TYPE_CYCLE;
+    const next = cycle[(cycle.indexOf(task.type) + 1) % cycle.length];
+    onUpdate({ ...task, type: next });
+  }
+
   const prefix = task.type === 'bullet' ? '•' : null;
 
   return (
@@ -244,6 +256,17 @@ export const TaskItem: React.FC<Props> = ({
           <circle cx="7" cy="11" r="1.5" />
         </svg>
       </div>
+
+      {/* Type toggle gutter button */}
+      <button
+        className={`${styles.typeToggle} ${hovered ? styles.typeToggleVisible : ''} ${typeHint ? styles.typeHint : ''}`}
+        onClick={cycleType}
+        title="Click to change type (bullet → checkbox → heading → plain)"
+        tabIndex={-1}
+        onAnimationEnd={() => setTypeHint(false)}
+      >
+        {TYPE_ICONS[task.type]}
+      </button>
 
       {/* Checkbox */}
       {task.type === 'checkbox' && (

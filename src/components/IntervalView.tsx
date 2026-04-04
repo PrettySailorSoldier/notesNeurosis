@@ -9,6 +9,7 @@ interface Props {
   tasks: IntervalTask[];
   onChange: (tasks: IntervalTask[]) => void;
   settings: Settings;
+  onUpdateSettings: (patch: Partial<Settings>) => void;
   pageId: string;
 }
 
@@ -28,11 +29,11 @@ function fmtClock(ms: number): string {
 
 const PHASE_ORDER: IntervalPhaseType[] = ['work', 'break', 'transition', 'buffer'];
 
-const PHASE_META: Record<IntervalPhaseType, { emoji: string; label: string }> = {
-  work:       { emoji: '🟣', label: 'Work'   },
-  break:      { emoji: '🔵', label: 'Break'  },
-  transition: { emoji: '🟡', label: 'Trans'  },
-  buffer:     { emoji: '⚪', label: 'Buffer' },
+const PHASE_META: Record<IntervalPhaseType, { emoji: string; label: string; color: string }> = {
+  work:       { emoji: '🟣', label: 'Work',   color: '#661A4E' },
+  break:      { emoji: '🔵', label: 'Break',  color: '#5A8EFC' },
+  transition: { emoji: '🟡', label: 'Trans',  color: '#B55F7C' },
+  buffer:     { emoji: '⚪', label: 'Buffer', color: '#8A8A8A' },
 };
 
 const DEFAULT_SOUNDS: ReminderSound[] = ['chime', 'bell', 'blip', 'soft_ding', 'none'];
@@ -43,30 +44,62 @@ const SOUND_LABEL: Record<string, string> = {
   chime: 'chime', bell: 'bell', blip: 'blip', soft_ding: 'ding', none: 'mute',
 };
 
-// Change 5 — quick-start templates
-const QUICK_TEMPLATES: Record<string, Omit<IntervalTask, 'id' | 'completed'>[]> = {
-  pomodoro: [
-    { label: 'Focus',      durationSeconds: 1500, phaseType: 'work'  },
-    { label: 'Break',      durationSeconds: 300,  phaseType: 'break' },
-    { label: 'Focus',      durationSeconds: 1500, phaseType: 'work'  },
-    { label: 'Break',      durationSeconds: 300,  phaseType: 'break' },
-    { label: 'Focus',      durationSeconds: 1500, phaseType: 'work'  },
-    { label: 'Long Break', durationSeconds: 900,  phaseType: 'break' },
-  ],
-  flow: [
-    { label: 'Warm Up',   durationSeconds: 300,  phaseType: 'transition' },
-    { label: 'Deep Work', durationSeconds: 2700, phaseType: 'work'       },
-    { label: 'Rest',      durationSeconds: 600,  phaseType: 'break'      },
-  ],
-  sprint: [
-    { label: 'Sprint', durationSeconds: 900, phaseType: 'work'  },
-    { label: 'Sprint', durationSeconds: 900, phaseType: 'work'  },
-    { label: 'Sprint', durationSeconds: 900, phaseType: 'work'  },
-    { label: 'Rest',   durationSeconds: 300, phaseType: 'break' },
-  ],
-};
+const BUILT_IN_TEMPLATES: { key: string; label: string; tasks: Omit<IntervalTask, 'id' | 'completed'>[] }[] = [
+  {
+    key: 'pomodoro', label: '🍅 Pomodoro',
+    tasks: [
+      { label: 'Focus',      durationSeconds: 1500, phaseType: 'work'  },
+      { label: 'Break',      durationSeconds: 300,  phaseType: 'break' },
+      { label: 'Focus',      durationSeconds: 1500, phaseType: 'work'  },
+      { label: 'Break',      durationSeconds: 300,  phaseType: 'break' },
+      { label: 'Focus',      durationSeconds: 1500, phaseType: 'work'  },
+      { label: 'Long Break', durationSeconds: 900,  phaseType: 'break' },
+    ],
+  },
+  {
+    key: 'flow', label: '🌊 Flow',
+    tasks: [
+      { label: 'Warm Up',   durationSeconds: 300,  phaseType: 'transition' },
+      { label: 'Deep Work', durationSeconds: 2700, phaseType: 'work'       },
+      { label: 'Rest',      durationSeconds: 600,  phaseType: 'break'      },
+    ],
+  },
+  {
+    key: 'sprint', label: '⚡ Sprint',
+    tasks: [
+      { label: 'Sprint', durationSeconds: 900, phaseType: 'work'  },
+      { label: 'Sprint', durationSeconds: 900, phaseType: 'work'  },
+      { label: 'Sprint', durationSeconds: 900, phaseType: 'work'  },
+      { label: 'Rest',   durationSeconds: 300, phaseType: 'break' },
+    ],
+  },
+  {
+    key: 'deepwork', label: '🎯 Deep Work',
+    tasks: [
+      { label: 'Warm-up',    durationSeconds: 300,  phaseType: 'transition' },
+      { label: 'Deep Focus', durationSeconds: 3600, phaseType: 'work'       },
+      { label: 'Break',      durationSeconds: 900,  phaseType: 'break'      },
+    ],
+  },
+  {
+    key: 'morning', label: '🌅 Morning',
+    tasks: [
+      { label: 'Mindfulness', durationSeconds: 600,  phaseType: 'buffer'     },
+      { label: 'Planning',    durationSeconds: 900,  phaseType: 'transition' },
+      { label: 'First block', durationSeconds: 1800, phaseType: 'work'       },
+    ],
+  },
+];
 
-export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
+const SVG_R    = 68;
+const SVG_CIRC = 2 * Math.PI * SVG_R;
+
+export function IntervalView({ tasks, onChange, settings, onUpdateSettings, pageId }: Props) {
+  // ── Mode & UI state ───────────────────────────────────────────────────────
+  const [mode,          setMode]          = useState<'edit' | 'run'>('edit');
+  const [muted,         setMuted]         = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+
   // ── Core timer state ──────────────────────────────────────────────────────
   const [activeIdx,       setActiveIdx]       = useState<number | null>(null);
   const [secondsLeft,     setSecondsLeft]     = useState(0);
@@ -74,10 +107,7 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
   const [editingDuration, setEditingDuration] = useState<string | null>(null);
   const intervalRef = useRef<number | null>(null);
 
-  // Change 4 — auto-focus new task row
   const pendingFocusId = useRef<string | null>(null);
-
-  // Change 9 — drag to reorder
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
 
   // ── Break gate ────────────────────────────────────────────────────────────
@@ -93,8 +123,8 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
   const [restSecondsLeft, setRestSecondsLeft] = useState<number | null>(null);
   const restIntervalRef = useRef<number | null>(null);
 
-  // ── Saved sequences ───────────────────────────────────────────────────────
-  const [savedSequences,   setSavedSequences]   = useState<SavedSequence[]>([]);
+  // ── Saved sequences (read from settings.json via prop; write via onUpdateSettings) ──
+  const savedSequences = settings.savedSequences ?? [];
   const [savingSequence,   setSavingSequence]   = useState(false);
   const [saveSequenceName, setSaveSequenceName] = useState('');
 
@@ -102,8 +132,11 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
   const { playTone } = useAudio();
   const settingsRef = useRef(settings);
   useEffect(() => { settingsRef.current = settings; }, [settings]);
+  const mutedRef = useRef(muted);
+  useEffect(() => { mutedRef.current = muted; }, [muted]);
 
   const playSoundOnce = useCallback((sound: ReminderSound | undefined, fallback: ReminderSound = 'none') => {
+    if (mutedRef.current) return;
     const s = sound ?? fallback;
     if (s === 'none') return;
     const stop = playTone(s, settingsRef.current.volume, settingsRef.current.customTones);
@@ -111,29 +144,21 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
   }, [playTone]);
 
   // ── Persistence ───────────────────────────────────────────────────────────
-  const loadedRef            = useRef(false);
-  const sequencesLoadedRef   = useRef(false);
+  const loadedRef               = useRef(false);
   const restoredFromPersistence = useRef(false);
-  const secondsLeftRef       = useRef(secondsLeft);
+  const secondsLeftRef          = useRef(secondsLeft);
   useEffect(() => { secondsLeftRef.current = secondsLeft; }, [secondsLeft]);
 
-  // Load on mount
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const store = await load(`interval-${pageId}.json`, { autoSave: false } as any);
-
-        const seqs = await store.get<SavedSequence[]>('sequences');
-        if (!cancelled && seqs) setSavedSequences(seqs);
-        sequencesLoadedRef.current = true;
-
         const timerState = await store.get<{
           activeIdx: number | null;
           secondsLeft: number;
           startedAt: number | null;
         }>('timer-state');
-
         if (!cancelled && timerState && timerState.activeIdx !== null && tasks[timerState.activeIdx]) {
           let remaining = timerState.secondsLeft;
           if (timerState.startedAt !== null) {
@@ -144,19 +169,16 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
           setActiveIdx(timerState.activeIdx);
           if (remaining > 0) setSecondsLeft(remaining);
         }
-
         if (!cancelled) loadedRef.current = true;
       } catch (e) {
         console.warn('[IntervalView] load error:', e);
         loadedRef.current = true;
-        sequencesLoadedRef.current = true;
       }
     })();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageId]);
 
-  // Persist timer state when activeIdx / running changes, and every 15s while running
   useEffect(() => {
     if (!loadedRef.current) return;
     const doSave = async () => {
@@ -178,21 +200,7 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
     return () => clearInterval(id);
   }, [activeIdx, running, pageId]);
 
-  // Persist sequences
-  useEffect(() => {
-    if (!sequencesLoadedRef.current) return;
-    (async () => {
-      try {
-        const store = await load(`interval-${pageId}.json`, { autoSave: false } as any);
-        await store.set('sequences', savedSequences);
-        await store.save();
-      } catch (e) {
-        console.warn('[IntervalView] sequences save error:', e);
-      }
-    })();
-  }, [savedSequences, pageId]);
-
-  // ── Sync secondsLeft when idle (skip if restoring from persistence) ───────
+  // ── Sync secondsLeft when idle ────────────────────────────────────────────
   useEffect(() => {
     if (restoredFromPersistence.current) {
       restoredFromPersistence.current = false;
@@ -203,7 +211,7 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
     }
   }, [activeIdx, tasks, running]);
 
-  // Change 4 — focus newly added task label
+  // ── Focus newly added task label ──────────────────────────────────────────
   useEffect(() => {
     if (pendingFocusId.current) {
       const input = document.querySelector(
@@ -226,16 +234,13 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
 
   const advanceToNext = useCallback(
     (currentIdx: number, currentTasks: IntervalTask[], shouldContinue = false) => {
-      // Fire completion sound for finished task
       playSoundOnce(currentTasks[currentIdx]?.completionSound, 'chime');
-
       const updated = currentTasks.map((t, i) =>
         i === currentIdx ? { ...t, completed: true } : t
       );
       onChange(updated);
       const nextIdx = updated.findIndex((t, i) => i > currentIdx && !t.completed);
       if (nextIdx !== -1) {
-        // Fire start sound for next task
         playSoundOnce(updated[nextIdx].startSound);
         setActiveIdx(nextIdx);
         setSecondsLeft(updated[nextIdx].durationSeconds);
@@ -248,6 +253,16 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
     },
     [onChange, playSoundOnce]
   );
+
+  // Stable refs for keyboard handler
+  const advanceToNextRef = useRef(advanceToNext);
+  useEffect(() => { advanceToNextRef.current = advanceToNext; }, [advanceToNext]);
+  const tasksRef     = useRef(tasks);
+  useEffect(() => { tasksRef.current = tasks; }, [tasks]);
+  const runningRef   = useRef(running);
+  useEffect(() => { runningRef.current = running; }, [running]);
+  const activeIdxRef = useRef(activeIdx);
+  useEffect(() => { activeIdxRef.current = activeIdx; }, [activeIdx]);
 
   // ── Main countdown interval ───────────────────────────────────────────────
   useEffect(() => {
@@ -361,6 +376,7 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
     setSessionComplete(false);
     setBreakGate(false);
     setRestSecondsLeft(null);
+    setMode('edit');
     if (restIntervalRef.current)      { clearInterval(restIntervalRef.current);      restIntervalRef.current = null; }
     if (breakGateIntervalRef.current) { clearInterval(breakGateIntervalRef.current); breakGateIntervalRef.current = null; }
     onChange(tasks.map(t => ({ ...t, completed: false })));
@@ -371,6 +387,60 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
     setRunning(false);
     advanceToNext(activeIdx, tasks);
   };
+
+  const startRun = () => {
+    handleStart();
+    setMode('run');
+  };
+
+  const stopRun = () => {
+    setRunning(false);
+    setMode('edit');
+  };
+
+  // ── Keyboard shortcuts (RUN mode only) ───────────────────────────────────
+  useEffect(() => {
+    if (mode !== 'run') return;
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (runningRef.current) {
+          setRunning(false);
+        } else {
+          const idx = activeIdxRef.current;
+          if (idx === null) {
+            const firstIdx = tasksRef.current.findIndex(t => !t.completed);
+            if (firstIdx !== -1) {
+              setActiveIdx(firstIdx);
+              setSecondsLeft(tasksRef.current[firstIdx].durationSeconds);
+            }
+          }
+          setRunning(true);
+        }
+      }
+      if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        const idx = activeIdxRef.current;
+        if (idx !== null) {
+          setRunning(false);
+          advanceToNextRef.current(idx, tasksRef.current, false);
+        }
+      }
+      if (e.code === 'Escape') {
+        e.preventDefault();
+        setMode('edit');
+        setRunning(false);
+      }
+      if (e.key === 'm' || e.key === 'M') {
+        setMuted(m => !m);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
 
   // ── Rest mode ─────────────────────────────────────────────────────────────
   const startRestMode = () => {
@@ -406,7 +476,7 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
     const idx = tasks.findIndex(t => t.id === id);
     onChange(tasks.filter(t => t.id !== id));
     if (activeIdx !== null) {
-      if (idx === activeIdx)  { setRunning(false); setActiveIdx(null); }
+      if (idx === activeIdx)    { setRunning(false); setActiveIdx(null); }
       else if (idx < activeIdx) setActiveIdx(activeIdx - 1);
     }
   };
@@ -415,11 +485,11 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
     updateTask(id, { phaseType: PHASE_ORDER[(PHASE_ORDER.indexOf(current) + 1) % PHASE_ORDER.length] });
   };
 
-  // Change 2 — seconds-based adjustDuration with isActive param
+  // ±1m buttons; Alt+click → ±5s; min 10s, max 14400s
   const adjustDuration = (id: string, deltaSecs: number, isActive: boolean) => {
     const task = tasks.find(t => t.id === id);
     if (!task) return;
-    const newDuration = Math.max(60, Math.min(7200, task.durationSeconds + deltaSecs));
+    const newDuration = Math.max(10, Math.min(14400, task.durationSeconds + deltaSecs));
     updateTask(id, { durationSeconds: newDuration });
     if (isActive) setSecondsLeft(prev => Math.max(1, prev + deltaSecs));
   };
@@ -429,35 +499,31 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
   const parseDurationInput = (val: string): number => {
     if (val.includes(':')) {
       const [m, s] = val.split(':').map(n => parseInt(n, 10) || 0);
-      return Math.max(60, Math.min(7200, m * 60 + s));
+      return Math.max(10, Math.min(14400, m * 60 + s));
     }
-    return Math.max(60, Math.min(7200, parseInt(val, 10) || 0));
+    return Math.max(10, Math.min(14400, parseInt(val, 10) || 0));
   };
 
-  // Change 5 — apply quick-start template
-  const applyTemplate = (name: keyof typeof QUICK_TEMPLATES) => {
-    onChange(QUICK_TEMPLATES[name].map(t => ({ ...t, id: makeId(), completed: false })));
+  const loadSequence = (seqTasks: Array<Omit<IntervalTask, 'id' | 'completed'> & { id?: string }>) => {
+    onChange(seqTasks.map(t => ({ ...t, id: makeId(), completed: false })));
+    setActiveIdx(null);
+    setSecondsLeft(0);
+    setRunning(false);
+    setSessionComplete(false);
   };
 
   const handleSaveSequence = () => {
     if (!saveSequenceName.trim()) return;
-    setSavedSequences(prev => [...prev, {
+    const newSeq: SavedSequence = {
       id: makeId(),
       name: saveSequenceName.trim(),
       tasks: tasks.map(({ id, label, durationSeconds, phaseType, completionSound, startSound }) => ({
         id, label, durationSeconds, phaseType, completionSound, startSound,
       })),
-    }]);
+    };
+    onUpdateSettings({ savedSequences: [...savedSequences, newSeq] });
     setSavingSequence(false);
     setSaveSequenceName('');
-  };
-
-  const loadSequence = (seqTasks: Omit<IntervalTask, 'completed'>[]) => {
-    onChange(seqTasks.map(t => ({ ...t, completed: false })));
-    setActiveIdx(null);
-    setSecondsLeft(0);
-    setRunning(false);
-    setSessionComplete(false);
   };
 
   // ── Derived values ────────────────────────────────────────────────────────
@@ -467,8 +533,6 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
   const progressPercent  = totalSeconds > 0 ? Math.round((completedSeconds / totalSeconds) * 100) : 0;
   const totalMinutes     = Math.round(totalSeconds / 60);
 
-  // ── Clock-time projection ─────────────────────────────────────────────────
-  // For each task: when will it end based on current timer state?
   const clockEndTimes: (number | null)[] = (() => {
     let cursor = Date.now();
     return tasks.map((task, idx) => {
@@ -478,6 +542,94 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
       return cursor;
     });
   })();
+
+  // RUN mode arc
+  const currentTask   = activeIdx !== null ? tasks[activeIdx] : null;
+  const currentPhase  = (currentTask?.phaseType ?? 'work') as IntervalPhaseType;
+  const phaseTotal    = currentTask ? currentTask.durationSeconds : 1;
+  const phaseElapsed  = phaseTotal - secondsLeft;
+  const phaseProgress = Math.max(0, Math.min(1, phaseElapsed / phaseTotal));
+  const arcDashOffset = SVG_CIRC * (1 - phaseProgress);
+  const arcColor      = PHASE_META[currentPhase].color;
+  const upcomingTasks = tasks.filter((t, i) => i > (activeIdx ?? -1) && !t.completed).slice(0, 2);
+
+  // ── Shared sub-components ─────────────────────────────────────────────────
+  const sequenceStrip = (
+    <div className={styles.intervalStrip}>
+      {tasks.map((task, idx) => {
+        const widthPct = totalSeconds > 0 ? Math.max((task.durationSeconds / totalSeconds) * 100, 4) : 10;
+        const phase    = task.phaseType ?? 'work';
+        return (
+          <div
+            key={task.id}
+            className={[
+              styles.intervalCapsule,
+              styles[`intervalCapsule_${phase}`],
+              idx === activeIdx ? styles.intervalCapsuleActive    : '',
+              task.completed    ? styles.intervalCapsuleCompleted : '',
+            ].filter(Boolean).join(' ')}
+            style={{ '--capsule-w': `${widthPct}%` } as any}
+            title={`${task.label || 'Untitled'} · ${formatTime(task.durationSeconds)}`}
+          />
+        );
+      })}
+    </div>
+  );
+
+  const restBanner = restSecondsLeft !== null ? (
+    <div className={styles.intervalRestBanner}>
+      <span>Rest · {formatTime(restSecondsLeft)}</span>
+      <button
+        className={styles.intervalRestDismiss}
+        onClick={() => {
+          setRestSecondsLeft(null);
+          if (restIntervalRef.current) { clearInterval(restIntervalRef.current); restIntervalRef.current = null; }
+        }}
+      >×</button>
+    </div>
+  ) : null;
+
+  const templatesPanel = (
+    <div className={styles.intervalTemplatesPanel}>
+      <button
+        className={styles.intervalTemplatesToggle}
+        onClick={() => setTemplatesOpen(o => !o)}
+      >
+        {templatesOpen ? '▾' : '▸'} Templates
+      </button>
+      <div className={[
+        styles.intervalTemplatesBody,
+        templatesOpen ? styles.intervalTemplatesBodyOpen : '',
+      ].filter(Boolean).join(' ')}>
+        <div className={styles.intervalTemplatesList}>
+          {BUILT_IN_TEMPLATES.map(tpl => (
+            <button
+              key={tpl.key}
+              className={styles.intervalTemplatePill}
+              onClick={() => loadSequence(tpl.tasks)}
+            >
+              {tpl.label}
+            </button>
+          ))}
+          {savedSequences.map(seq => (
+            <div key={seq.id} className={styles.intervalSavedEntry}>
+              <button
+                className={`${styles.intervalTemplatePill} ${styles.intervalSavedPill}`}
+                onClick={() => loadSequence(seq.tasks)}
+              >
+                {seq.name}
+              </button>
+              <button
+                className={styles.intervalSavedDelete}
+                onClick={() => onUpdateSettings({ savedSequences: savedSequences.filter(s => s.id !== seq.id) })}
+                title="Delete"
+              >×</button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 
   // ════════════════════════════════════════════════════════════════════════
   //  SESSION COMPLETE OVERLAY
@@ -504,35 +656,15 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
   }
 
   // ════════════════════════════════════════════════════════════════════════
-  //  EMPTY STATE — Change 5: warm prompt + quick-start
+  //  EMPTY STATE
   // ════════════════════════════════════════════════════════════════════════
   if (tasks.length === 0) {
     return (
       <div className={styles.container}>
-        {savedSequences.length > 0 && (
-          <div className={styles.intervalPickerSection}>
-            <span className={styles.intervalSectionLabel}>Saved</span>
-            <div className={styles.intervalPillRow}>
-              {savedSequences.map(seq => (
-                <button
-                  key={seq.id}
-                  className={`${styles.intervalTemplatePill} ${styles.intervalSavedPill}`}
-                  onClick={() => loadSequence(seq.tasks)}
-                >
-                  {seq.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        {templatesPanel}
         <div className={styles.emptyState}>
           <p className={styles.emptyTitle}>What are we working on?</p>
-          <p className={styles.emptyBody}>Add your first interval below, or use a quick-start pattern:</p>
-          <div className={styles.quickStart}>
-            <button className={styles.quickBtn} onClick={() => applyTemplate('pomodoro')}>🍅 Pomodoro</button>
-            <button className={styles.quickBtn} onClick={() => applyTemplate('flow')}>🌊 Flow</button>
-            <button className={styles.quickBtn} onClick={() => applyTemplate('sprint')}>⚡ Sprint</button>
-          </div>
+          <p className={styles.emptyBody}>Add your first interval below, or pick a template above.</p>
         </div>
         <button className={styles.addBtn} onClick={addTask}>+ build your own</button>
       </div>
@@ -540,139 +672,172 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
   }
 
   // ════════════════════════════════════════════════════════════════════════
-  //  MAIN VIEW
+  //  RUN MODE
+  // ════════════════════════════════════════════════════════════════════════
+  if (mode === 'run') {
+    return (
+      <div className={styles.container}>
+        {restBanner}
+
+        {/* Sequence strip */}
+        <div className={styles.intervalStripWrapper}>
+          <span className={styles.intervalStripTotal}>{totalMinutes} min total</span>
+          {sequenceStrip}
+        </div>
+
+        {/* Break gate overlay */}
+        {breakGate && (
+          <div className={styles.intervalBreakGate} style={{ position: 'relative', inset: 'auto', borderRadius: 12 }}>
+            <p className={styles.intervalBreakGateText}>Break&rsquo;s over. Ready for the next block?</p>
+            <div className={styles.intervalBreakGateActions}>
+              <button className={`${styles.controlBtn} ${styles.startBtn}`} onClick={handleBreakGateStart}>
+                Start Now{breakGateCountdown > 0 ? ` (${breakGateCountdown})` : ''}
+              </button>
+              <button className={styles.controlBtn} onClick={handleBreakGateOneMore}>1 more minute</button>
+            </div>
+          </div>
+        )}
+
+        {/* Big countdown */}
+        <div className={styles.runModeCenter}>
+          <div className={styles.runArcWrapper}>
+            <svg viewBox="0 0 160 160" width="160" height="160" className={styles.runArcSvg}>
+              <circle
+                cx="80" cy="80" r={SVG_R}
+                fill="none"
+                stroke="rgba(180,100,220,0.1)"
+                strokeWidth="7"
+              />
+              <circle
+                cx="80" cy="80" r={SVG_R}
+                fill="none"
+                stroke={arcColor}
+                strokeWidth="7"
+                strokeLinecap="round"
+                strokeDasharray={SVG_CIRC}
+                strokeDashoffset={arcDashOffset}
+                transform="rotate(-90 80 80)"
+                style={{ transition: 'stroke-dashoffset 1s linear' }}
+              />
+            </svg>
+            <div className={styles.runArcInner}>
+              <span className={styles.runDigits}>
+                {activeIdx !== null ? formatTime(secondsLeft) : '--:--'}
+              </span>
+              {currentTask && (
+                <span className={styles.runLabel}>{currentTask.label || 'Untitled'}</span>
+              )}
+              {muted && <span className={styles.runMutedBadge}>muted</span>}
+            </div>
+          </div>
+
+          {/* Upcoming strip */}
+          {upcomingTasks.length > 0 && (
+            <div className={styles.runUpcoming}>
+              <span className={styles.runUpcomingLabel}>up next</span>
+              {upcomingTasks.map(t => {
+                const ph = (t.phaseType ?? 'work') as IntervalPhaseType;
+                return (
+                  <div key={t.id} className={styles.runUpcomingItem}>
+                    <span
+                      className={styles.runUpcomingDot}
+                      style={{ background: PHASE_META[ph].color } as any}
+                    />
+                    <span className={styles.runUpcomingName}>{t.label || 'Untitled'}</span>
+                    <span className={styles.runUpcomingTime}>{formatTime(t.durationSeconds)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Controls */}
+          <div className={styles.controls}>
+            {!running ? (
+              <button className={`${styles.controlBtn} ${styles.startBtn}`} onClick={handleStart} title="Resume (Space)">
+                ▶ {activeIdx !== null ? 'Resume' : 'Start'}
+              </button>
+            ) : (
+              <button className={`${styles.controlBtn} ${styles.pauseBtn}`} onClick={handlePause} title="Pause (Space)">
+                ⏸ Pause
+              </button>
+            )}
+            <button
+              className={styles.controlBtn}
+              onClick={handleSkip}
+              disabled={activeIdx === null}
+              title="Skip (→)"
+            >
+              ⏭ Skip
+            </button>
+            <button
+              className={`${styles.controlBtn} ${styles.resetBtn}`}
+              onClick={stopRun}
+              title="Stop and return to edit (Esc)"
+            >
+              ✕ Stop
+            </button>
+            <button
+              className={`${styles.controlBtn} ${muted ? styles.mutedBtn : ''}`}
+              onClick={() => setMuted(m => !m)}
+              title="Toggle mute (m)"
+            >
+              {muted ? '🔇' : '🔔'}
+            </button>
+          </div>
+
+          {totalSeconds > 0 && (
+            <div className={styles.progressRow}>
+              <div className={styles.progressBar}>
+                <div
+                  className={styles.progressFill}
+                  style={{ '--fill-pct': `${progressPercent}%` } as any}
+                />
+              </div>
+              <span className={styles.progressLabel}>
+                {progressPercent}% · {formatTime(totalSeconds - completedSeconds)} left
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  EDIT MODE
   // ════════════════════════════════════════════════════════════════════════
   return (
     <div className={styles.container}>
-      {/* Rest banner */}
-      {restSecondsLeft !== null && (
-        <div className={styles.intervalRestBanner}>
-          <span>Rest · {formatTime(restSecondsLeft)}</span>
-          <button
-            className={styles.intervalRestDismiss}
-            onClick={() => {
-              setRestSecondsLeft(null);
-              if (restIntervalRef.current) { clearInterval(restIntervalRef.current); restIntervalRef.current = null; }
-            }}
-          >×</button>
-        </div>
-      )}
+      {restBanner}
 
-      {/* Sequence strip */}
+      {/* Sequence strip + Run button */}
       <div className={styles.intervalStripWrapper}>
-        <span className={styles.intervalStripTotal}>{totalMinutes} min total</span>
-        <div className={styles.intervalStrip}>
-          {tasks.map((task, idx) => {
-            const widthPct = Math.max((task.durationSeconds / totalSeconds) * 100, 4);
-            const phase    = task.phaseType ?? 'work';
-            return (
-              <div
-                key={task.id}
-                className={[
-                  styles.intervalCapsule,
-                  styles[`intervalCapsule_${phase}`],
-                  idx === activeIdx ? styles.intervalCapsuleActive    : '',
-                  task.completed    ? styles.intervalCapsuleCompleted : '',
-                ].filter(Boolean).join(' ')}
-                style={{ '--capsule-w': `${widthPct}%` } as React.CSSProperties}
-                title={`${task.label || 'Untitled'} · ${formatTime(task.durationSeconds)}`}
-              />
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Timer section */}
-      <div className={styles.timerSection}>
-        {breakGate && (
-          <div className={styles.intervalBreakGate}>
-            <p className={styles.intervalBreakGateText}>
-              Break&rsquo;s over. Ready for the next block?
-            </p>
-            <div className={styles.intervalBreakGateActions}>
-              <button
-                className={`${styles.controlBtn} ${styles.startBtn}`}
-                onClick={handleBreakGateStart}
-              >
-                Start Now{breakGateCountdown > 0 ? ` (${breakGateCountdown})` : ''}
-              </button>
-              <button className={styles.controlBtn} onClick={handleBreakGateOneMore}>
-                1 more minute
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className={styles.timerDisplay}>
-          <span className={styles.timerDigits}>
-            {activeIdx !== null ? formatTime(secondsLeft) : '--:--'}
-          </span>
-          {activeIdx !== null && tasks[activeIdx] && (
-            <span className={styles.timerLabel}>{tasks[activeIdx].label || 'Untitled task'}</span>
-          )}
-        </div>
-
-        {/* Change 7 — button hierarchy + title attributes */}
-        <div className={styles.controls}>
-          {!running ? (
-            <button
-              className={`${styles.controlBtn} ${styles.startBtn}`}
-              onClick={handleStart}
-              title="Start sequence"
-            >
-              ▶ {activeIdx !== null ? 'Resume' : 'Start'}
-            </button>
-          ) : (
-            <button
-              className={`${styles.controlBtn} ${styles.pauseBtn}`}
-              onClick={handlePause}
-              title="Pause timer"
-            >
-              ⏸ Pause
-            </button>
-          )}
+        <div className={styles.intervalStripHeader}>
+          <span className={styles.intervalStripTotal}>{totalMinutes} min total</span>
           <button
-            className={styles.controlBtn}
-            onClick={handleSkip}
-            disabled={activeIdx === null}
-            title="Skip to next interval"
+            className={`${styles.controlBtn} ${styles.startBtn}`}
+            onClick={startRun}
+            title="Start session"
           >
-            ⏭ Skip
-          </button>
-          <button
-            className={`${styles.controlBtn} ${styles.resetBtn}`}
-            onClick={handleReset}
-            title="Reset all intervals"
-          >
-            ↺ Reset
+            ▶ {activeIdx !== null ? 'Resume' : 'Run'}
           </button>
         </div>
-
-        {/* Change 8 — progress bar */}
-        {totalSeconds > 0 && (
-          <div className={styles.progressRow}>
-            <div className={styles.progressBar}>
-              <div
-                className={styles.progressFill}
-                style={{ '--fill-pct': `${progressPercent}%` } as React.CSSProperties}
-              />
-            </div>
-            <span className={styles.progressLabel}>
-              {progressPercent}% · {formatTime(totalSeconds - completedSeconds)} left
-            </span>
-          </div>
-        )}
+        {sequenceStrip}
       </div>
+
+      {/* Templates panel */}
+      {templatesPanel}
 
       {/* Task list */}
       <div className={styles.taskList}>
         {tasks.map((task, idx) => {
           const isActive   = idx === activeIdx;
-          const phase      = task.phaseType ?? 'work';
+          const phase      = (task.phaseType ?? 'work') as IntervalPhaseType;
           const phaseMeta  = PHASE_META[phase];
           const isBreakRow = phase === 'break';
           const endTimeMs  = clockEndTimes[idx];
-          const soundKey = task.completionSound ?? 'chime';
+          const soundKey   = task.completionSound ?? 'chime';
 
           return (
             <div
@@ -680,6 +845,7 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
               data-task-id={task.id}
               className={[
                 styles.taskRow,
+                styles[`phaseCard--${phase}`],
                 task.completed ? styles.completed        : '',
                 isActive       ? styles.active           : '',
                 isBreakRow     ? styles.intervalBreakRow : '',
@@ -687,7 +853,6 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
               onClick={() => {
                 if (!running) { setActiveIdx(idx); setSecondsLeft(task.durationSeconds); }
               }}
-              /* Change 9 — drag to reorder */
               draggable={!running}
               onDragStart={() => setDraggedTaskId(task.id)}
               onDragEnter={() => {
@@ -705,7 +870,6 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
                 cursor: running ? 'default' : 'grab',
               }}
             >
-              {/* Change 9 — drag handle */}
               {!running && (
                 <div className={styles.dragHandle}>
                   <svg viewBox="0 0 8 12" fill="currentColor" width="8" height="12">
@@ -716,7 +880,6 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
                 </div>
               )}
 
-              {/* Change 1 — status dot */}
               <div
                 className={styles.statusDot}
                 data-state={task.completed ? 'done' : isActive ? 'active' : 'waiting'}
@@ -734,7 +897,6 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
                 )}
               </div>
 
-              {/* Change 3 — task label */}
               <input
                 className={[
                   styles.taskLabel,
@@ -746,21 +908,20 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
                 onClick={e => e.stopPropagation()}
               />
 
-              {/* Projected end time */}
               {endTimeMs !== null && (
                 <span className={styles.taskClockTime} title="Projected finish time">
                   {fmtClock(endTimeMs)}
                 </span>
               )}
 
-              {/* Change 2 — durationGroup with ±5 step buttons */}
               <div className={styles.durationGroup}>
                 <button
                   className={styles.durationStep}
-                  onClick={e => { e.stopPropagation(); adjustDuration(task.id, -300, isActive); }}
-                  disabled={task.durationSeconds <= 60}
+                  onClick={e => { e.stopPropagation(); adjustDuration(task.id, e.altKey ? -5 : -60, isActive); }}
+                  disabled={task.durationSeconds <= 10}
+                  title="−1 min (Alt: −5 s)"
                 >
-                  −5
+                  −1m
                 </button>
                 {editingDuration === task.id ? (
                   <input
@@ -788,15 +949,14 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
                 )}
                 <button
                   className={styles.durationStep}
-                  onClick={e => { e.stopPropagation(); adjustDuration(task.id, 300, isActive); }}
-                  disabled={task.durationSeconds >= 7200}
+                  onClick={e => { e.stopPropagation(); adjustDuration(task.id, e.altKey ? 5 : 60, isActive); }}
+                  disabled={task.durationSeconds >= 14400}
+                  title="+1 min (Alt: +5 s)"
                 >
-                  +5
+                  +1m
                 </button>
               </div>
 
-              {/* Completion sound cycle button */}
-              {/* Completion sound select */}
               <select
                 className={styles.soundSelect}
                 value={soundKey}
@@ -809,16 +969,13 @@ export function IntervalView({ tasks, onChange, settings, pageId }: Props) {
                 title="End sound"
               >
                 {DEFAULT_SOUNDS.map(s => (
-                  <option key={s} value={s}>
-                    {SOUND_EMOJI[s]} {SOUND_LABEL[s]}
-                  </option>
+                  <option key={s} value={s}>{SOUND_EMOJI[s]} {SOUND_LABEL[s]}</option>
                 ))}
                 {settings.customTones.map(tone => (
                   <option key={tone.id} value={tone.id}>🔈 {tone.name}</option>
                 ))}
               </select>
 
-              {/* Phase badge */}
               <button
                 className={[
                   styles.intervalPhaseBadge,
