@@ -7,6 +7,22 @@ import '../styles/habits.css';
 const ACCENT_COLORS: AccentColor[] = ['plum', 'rose', 'peach', 'orange', 'yellow', 'blue', 'ghost'];
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
+const STARTER_HABITS: Array<{
+  name: string;
+  emoji: string;
+  color: AccentColor;
+  habitType: HabitType;
+  unit?: string;
+  frequency?: 'daily' | 'weekly';
+}> = [
+  { name: 'Water',      emoji: '💧', color: 'blue',   habitType: 'count',  unit: 'glasses' },
+  { name: 'Move',       emoji: '🚶', color: 'peach',  habitType: 'binary' },
+  { name: 'Meds',       emoji: '💊', color: 'rose',   habitType: 'binary' },
+  { name: 'Outside',    emoji: '🌿', color: 'yellow', habitType: 'binary' },
+  { name: 'Journal',    emoji: '📓', color: 'plum',   habitType: 'binary' },
+  { name: 'Sleep goal', emoji: '🌙', color: 'ghost',  habitType: 'binary', frequency: 'weekly' },
+];
+
 function formatDate(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -54,6 +70,18 @@ function getLast10Weeks(): string[] {
     if (!weeks.includes(w)) weeks.push(w);
   }
   return weeks;
+}
+
+function weekKeyToLabel(weekKey: string): string {
+  const [yearStr, wStr] = weekKey.split('-W');
+  const year = parseInt(yearStr);
+  const week = parseInt(wStr);
+  const jan4 = new Date(year, 0, 4);
+  const monday = new Date(jan4);
+  monday.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7) + (week - 1) * 7);
+  const m = String(monday.getMonth() + 1).padStart(2, '0');
+  const d = String(monday.getDate()).padStart(2, '0');
+  return `${parseInt(m)}/${parseInt(d)}`;
 }
 
 function computeWeeklyStreak(habitId: string, logs: { habitId: string; date: string }[]): number {
@@ -144,7 +172,7 @@ function WeeklyGrid({ habit, weekKeys, currentWeek, isLogged, toggleLog }: Weekl
       {weekKeys.map(w => {
         const logged = isLogged(habit.id, w);
         const isCurrentWeek = w === currentWeek;
-        const shortLabel = w.replace(/^\d{4}-/, '');
+        const shortLabel = weekKeyToLabel(w);
         return (
           <button
             key={w}
@@ -198,6 +226,7 @@ function CountGrid({ habit, dotDates, todayISO, getLogCount, setLogCount }: Coun
               'habits-count-cell',
               count > 0 ? 'habits-count-cell--active' : '',
               isToday ? 'habits-count-cell--today' : '',
+              isToday && count > 0 ? 'habits-count-cell--today-active' : '',
             ].filter(Boolean).join(' ')}
             style={{ '--habit-color': hexColor, '--fill-opacity': fillOpacity } as React.CSSProperties}
             title={`${date}: ${count}${habit.unit ? ' ' + habit.unit : ''}`}
@@ -413,15 +442,146 @@ function LinearView({ habits, isLogged, getLogCount, toggleLog, setLogCount }: L
   );
 }
 
-// ── Main page ─────────────────────────────────────────────
+// ── Today Quick-Log Strip ────────────────────────────────
+interface TodayStripProps {
+  habits: Habit[];
+  todayISO: string;
+  isLogged: (id: string, date: string) => boolean;
+  toggleLog: (id: string, date: string) => void;
+  getLogCount: (id: string, date: string) => number;
+  setLogCount: (id: string, date: string, count: number) => void;
+}
+
+function TodayStrip({
+  habits, todayISO, isLogged, toggleLog, getLogCount, setLogCount,
+}: TodayStripProps) {
+  const activeHabits = habits.filter(h => !h.archivedAt);
+  if (activeHabits.length === 0) return null;
+
+  // Today's ISO week key (for weekly habits)
+  const todayDate = new Date();
+  const todayWeek = isoWeekKey(todayDate);
+
+  const totalLoggable = activeHabits.length;
+  const totalLogged = activeHabits.filter(h => {
+    if (h.frequency === 'weekly') return isLogged(h.id, todayWeek);
+    return isLogged(h.id, todayISO);
+  }).length;
+  const allDone = totalLogged === totalLoggable;
+
+  return (
+    <div className="habits-today-strip">
+      <div className="habits-today-strip__label">
+        {allDone
+          ? <span className="habits-today-strip__done">✦ all done today</span>
+          : <span className="habits-today-strip__progress">
+              today — {totalLogged}/{totalLoggable}
+            </span>
+        }
+      </div>
+      <div className="habits-today-strip__pills">
+        {activeHabits.map(habit => {
+          const hexColor = accentToHex(habit.color);
+          const isWeekly = habit.frequency === 'weekly';
+          const isCount  = habit.habitType === 'count';
+          const key      = isWeekly ? todayWeek : todayISO;
+          const logged   = isLogged(habit.id, key);
+          const count    = isCount ? getLogCount(habit.id, todayISO) : 0;
+
+          const handleTap = () => {
+            if (isCount) {
+              setLogCount(habit.id, todayISO, count + 1);
+            } else {
+              toggleLog(habit.id, key);
+            }
+          };
+
+          return (
+            <button
+              key={habit.id}
+              className={[
+                'habits-strip-pill',
+                logged || count > 0 ? 'habits-strip-pill--logged' : '',
+              ].filter(Boolean).join(' ')}
+              style={{ '--habit-color': hexColor } as React.CSSProperties}
+              onClick={handleTap}
+              title={`${habit.name}${isCount ? ` (${count}${habit.unit ? ' ' + habit.unit : ''})` : ''}`}
+            >
+              <span className="habits-strip-pill__emoji">{habit.emoji}</span>
+              <span className="habits-strip-pill__name">{habit.name}</span>
+              {isCount && count > 0 && (
+                <span className="habits-strip-pill__count">
+                  {count}{habit.unit ? ' ' + habit.unit : ''}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Empty state with starter suggestions ──────────────────
 interface Props { pageId: string; }
 
+interface HabitsEmptyStateProps {
+  addHabit: (
+    name: string, emoji: string, color: AccentColor,
+    habitType: HabitType, unit?: string, frequency?: 'daily' | 'weekly'
+  ) => void;
+  onOpenAddForm: () => void;
+}
+
+function HabitsEmptyState({ addHabit, onOpenAddForm }: HabitsEmptyStateProps) {
+  const [added, setAdded] = useState<Set<number>>(new Set());
+
+  const handleAdd = (idx: number) => {
+    const s = STARTER_HABITS[idx];
+    addHabit(s.name, s.emoji, s.color, s.habitType, s.unit, s.frequency);
+    setAdded(prev => new Set([...prev, idx]));
+  };
+
+  return (
+    <div className="habits-empty">
+      <div className="habits-empty__icon">◉</div>
+      <p className="habits-empty__heading">Track your rhythms</p>
+      <p className="habits-empty__body">
+        Not streaks. Not pressure. Just a quiet record of what you
+        actually did — so you can see your own patterns over time.
+      </p>
+
+      <p className="habits-empty__sub">Add a starter habit:</p>
+      <div className="habits-empty__starters">
+        {STARTER_HABITS.map((s, i) => (
+          <button
+            key={s.name}
+            className={`habits-empty__starter ${added.has(i) ? 'habits-empty__starter--added' : ''}`}
+            style={{ '--habit-color': accentToHex(s.color) } as React.CSSProperties}
+            onClick={() => handleAdd(i)}
+            disabled={added.has(i)}
+          >
+            {s.emoji} {s.name}
+            {added.has(i) && <span className="habits-empty__starter-check"> ✓</span>}
+          </button>
+        ))}
+      </div>
+
+      <button className="habits-empty__custom" onClick={onOpenAddForm}>
+        + build your own
+      </button>
+    </div>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────
 type ViewMode = 'grid' | 'linear';
 
 export function HabitsPage({ pageId: _pageId }: Props) {
   const {
     habits, logs, ready,
     addHabit, removeHabit, unarchiveHabit, deleteHabit,
+    renameHabit,
     isLogged, toggleLog,
     getLogCount, setLogCount,
     getStreakForHabit, getLongestStreak,
@@ -441,6 +601,12 @@ export function HabitsPage({ pageId: _pageId }: Props) {
   // Archived section
   const [showArchived, setShowArchived] = useState(false);
 
+  // Inline edit form
+  const [editHabitId, setEditHabitId]   = useState<string | null>(null);
+  const [editName,    setEditName]       = useState('');
+  const [editEmoji,   setEditEmoji]      = useState('');
+  const [editColor,   setEditColor]      = useState<AccentColor>('plum');
+
   const todayISO = formatDate(new Date());
   const dotDates = getLast35Days();
   const weekKeys = getLast10Weeks();
@@ -455,6 +621,12 @@ export function HabitsPage({ pageId: _pageId }: Props) {
     setNewName(''); setNewEmoji(''); setNewColor('plum');
     setNewType('binary'); setNewUnit(''); setNewFrequency('daily');
     setShowAddForm(false);
+  };
+
+  const handleEditSave = () => {
+    if (!editHabitId || !editName.trim()) return;
+    renameHabit(editHabitId, editName.trim(), editEmoji || '●', editColor);
+    setEditHabitId(null);
   };
 
   if (!ready) return <div className="loading-hint">✦</div>;
@@ -494,6 +666,15 @@ export function HabitsPage({ pageId: _pageId }: Props) {
       {/* Grid view — habit cards */}
       {view === 'grid' && (
         <>
+          <TodayStrip
+            habits={habits}
+            todayISO={todayISO}
+            isLogged={isLogged}
+            toggleLog={toggleLog}
+            getLogCount={getLogCount}
+            setLogCount={setLogCount}
+          />
+
           {activeHabits.map(habit => {
             const isWeekly = habit.frequency === 'weekly';
             const isCount  = habit.habitType === 'count';
@@ -510,6 +691,47 @@ export function HabitsPage({ pageId: _pageId }: Props) {
 
             return (
               <div key={habit.id} className="habits-card" onClick={e => e.stopPropagation()}>
+                {editHabitId === habit.id && (
+                  <div className="habits-edit-form" onClick={e => e.stopPropagation()}>
+                    <div className="habits-edit-form__row">
+                      <input
+                        className="habits-emoji-input"
+                        type="text"
+                        placeholder="emoji"
+                        maxLength={2}
+                        value={editEmoji}
+                        onChange={e => setEditEmoji(e.target.value)}
+                      />
+                      <input
+                        className="habits-add-input habits-edit-form__name"
+                        type="text"
+                        placeholder="Habit name…"
+                        value={editName}
+                        onChange={e => setEditName(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleEditSave();
+                          if (e.key === 'Escape') setEditHabitId(null);
+                        }}
+                        autoFocus
+                      />
+                    </div>
+                    <div className="habits-color-picker" style={{ marginTop: 6 }}>
+                      {ACCENT_COLORS.map(c => (
+                        <button
+                          key={c}
+                          className={`habits-color-dot ${editColor === c ? 'habits-color-dot--selected' : ''}`}
+                          style={{ '--habit-color': accentToHex(c) } as React.CSSProperties}
+                          onClick={() => setEditColor(c)}
+                          title={c}
+                        />
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                      <button className="habits-form-submit" onClick={handleEditSave}>Save</button>
+                      <button className="habits-form-cancel" onClick={() => setEditHabitId(null)}>Cancel</button>
+                    </div>
+                  </div>
+                )}
                 <div className="habits-card__header">
                   <span className="habits-card__emoji">{habit.emoji}</span>
                   <span className="habits-card__name">{habit.name}</span>
@@ -544,6 +766,16 @@ export function HabitsPage({ pageId: _pageId }: Props) {
                     >⋯</button>
                     {menuHabitId === habit.id && (
                       <div className="habits-card__popover" onClick={e => e.stopPropagation()}>
+                        <button
+                          className="habits-card__popover-item"
+                          onClick={() => {
+                            setEditHabitId(habit.id);
+                            setEditName(habit.name);
+                            setEditEmoji(habit.emoji);
+                            setEditColor(habit.color);
+                            setMenuHabitId(null);
+                          }}
+                        >Edit</button>
                         <button
                           className="habits-card__popover-item"
                           onClick={() => { removeHabit(habit.id); setMenuHabitId(null); }}
@@ -587,9 +819,10 @@ export function HabitsPage({ pageId: _pageId }: Props) {
           })}
 
           {activeHabits.length === 0 && !showAddForm && (
-            <div style={{ color: 'var(--text-faint)', fontSize: 12, fontStyle: 'italic', textAlign: 'center', marginTop: 24 }}>
-              No habits yet — click <em>+ habit</em> to begin.
-            </div>
+            <HabitsEmptyState
+              addHabit={addHabit}
+              onOpenAddForm={() => setShowAddForm(true)}
+            />
           )}
 
           {/* Archived section */}
@@ -680,6 +913,7 @@ export function HabitsPage({ pageId: _pageId }: Props) {
               maxLength={2}
               value={newEmoji}
               onChange={e => setNewEmoji(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleAddHabit(); }}
             />
             <div className="habits-color-picker">
               {ACCENT_COLORS.map(c => (

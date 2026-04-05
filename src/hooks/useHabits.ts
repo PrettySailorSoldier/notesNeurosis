@@ -126,9 +126,11 @@ export function useHabits() {
     });
   }, []);
 
-  const renameHabit = useCallback((id: string, name: string, emoji: string) => {
+  const renameHabit = useCallback((id: string, name: string, emoji: string, color?: AccentColor) => {
     setHabits(prev => {
-      const next = prev.map(h => h.id === id ? { ...h, name, emoji } : h);
+      const next = prev.map(h => h.id === id ? {
+        ...h, name, emoji, ...(color ? { color } : {}),
+      } : h);
       habitsRef.current = next;
       scheduleSave(next, logsRef.current);
       return next;

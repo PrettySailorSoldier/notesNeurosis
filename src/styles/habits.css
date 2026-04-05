@@ -871,3 +871,211 @@
 .habits-archived-delete:hover {
   color: rgba(240, 80, 100, 0.8);
 }
+
+/* ── Today Quick-Log Strip ──────────────────────────────── */
+.habits-today-strip {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 8px);
+  backdrop-filter: blur(6px);
+}
+
+.habits-today-strip__label {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  font-family: system-ui, sans-serif;
+  margin-bottom: 10px;
+}
+
+.habits-today-strip__progress { color: var(--text-faint); }
+
+.habits-today-strip__done {
+  color: var(--plum);
+  font-style: italic;
+  letter-spacing: 0.08em;
+}
+
+.habits-today-strip__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.habits-strip-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px 5px 7px;
+  border-radius: 20px;
+  border: 1.5px solid color-mix(in srgb, var(--habit-color) 35%, transparent);
+  background: color-mix(in srgb, var(--habit-color) 6%, transparent);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  color: var(--text-muted);
+}
+
+.habits-strip-pill:hover {
+  background: color-mix(in srgb, var(--habit-color) 14%, transparent);
+  border-color: color-mix(in srgb, var(--habit-color) 55%, transparent);
+}
+
+.habits-strip-pill:active {
+  transform: scale(0.93);
+}
+
+.habits-strip-pill--logged {
+  background: color-mix(in srgb, var(--habit-color) 22%, transparent);
+  border-color: var(--habit-color);
+}
+
+.habits-strip-pill__emoji {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.habits-strip-pill__name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1;
+}
+
+.habits-strip-pill--logged .habits-strip-pill__name {
+  color: var(--habit-color);
+}
+
+.habits-strip-pill__count {
+  font-size: 10px;
+  font-family: system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  color: var(--habit-color);
+  margin-left: 2px;
+}
+
+/* ── Inline edit form on card ───────────────────────────── */
+.habits-edit-form {
+  margin-bottom: 10px;
+  padding: 10px 0 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.habits-edit-form__row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.habits-edit-form__name {
+  flex: 1;
+}
+
+/* ── Empty state ────────────────────────────────────────── */
+.habits-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 16px 24px;
+  text-align: center;
+  gap: 0;
+}
+
+.habits-empty__icon {
+  font-size: 28px;
+  color: var(--plum);
+  margin-bottom: 12px;
+  opacity: 0.6;
+}
+
+.habits-empty__heading {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 8px;
+}
+
+.habits-empty__body {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  max-width: 280px;
+  margin: 0 0 20px;
+}
+
+.habits-empty__sub {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  margin: 0 0 10px;
+}
+
+.habits-empty__starters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.habits-empty__starter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1.5px solid color-mix(in srgb, var(--habit-color) 40%, transparent);
+  background: color-mix(in srgb, var(--habit-color) 8%, transparent);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.habits-empty__starter:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--habit-color) 18%, transparent);
+}
+
+.habits-empty__starter--added,
+.habits-empty__starter:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.habits-empty__starter-check {
+  color: var(--plum);
+}
+
+.habits-empty__custom {
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 4px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.habits-empty__custom:hover {
+  border-color: var(--plum);
+  color: var(--plum);
+}
+
+/* ── Prompt 4 polish ────────────────────────────────────── */
+.habits-count-cell--today-active .habits-count-cell__dec {
+  opacity: 0.7;
+}
+
+.habits-count-cell--today-active .habits-count-cell__dec:hover {
+  opacity: 1;
+}
+
+.habits-dot--today {
+  width: 18px;
+  height: 18px;
+}
