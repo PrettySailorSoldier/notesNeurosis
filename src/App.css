@@ -604,6 +604,49 @@ html, body {
   border-radius: 8px 8px 0 0;
 }
 
+/* ── Inline tab rename input ── */
+.tab-rename-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(210, 160, 255, 0.7);
+  color: rgba(255, 255, 255, 1);
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 14px;
+  outline: none;
+  padding: 0 2px;
+  min-width: 40px;
+  max-width: 140px;
+  caret-color: rgba(210, 160, 255, 0.9);
+}
+
+.tab-btn--renaming {
+  cursor: text;
+}
+
+/* Make tab-btn work as div (same styling, same interaction) */
+.tab-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ── Tab keyboard shortcut hint ── */
+.tab-shortcut-hint {
+  font-size: 8px;
+  font-family: system-ui, sans-serif;
+  color: rgba(210, 160, 255, 0.3);
+  margin-left: 4px;
+  line-height: 1;
+  vertical-align: middle;
+  letter-spacing: 0;
+  transition: color 0.15s;
+}
+
+.tab-btn:hover .tab-shortcut-hint,
+.tab-btn.active .tab-shortcut-hint {
+  color: rgba(210, 160, 255, 0.55);
+}
 
 /* ── Planner ── */
 .planner-container {
@@ -1495,4 +1538,116 @@ html, body {
 
 .planner-care-section {
   margin-top: 8px;
+}
+
+/* ── Keyboard shortcut overlay ── */
+.shortcuts-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 5, 25, 0.55);
+  backdrop-filter: blur(6px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shortcuts-modal {
+  background: rgba(25, 12, 50, 0.97);
+  border: 1px solid rgba(180, 130, 220, 0.35);
+  border-radius: 12px;
+  width: 440px;
+  max-height: 70vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(180, 140, 220, 0.2) transparent;
+}
+
+.shortcuts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid rgba(180, 130, 220, 0.15);
+}
+
+.shortcuts-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.04em;
+}
+
+.shortcuts-close {
+  background: transparent;
+  border: none;
+  color: rgba(200, 170, 240, 0.6);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  transition: color 0.15s;
+}
+.shortcuts-close:hover { color: rgba(255, 255, 255, 0.9); }
+
+.shortcuts-body {
+  padding: 12px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.shortcuts-section-title {
+  font-size: 9px;
+  font-family: system-ui, sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(180, 130, 220, 0.55);
+  margin-bottom: 8px;
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+  gap: 12px;
+}
+
+.shortcut-label {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 13px;
+  color: rgba(230, 220, 255, 0.8);
+  flex: 1;
+}
+
+.shortcut-keys {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.shortcut-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(200, 170, 240, 0.85);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(180, 130, 220, 0.3);
+  border-radius: 4px;
+  padding: 2px 6px;
+  min-width: 20px;
+  text-align: center;
+  letter-spacing: 0.02em;
+  font-style: normal;
+}
+
+.shortcut-plus {
+  font-size: 9px;
+  color: rgba(180, 130, 220, 0.4);
 }

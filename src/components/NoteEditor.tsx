@@ -30,6 +30,7 @@ export const NoteEditor: React.FC<Props> = ({
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [words, setWords] = useState(wordCount(value));
+  const [copied, setCopied] = useState(false);
 
   // Keep word count in sync
   useEffect(() => {
@@ -93,6 +94,16 @@ export const NoteEditor: React.FC<Props> = ({
       ta.focus();
     });
   }, [value, onChange]);
+
+  const handleCopyAll = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      textareaRef.current?.select();
+    }
+  }, [value]);
 
   // Wrap selection helper
   const wrapSelection = useCallback(
@@ -202,8 +213,19 @@ export const NoteEditor: React.FC<Props> = ({
           🕐 timestamp
         </button>
 
+        <div className={styles.toolbarSep} />
+
+        <button
+          className={styles.toolbarBtn}
+          onClick={handleCopyAll}
+          title="Copy all text"
+          aria-label="Copy all text"
+        >
+          {copied ? '✓' : '⎘'}
+        </button>
+
         <span className={styles.wordCount}>
-          {wc === 0 ? '' : `${wc} word${wc !== 1 ? 's' : ''}`}
+          {wc === 0 ? '' : `${wc}w · ${value.length}c`}
         </span>
       </div>
 

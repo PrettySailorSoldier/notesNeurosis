@@ -15,17 +15,14 @@
   gap: 2px;
   padding: 0 0 6px 0;
   flex-shrink: 0;
-  opacity: 0;
-  transform: translateY(-4px);
-  transition: opacity 0.2s ease, transform 0.2s ease;
-  pointer-events: none;
+  opacity: 0.35;
+  transform: translateY(0);
+  transition: opacity 0.2s ease;
 }
 
 .container:hover .toolbar,
 .container:focus-within .toolbar {
   opacity: 1;
-  transform: translateY(0);
-  pointer-events: all;
 }
 
 .toolbarBtn {
@@ -143,4 +140,8 @@
 .stampBtn:hover {
   color: rgba(140, 80, 210, 0.85);
   background: rgba(180, 130, 220, 0.1);
+}
+
+.toolbarBtn[aria-label="Copy all text"] {
+  min-width: 26px;
 }

@@ -170,6 +170,31 @@ export const TaskEditor: React.FC<Props> = ({ tasks, onChange, onSetReminder, on
           />
         </div>
       ))}
+
+      {(() => {
+        const completedTasks = tasks.filter(t => t.completed);
+        const total = tasks.length;
+        if (completedTasks.length === 0) return null;
+        return (
+          <div className={styles.clearBar}>
+            <span className={styles.clearBarCount}>
+              {completedTasks.length} of {total} done
+            </span>
+            <button
+              className={styles.clearBarBtn}
+              onClick={() => {
+                const remaining = tasks.filter(t => !t.completed);
+                onChange(remaining.length > 0
+                  ? remaining
+                  : [makeTask('plain')]
+                );
+              }}
+            >
+              clear
+            </button>
+          </div>
+        );
+      })()}
     </div>
   );
 };

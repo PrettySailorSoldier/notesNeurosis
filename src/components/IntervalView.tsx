@@ -98,7 +98,7 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
   // ── Mode & UI state ───────────────────────────────────────────────────────
   const [mode,          setMode]          = useState<'edit' | 'run'>('edit');
   const [muted,         setMuted]         = useState(false);
-  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(tasks.length === 0);
 
   // ── Core timer state ──────────────────────────────────────────────────────
   const [activeIdx,       setActiveIdx]       = useState<number | null>(null);
@@ -479,6 +479,19 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
       if (idx === activeIdx)    { setRunning(false); setActiveIdx(null); }
       else if (idx < activeIdx) setActiveIdx(activeIdx - 1);
     }
+  };
+
+  const duplicateTask = (id: string) => {
+    const src = tasks.find(t => t.id === id);
+    if (!src) return;
+    const clone: IntervalTask = { ...src, id: makeId(), completed: false };
+    const idx = tasks.findIndex(t => t.id === id);
+    const next = [
+      ...tasks.slice(0, idx + 1),
+      clone,
+      ...tasks.slice(idx + 1),
+    ];
+    onChange(next);
   };
 
   const cyclePhaseType = (id: string, current: IntervalPhaseType = 'work') => {
@@ -985,6 +998,14 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
                 title="Click to change phase type"
               >
                 {phaseMeta.emoji} {phaseMeta.label}
+              </button>
+
+              <button
+                className={styles.taskDupeBtn}
+                onClick={e => { e.stopPropagation(); duplicateTask(task.id); }}
+                title="Duplicate this block"
+              >
+                ⊕
               </button>
 
               <button

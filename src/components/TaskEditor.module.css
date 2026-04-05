@@ -58,3 +58,36 @@
   color: rgba(210, 180, 255, 0.9);
   background: transparent;
 }
+
+/* ── Clear completed bar ── */
+.clearBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 2px 0;
+  margin-top: 4px;
+  border-top: 1px solid rgba(180, 130, 220, 0.12);
+}
+
+.clearBarCount {
+  font-size: 11px;
+  font-family: 'Cormorant Garamond', serif;
+  color: rgba(130, 80, 170, 0.45);
+  font-style: italic;
+}
+
+.clearBarBtn {
+  background: transparent;
+  border: none;
+  font-size: 11px;
+  font-family: system-ui, sans-serif;
+  color: rgba(180, 100, 140, 0.55);
+  cursor: pointer;
+  padding: 0 2px;
+  letter-spacing: 0.04em;
+  transition: color 0.15s;
+}
+
+.clearBarBtn:hover {
+  color: rgba(200, 80, 110, 0.85);
+}
