@@ -73,6 +73,7 @@ export interface Page {
   goals?: GoalEntry[];
   todoLists?: TodoList[];   // legacy — migrated to todoBoards on first load
   todoBoards?: TodoBoard[];
+  noteContent?: string;     // freeform text for notes pages
 }
 
 // Multi-list to-do board — each TodoList is one column

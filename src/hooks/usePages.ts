@@ -245,6 +245,11 @@ export function usePages() {
     updatePages(nextPages);
   }, [pages, updatePages]);
 
+  const updateNoteContentForPage = useCallback((pageId: string, noteContent: string) => {
+    const nextPages = pages.map(p => p.id === pageId ? { ...p, noteContent } : p);
+    updatePages(nextPages);
+  }, [pages, updatePages]);
+
   const reorderPages = useCallback((fromId: string, toId: string) => {
     if (fromId === toId) return;
     const from = pages.findIndex(p => p.id === fromId);
@@ -275,5 +280,6 @@ export function usePages() {
     updateTodoListsForPage,
     updateTodoBoardsForPage,
     updateTodoSubtypeForPage,
+    updateNoteContentForPage,
   };
 }

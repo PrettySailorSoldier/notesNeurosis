@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { TaskEditor } from './components/TaskEditor';
+import { NoteEditor } from './components/NoteEditor';
 import { usePages } from './hooks/usePages';
 import { useReminders } from './hooks/useReminders';
 import { useSettings } from './hooks/useSettings';
@@ -76,6 +77,7 @@ export default function App() {
     updateGoalsForPage,
     updateTodoBoardsForPage,
     updateTodoSubtypeForPage,
+    updateNoteContentForPage,
     reorderPages,
   } = usePages();
 
@@ -454,6 +456,17 @@ export default function App() {
         );
       }
       // List mode — falls through to TaskEditor below
+    }
+
+    // notes — freeform writing surface
+    if (type === 'notes') {
+      return (
+        <NoteEditor
+          value={currentPage.noteContent ?? ''}
+          onChange={text => updateNoteContentForPage(currentPage.id, text)}
+          placeholder="Begin writing\u2026"
+        />
+      );
     }
 
     // notes + todo/list both use TaskEditor
