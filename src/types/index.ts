@@ -121,7 +121,7 @@ export type AccentColor =
   | 'amber'
   | 'teal';
 
-export type HabitType = 'binary' | 'count';
+export type HabitType = 'binary' | 'count' | 'duration';
 
 export interface Habit {
   id: string;

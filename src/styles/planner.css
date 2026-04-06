@@ -312,8 +312,8 @@
   padding: 2px 0;
   line-height: 1.4;
   transition: border-bottom-color 0.15s;
-  white-space: nowrap;
-  overflow: hidden;
+  white-space: normal;
+  overflow: visible;
 }
 
 .planner-block-editor__label[contenteditable]:focus {
@@ -334,6 +334,13 @@
   min-height: 16px;
   line-height: 1.5;
   white-space: pre-wrap;
+  border-bottom: 1px dashed transparent;
+  transition: border-bottom-color 0.15s;
+  padding: 1px 0;
+}
+
+.planner-block-editor__notes[contenteditable]:focus {
+  border-bottom-color: var(--border);
 }
 
 .planner-block-editor__notes[contenteditable]:empty::before {
@@ -980,4 +987,101 @@
   pointer-events: none;
   animation: careDoneFlash 800ms ease forwards;
   z-index: 10;
+}
+
+/* ── BlockEditor time row refinement ── */
+.planner-be-time-input {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: system-ui, sans-serif;
+  padding: 2px 5px;
+  outline: none;
+  transition: border-color 0.15s;
+  font-variant-numeric: tabular-nums;
+  width: 88px;
+}
+
+.planner-be-time-input:focus {
+  border-color: var(--plum);
+}
+
+.planner-be-sep {
+  font-size: 11px;
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+.planner-be-dur-pill {
+  background: color-mix(in srgb, var(--plum) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--plum) 30%, transparent);
+  border-radius: 12px;
+  color: var(--plum);
+  font-size: 11px;
+  font-family: system-ui, sans-serif;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: background 0.12s;
+  white-space: nowrap;
+}
+
+.planner-be-dur-pill:hover {
+  background: color-mix(in srgb, var(--plum) 22%, transparent);
+}
+
+.planner-be-dur-input {
+  background: transparent;
+  border: 1px solid var(--plum);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: system-ui, sans-serif;
+  padding: 2px 6px;
+  outline: none;
+  width: 70px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Color row label ── */
+.planner-be-color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.planner-be-color-label {
+  font-size: 9px;
+  font-family: system-ui, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+/* ── Duplicate button ── */
+.planner-block-btn--dupe {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 10px;
+  padding: 1px 5px;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+}
+
+.planner-block-btn--dupe:hover {
+  border-color: #6a8fc4;
+  color: #6a8fc4;
+}
+
+/* ── Overlapping blocks: reduce font size when narrow ── */
+.planner-block-card[style*="width: calc"] .planner-block-card__label {
+  font-size: 12px;
+}
+
+.planner-block-card[style*="width: calc"] .planner-block-card__time {
+  font-size: 9px;
 }

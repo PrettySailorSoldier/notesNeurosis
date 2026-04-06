@@ -107,6 +107,122 @@ function roundToNextHalfHour(date: Date): string {
   return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
 }
 
+/**
+ * Given a sorted list of blocks, computes layout columns for overlapping
+ * blocks. Returns a map of blockId → { col: number, totalCols: number }.
+ * Non-overlapping blocks get col=0, totalCols=1 (full width).
+ */
+function computeOverlapColumns(
+  blocks: PlannerBlock[]
+): Map<string, { col: number; totalCols: number }> {
+  const result = new Map<string, { col: number; totalCols: number }>();
+  if (blocks.length === 0) return result;
+
+  // Sort by start time
+  const sorted = [...blocks].sort(
+    (a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime)
+  );
+
+  // Find overlap groups using a sweep
+  const groups: PlannerBlock[][] = [];
+  let currentGroup: PlannerBlock[] = [];
+  let groupEnd = -1;
+
+  for (const block of sorted) {
+    const start = timeToMinutes(block.startTime);
+    const end   = timeToMinutes(block.endTime);
+    if (currentGroup.length === 0 || start < groupEnd) {
+      currentGroup.push(block);
+      groupEnd = Math.max(groupEnd, end);
+    } else {
+      groups.push(currentGroup);
+      currentGroup = [block];
+      groupEnd = end;
+    }
+  }
+  if (currentGroup.length > 0) groups.push(currentGroup);
+
+  for (const group of groups) {
+    const n = group.length;
+    group.forEach((block, i) => {
+      result.set(block.id, { col: i, totalCols: n });
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Parse natural time expressions from a string.
+ * Supports: "9am", "9:30am", "14:00", "2pm", "930"
+ * Returns HH:MM string or null if nothing found.
+ * Also returns the cleaned label with the time token removed.
+ */
+function parseTimeFromText(text: string): {
+  time: string | null;
+  cleanedLabel: string;
+} {
+  // Patterns: 9am, 9:30am, 9:30pm, 14:30, 9:00
+  const patterns = [
+    // "9:30am" or "9:30pm"
+    /\b(\d{1,2}):(\d{2})\s*(am|pm)\b/i,
+    // "9am" or "9pm"
+    /\b(\d{1,2})\s*(am|pm)\b/i,
+    // "14:30" or "09:00"
+    /\b([01]?\d|2[0-3]):([0-5]\d)\b/,
+    // "930" interpreted as 9:30 if 3-4 digits
+    /\b([0-9]{3,4})\b/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (!match) continue;
+
+    let hours = 0;
+    let mins  = 0;
+    const full = match[0];
+
+    if (pattern === patterns[0]) {
+      // "9:30am"
+      hours = parseInt(match[1], 10);
+      mins  = parseInt(match[2], 10);
+      const meridiem = match[3].toLowerCase();
+      if (meridiem === 'pm' && hours < 12) hours += 12;
+      if (meridiem === 'am' && hours === 12) hours = 0;
+    } else if (pattern === patterns[1]) {
+      // "9am"
+      hours = parseInt(match[1], 10);
+      const meridiem = match[2].toLowerCase();
+      if (meridiem === 'pm' && hours < 12) hours += 12;
+      if (meridiem === 'am' && hours === 12) hours = 0;
+    } else if (pattern === patterns[2]) {
+      // "14:30"
+      hours = parseInt(match[1], 10);
+      mins  = parseInt(match[2], 10);
+    } else {
+      // "930" → 9:30
+      const raw = match[1];
+      if (raw.length === 3) {
+        hours = parseInt(raw[0], 10);
+        mins  = parseInt(raw.slice(1), 10);
+      } else {
+        hours = parseInt(raw.slice(0, 2), 10);
+        mins  = parseInt(raw.slice(2), 10);
+      }
+      // Skip ambiguous 4-digit numbers that don't look like times
+      if (hours > 23 || mins > 59) continue;
+    }
+
+    if (hours < 0 || hours > 23 || mins < 0 || mins > 59) continue;
+
+    const time = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+    const cleanedLabel = text.replace(full, '').replace(/\s{2,}/g, ' ').trim();
+    return { time, cleanedLabel };
+  }
+
+  return { time: null, cleanedLabel: text };
+}
+
 // ── Block editor sub-component (avoids contentEditable/re-render issues) ──
 interface BlockEditorProps {
   block: PlannerBlock;
@@ -124,6 +240,15 @@ function BlockEditor({ block, onUpdate, onClose, allBlocks, onTimeChange }: Bloc
 
   const [subtaskInput, setSubtaskInput] = useState('');
   const subtaskInputRef = useRef<HTMLInputElement>(null);
+
+  // Duration display — derived from block times, updated when times change
+  const [durationMins, setDurationMins] = useState(() => {
+    const s = block.startTime.split(':').map(Number);
+    const e = block.endTime.split(':').map(Number);
+    return Math.max(15, (e[0] * 60 + e[1]) - (s[0] * 60 + s[1]));
+  });
+  const [durationInput, setDurationInput] = useState('');
+  const [editingDuration, setEditingDuration] = useState(false);
 
   useEffect(() => {
     if (labelRef.current) {
@@ -166,9 +291,113 @@ function BlockEditor({ block, onUpdate, onClose, allBlocks, onTimeChange }: Bloc
     onUpdate({ tasks: subtasks.filter(t => t.id !== id) });
   };
 
+  const parseDurationInput = (raw: string): number | null => {
+    const s = raw.trim().toLowerCase();
+    // "90m" or "90min"
+    const mMatch = s.match(/^(\d+)\s*m(in)?$/);
+    if (mMatch) return parseInt(mMatch[1], 10);
+    // "1h", "2h"
+    const hMatch = s.match(/^(\d+(?:\.\d+)?)\s*h(r|ours?)?$/);
+    if (hMatch) return Math.round(parseFloat(hMatch[1]) * 60);
+    // "1h30m" or "1h 30m"
+    const hmMatch = s.match(/^(\d+)\s*h\s*(\d+)\s*m/);
+    if (hmMatch) return parseInt(hmMatch[1], 10) * 60 + parseInt(hmMatch[2], 10);
+    // plain number → treat as minutes
+    const n = parseInt(s, 10);
+    if (!isNaN(n) && n > 0) return n;
+    return null;
+  };
+
+  const applyDuration = (raw: string) => {
+    const mins = parseDurationInput(raw);
+    if (!mins || mins < 5 || mins > 1440) {
+      setEditingDuration(false);
+      setDurationInput('');
+      return;
+    }
+    const [sh, sm] = block.startTime.split(':').map(Number);
+    const totalEnd = sh * 60 + sm + mins;
+    const eh = Math.floor(totalEnd / 60) % 24;
+    const em = totalEnd % 60;
+    const newEnd = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+    setDurationMins(mins);
+    onTimeChange(block.id, 'end', newEnd, allBlocks);
+    setEditingDuration(false);
+    setDurationInput('');
+  };
+
+  const formatDurationMins = (mins: number): string => {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (h === 0) return `${m}m`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
+  };
+
+  useEffect(() => {
+    const s = block.startTime.split(':').map(Number);
+    const e = block.endTime.split(':').map(Number);
+    const computed = (e[0] * 60 + e[1]) - (s[0] * 60 + s[1]);
+    if (computed > 0) setDurationMins(computed);
+  }, [block.startTime, block.endTime]);
+
   return (
     <div className="planner-block-editor" onClick={e => e.stopPropagation()}>
-      {/* Title */}
+
+      {/* Row 1: Start time → duration → end time */}
+      <div className="planner-block-editor__times">
+        <input
+          type="time"
+          className="planner-be-time-input"
+          value={block.startTime}
+          onChange={e => onTimeChange(block.id, 'start', e.target.value, allBlocks)}
+          title="Start time"
+        />
+
+        <span className="planner-be-sep">+</span>
+
+        {editingDuration ? (
+          <input
+            className="planner-be-dur-input"
+            type="text"
+            autoFocus
+            placeholder="e.g. 90m, 2h"
+            value={durationInput}
+            onChange={e => setDurationInput(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') { e.preventDefault(); applyDuration(durationInput); }
+              if (e.key === 'Escape') { setEditingDuration(false); setDurationInput(''); }
+            }}
+            onBlur={() => {
+              if (durationInput.trim()) applyDuration(durationInput);
+              else setEditingDuration(false);
+            }}
+          />
+        ) : (
+          <button
+            className="planner-be-dur-pill"
+            onClick={() => {
+              setDurationInput(formatDurationMins(durationMins));
+              setEditingDuration(true);
+            }}
+            title="Click to edit duration"
+          >
+            {formatDurationMins(durationMins)}
+          </button>
+        )}
+
+        <span className="planner-be-sep">→</span>
+
+        <input
+          type="time"
+          className="planner-be-time-input"
+          value={block.endTime}
+          onChange={e => onTimeChange(block.id, 'end', e.target.value, allBlocks)}
+          title="End time"
+        />
+      </div>
+
+      {/* Row 2: Block title */}
       <div
         ref={labelRef}
         className="planner-block-editor__label"
@@ -177,26 +406,29 @@ function BlockEditor({ block, onUpdate, onClose, allBlocks, onTimeChange }: Bloc
         onInput={() => { labelTextRef.current = labelRef.current?.textContent ?? ''; }}
         onKeyDown={e => {
           if (e.key === 'Escape') { e.preventDefault(); onClose(); }
-          if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); subtaskInputRef.current?.focus(); }
+          if (e.key === 'Enter') { e.preventDefault(); subtaskInputRef.current?.focus(); }
         }}
       />
 
-      {/* Times */}
-      <div className="planner-block-editor__times">
-        <input
-          type="time"
-          value={block.startTime}
-          onChange={e => onTimeChange(block.id, 'start', e.target.value, allBlocks)}
-        />
-        <span className="planner-block-editor__times-sep">–</span>
-        <input
-          type="time"
-          value={block.endTime}
-          onChange={e => onTimeChange(block.id, 'end', e.target.value, allBlocks)}
-        />
-      </div>
+      {/* Row 3: Notes */}
+      <div
+        className="planner-block-editor__notes"
+        contentEditable
+        suppressContentEditableWarning
+        onBlur={e => onUpdate({ notes: e.currentTarget.textContent ?? '' })}
+        dangerouslySetInnerHTML={undefined}
+        ref={(el) => {
+          if (el && el.textContent === '' && block.notes) {
+            el.textContent = block.notes;
+          }
+        }}
+        onInput={() => {/* notes saved on blur */}}
+        onKeyDown={e => {
+          if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+        }}
+      />
 
-      {/* Subtasks */}
+      {/* Row 4: Subtasks */}
       <div className="planner-subtasks">
         {subtasks.map(task => (
           <div key={task.id} className="planner-subtask-row">
@@ -209,10 +441,7 @@ function BlockEditor({ block, onUpdate, onClose, allBlocks, onTimeChange }: Bloc
             <span className={`planner-subtask-text ${task.completed ? 'planner-subtask-text--done' : ''}`}>
               {task.content}
             </span>
-            <button
-              className="planner-subtask-remove"
-              onClick={() => removeSubtask(task.id)}
-            >×</button>
+            <button className="planner-subtask-remove" onClick={() => removeSubtask(task.id)}>×</button>
           </div>
         ))}
         <div className="planner-subtask-row planner-subtask-add-row">
@@ -235,18 +464,22 @@ function BlockEditor({ block, onUpdate, onClose, allBlocks, onTimeChange }: Bloc
         </div>
       </div>
 
-      {/* Color picker */}
-      <div className="planner-color-picker">
-        {COLORS.map(c => (
-          <button
-            key={c}
-            className={`planner-color-dot ${block.color === c ? 'planner-color-dot--selected' : ''}`}
-            style={{ '--dot-color': accentToHex(c) } as React.CSSProperties}
-            onClick={() => onUpdate({ color: c })}
-            title={c}
-          />
-        ))}
+      {/* Row 5: Color picker */}
+      <div className="planner-be-color-row">
+        <span className="planner-be-color-label">color</span>
+        <div className="planner-color-picker">
+          {COLORS.map(c => (
+            <button
+              key={c}
+              className={`planner-color-dot ${block.color === c ? 'planner-color-dot--selected' : ''}`}
+              style={{ '--dot-color': accentToHex(c) } as React.CSSProperties}
+              onClick={() => onUpdate({ color: c })}
+              title={c}
+            />
+          ))}
+        </div>
       </div>
+
     </div>
   );
 }
@@ -288,10 +521,12 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
   }, [ready, subtype]);
 
   // Quick-add state
-  const [quickAddValue, setQuickAddValue] = useState('');
-  const [quickAddFocused, setQuickAddFocused] = useState(false);
+  const [quickAddValue,    setQuickAddValue]    = useState('');
+  const [quickAddFocused,  setQuickAddFocused]  = useState(false);
   const [quickAddDuration, setQuickAddDuration] = useState(60);
-  const quickAddRef = useRef<HTMLInputElement>(null);
+  const [quickAddTime,     setQuickAddTime]     = useState(() => roundToNextHalfHour(new Date()));
+  const quickAddRef     = useRef<HTMLInputElement>(null);
+  const quickAddTimeRef = useRef<HTMLInputElement>(null);
 
   // Expanded block state
   const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
@@ -300,6 +535,11 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
   // Pending label after addBlock (since addBlock doesn't return the id)
   const pendingLabel = useRef<string | null>(null);
   const pendingExpand = useRef(false);
+  const pendingDupe = useRef<{
+    color: PlannerBlock['color'];
+    notes: string;
+    tasks: Task[];
+  } | null>(null);
 
   // Energy rating state (per date, loaded from planner-meta.json)
   const [energyRatings, setEnergyRatings] = useState<Record<string, number>>({});
@@ -397,7 +637,14 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
       const unlabeled = dailyBlocks.filter(b => b.label === '');
       if (unlabeled.length > 0) {
         const latest = unlabeled[unlabeled.length - 1];
-        updateBlock(latest.id, { label: pendingLabel.current });
+        const changes: Partial<PlannerBlock> = { label: pendingLabel.current };
+        if (pendingDupe.current) {
+          changes.color = pendingDupe.current.color;
+          changes.notes = pendingDupe.current.notes;
+          changes.tasks = pendingDupe.current.tasks;
+          pendingDupe.current = null;
+        }
+        updateBlock(latest.id, changes);
         pendingLabel.current = null;
       }
     }
@@ -448,20 +695,62 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
 
   const handleQuickAdd = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter') return;
-    const label = quickAddValue.trim();
-    if (!label) return;
+    const rawLabel = quickAddValue.trim();
+    if (!rawLabel) return;
+
+    // Try to extract time from the label text
+    const { time: parsedTime, cleanedLabel } = parseTimeFromText(rawLabel);
+    const startTime = parsedTime ?? quickAddTime;
+    const label     = cleanedLabel || rawLabel;
+
+    // If a time was parsed from text, update the time field too
+    if (parsedTime) setQuickAddTime(parsedTime);
+
     pendingLabel.current = label;
-    addBlock(currentDate, roundToNextHalfHour(new Date()), quickAddDuration);
+    addBlock(currentDate, startTime, quickAddDuration);
     setQuickAddValue('');
-    setQuickAddDuration(60);
     setQuickAddFocused(false);
     quickAddRef.current?.focus();
   };
 
   const addBlockAtNow = () => {
     pendingExpand.current = true;
-    addBlock(currentDate, roundToNearest15(new Date()), 60);
+    const now = roundToNearest15(new Date());
+    setQuickAddTime(now);
+    addBlock(currentDate, now, quickAddDuration);
   };
+
+  const duplicateBlock = useCallback((block: PlannerBlock) => {
+    const newId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    // Offset start time by the block's duration to avoid perfect overlap
+    const startMins = timeToMinutes(block.startTime);
+    const endMins   = timeToMinutes(block.endTime);
+    const duration  = Math.max(15, endMins - startMins);
+    const newStart  = startMins + duration;
+    const newEnd    = newStart  + duration;
+    const clamp     = (m: number) => Math.min(m, 23 * 60 + 59);
+    const toTime    = (m: number) => {
+      const h = Math.floor(clamp(m) / 60);
+      const min = clamp(m) % 60;
+      return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+    };
+    const duped: PlannerBlock = {
+      ...block,
+      id: newId,
+      startTime: toTime(newStart),
+      endTime:   toTime(newEnd),
+      completed: false,
+    };
+    // Insert via updateBlock pattern — we need access to setBlocks directly,
+    // but usePlanner doesn't expose it. Instead, we use addBlock for the
+    // startTime/duration and then immediately update the label/color/notes.
+    //
+    // Strategy: use the pendingLabel ref + a new pendingMeta ref to apply
+    // all block properties after addBlock creates the unlabeled shell.
+    pendingLabel.current = duped.label || 'Copy';
+    pendingDupe.current  = { color: duped.color, notes: duped.notes, tasks: duped.tasks ?? [] };
+    addBlock(currentDate, duped.startTime, duration);
+  }, [currentDate, addBlock]);
 
   const minutesToTime = (m: number) => {
     m = Math.max(0, Math.min(23 * 60 + 59, m));
@@ -586,6 +875,8 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
     (a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime)
   );
 
+  const overlapMap = computeOverlapColumns(sortedDailyBlocks);
+
   // First incomplete block for today
   const firstBlock = sortedDailyBlocks.find(b => !b.completed);
   const firstBlockTime = firstBlock?.startTime ?? '—';
@@ -642,39 +933,58 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
         </div>
 
         {/* Quick-add bar */}
-        <div className="planner-quick-add-bar">
-          <input
-            ref={quickAddRef}
-            className="planner-quick-add-input"
-            type="text"
-            placeholder="+ add block — type a name, hit Enter…"
-            value={quickAddValue}
-            onChange={e => setQuickAddValue(e.target.value)}
-            onKeyDown={handleQuickAdd}
-            onFocus={() => setQuickAddFocused(true)}
-            onBlur={() => setQuickAddFocused(false)}
-          />
-          <button
-            className="planner-quick-add-time-btn"
-            onClick={addBlockAtNow}
-            title="Add empty block at current time"
-          >
-            {quickAddFocused ? roundToNextHalfHour(new Date()) : 'now'}
-          </button>
-        </div>
-        {quickAddFocused && (
+        <div className="planner-quick-add-wrap">
+          <div className="planner-quick-add-bar">
+            <input
+              ref={quickAddRef}
+              className="planner-quick-add-input"
+              type="text"
+              placeholder="block name… or '9am meeting 1h'"
+              value={quickAddValue}
+              onChange={e => setQuickAddValue(e.target.value)}
+              onKeyDown={handleQuickAdd}
+              onFocus={() => setQuickAddFocused(true)}
+              onBlur={() => setQuickAddFocused(false)}
+            />
+            <input
+              ref={quickAddTimeRef}
+              className="planner-quick-add-time-native"
+              type="time"
+              value={quickAddTime}
+              onChange={e => setQuickAddTime(e.target.value)}
+              title="Start time"
+            />
+            <button
+              className="planner-quick-add-now-btn"
+              onMouseDown={e => e.preventDefault()}
+              onClick={addBlockAtNow}
+              title="Use current time"
+            >now</button>
+          </div>
+
+          {/* Duration pills — always visible, not focus-gated */}
           <div className="planner-duration-pills">
-            {([['30m', 30], ['45m', 45], ['1h', 60], ['90m', 90], ['2h', 120]] as [string, number][]).map(([label, mins]) => (
+            {([['15m', 15], ['30m', 30], ['45m', 45], ['1h', 60], ['90m', 90], ['2h', 120], ['3h', 180]] as [string, number][]).map(([label, mins]) => (
               <button
                 key={label}
                 className={`planner-duration-pill${quickAddDuration === mins ? ' planner-duration-pill--active' : ''}`}
-                onMouseDown={e => { e.preventDefault(); setQuickAddDuration(mins); }}
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => setQuickAddDuration(mins)}
               >
                 {label}
               </button>
             ))}
+            <span className="planner-duration-hint">
+              → {(() => {
+                const [h, m] = quickAddTime.split(':').map(Number);
+                const endMins = h * 60 + m + quickAddDuration;
+                const eh = Math.floor(endMins / 60) % 24;
+                const em = endMins % 60;
+                return `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+              })()}
+            </span>
           </div>
-        )}
+        </div>
 
         {/* Focus bar — pinned short-horizon goals, schedule subtype only */}
         {(() => {
@@ -749,15 +1059,25 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
                       isExpanded ? 'planner-block-card--expanded' : '',
                       isExpanded && isCompact ? 'planner-block-card--expanded-compact' : '',
                     ].filter(Boolean).join(' ')}
-                    style={{
-                      position: 'absolute',
-                      top: `${topPct}%`,
-                      // When expanded, let the card grow freely; otherwise clamp to duration height
-                      ...(isExpanded ? { minHeight: `${heightPct}%` } : { height: `max(48px, ${heightPct}%)` }),
-                      left: '40px',
-                      right: '8px',
-                      zIndex: isExpanded ? 20 : 1,
-                    }}
+                    style={(() => {
+                      const layout = overlapMap.get(block.id) ?? { col: 0, totalCols: 1 };
+                      const timelineLeft  = 40; // px offset for hour labels
+                      const timelineRight = 8;  // px right margin
+                      const availableWidth = `calc(100% - ${timelineLeft}px - ${timelineRight}px)`;
+                      const colWidth = `calc(${availableWidth} / ${layout.totalCols})`;
+                      const colLeft  = `calc(${timelineLeft}px + ${colWidth} * ${layout.col})`;
+                      return {
+                        position: 'absolute' as const,
+                        top: `${topPct}%`,
+                        ...(isExpanded
+                          ? { minHeight: `${heightPct}%` }
+                          : { height: `max(${layout.totalCols > 1 ? '36px' : '48px'}, ${heightPct}%)` }),
+                        left: colLeft,
+                        width: `calc(${colWidth} - 4px)`,
+                        right: undefined,
+                        zIndex: isExpanded ? 20 : 1,
+                      };
+                    })()}
                     onClick={() => {
                       if (!isExpanded) setExpandedBlockId(block.id);
                     }}
@@ -784,6 +1104,11 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
                         onClick={e => { e.stopPropagation(); updateBlock(block.id, { completed: !block.completed }); }}
                         title={block.completed ? 'Mark incomplete' : 'Mark complete'}
                       >✓</button>
+                      <button
+                        className="planner-block-btn--dupe"
+                        onClick={e => { e.stopPropagation(); duplicateBlock(block); }}
+                        title="Duplicate block"
+                      >⊕</button>
                       <button
                         className="planner-block-btn--delete"
                         onClick={e => { e.stopPropagation(); deleteBlock(block.id); }}

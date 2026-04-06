@@ -181,6 +181,12 @@
   padding: 1px 4px;
 }
 
+/* Duration type badge — slightly warmer tint */
+.habits-card__type-badge--duration {
+  color: var(--rose);
+  border-color: color-mix(in srgb, var(--rose) 30%, transparent);
+}
+
 /* ── Count grid ── */
 .habits-count-grid {
   grid-template-columns: repeat(7, 20px);
@@ -1078,4 +1084,276 @@
 .habits-dot--today {
   width: 18px;
   height: 18px;
+}
+
+/* ── Day View ───────────────────────────────────────────── */
+.habits-day-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Date navigation */
+.habits-day-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 2px 14px;
+}
+
+.habits-day-nav__btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 18px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.habits-day-nav__btn:hover:not(:disabled) {
+  border-color: var(--plum);
+  color: var(--plum);
+}
+
+.habits-day-nav__btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.habits-day-nav__center {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.habits-day-nav__label {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.habits-day-nav__today {
+  background: transparent;
+  border: none;
+  font-size: 10px;
+  font-family: system-ui, sans-serif;
+  color: var(--plum);
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+.habits-day-nav__today:hover { opacity: 1; }
+
+/* Completeness bar */
+.habits-day-completeness {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.habits-day-completeness__bar {
+  flex: 1;
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.habits-day-completeness__fill {
+  height: 100%;
+  background: var(--plum);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.habits-day-completeness__label {
+  font-size: 10px;
+  font-family: system-ui, sans-serif;
+  color: var(--text-faint);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Section grouping */
+.habits-day-section {
+  margin-bottom: 16px;
+}
+
+.habits-day-section__label {
+  font-size: 9px;
+  font-family: system-ui, sans-serif;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 6px;
+  padding-left: 2px;
+}
+
+/* Habit row */
+.habits-day-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 10px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  margin-bottom: 4px;
+  transition: background 0.15s, border-color 0.15s;
+  background: color-mix(in srgb, var(--surface) 50%, transparent);
+  position: relative;
+}
+
+.habits-day-row--logged {
+  background: color-mix(in srgb, var(--day-color) 8%, transparent);
+  border-color: color-mix(in srgb, var(--day-color) 20%, transparent);
+}
+
+/* Left accent bar */
+.habits-day-row__accent {
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--day-color);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.habits-day-row--logged .habits-day-row__accent {
+  opacity: 1;
+}
+
+.habits-day-row__emoji {
+  font-size: 16px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.habits-day-row__name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 14px;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+}
+
+/* Duration controls */
+.habits-day-row__duration-controls,
+.habits-day-row__count-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.habits-day-dur-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-muted);
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  transition: border-color 0.12s, color 0.12s;
+}
+
+.habits-day-dur-btn:hover:not(:disabled) {
+  border-color: var(--day-color);
+  color: var(--day-color);
+}
+
+.habits-day-dur-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.habits-day-dur-display {
+  font-size: 13px;
+  font-family: system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  min-width: 36px;
+  text-align: center;
+  color: var(--text-faint);
+  transition: color 0.15s;
+}
+
+/* Binary toggle */
+.habits-day-toggle {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: system-ui, sans-serif;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.habits-day-toggle:hover {
+  border-color: var(--day-color);
+  color: var(--day-color);
+}
+
+.habits-day-toggle--on {
+  background: color-mix(in srgb, var(--day-color) 12%, transparent);
+}
+
+/* Day note */
+.habits-day-note-wrap {
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.habits-day-note {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed var(--border);
+  color: var(--text);
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: none;
+  outline: none;
+  padding: 4px 2px;
+  transition: border-bottom-color 0.15s;
+}
+
+.habits-day-note:focus {
+  border-bottom-color: var(--plum);
+}
+
+.habits-day-note::placeholder {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+/* Empty state */
+.habits-day-empty {
+  font-size: 12px;
+  color: var(--text-faint);
+  font-style: italic;
+  text-align: center;
+  padding: 24px 0;
 }

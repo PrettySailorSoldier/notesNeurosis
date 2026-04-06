@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useHabits } from '../hooks/useHabits';
 import { accentToHex } from '../utils/accentToHex';
 import type { AccentColor, HabitType, Habit } from '../types';
@@ -46,6 +46,15 @@ function getLast35Days(): string[] {
 function formatShortDate(iso: string): string {
   const [, m, d] = iso.split('-');
   return `${parseInt(m)}/${parseInt(d)}`;
+}
+
+function formatDuration(hours: number): string {
+  if (hours <= 0) return '—';
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
 }
 
 // ── Weekly helpers ────────────────────────────────────────
@@ -200,9 +209,10 @@ interface CountGridProps {
   todayISO: string;
   getLogCount: (id: string, date: string) => number;
   setLogCount: (id: string, date: string, count: number) => void;
+  isDuration?: boolean;
 }
 
-function CountGrid({ habit, dotDates, todayISO, getLogCount, setLogCount }: CountGridProps) {
+function CountGrid({ habit, dotDates, todayISO, getLogCount, setLogCount, isDuration = false }: CountGridProps) {
   const hexColor = accentToHex(habit.color);
   const counts = dotDates.map(d => getLogCount(habit.id, d));
   const maxCount = Math.max(1, ...counts);
@@ -229,14 +239,20 @@ function CountGrid({ habit, dotDates, todayISO, getLogCount, setLogCount }: Coun
               isToday && count > 0 ? 'habits-count-cell--today-active' : '',
             ].filter(Boolean).join(' ')}
             style={{ '--habit-color': hexColor, '--fill-opacity': fillOpacity } as React.CSSProperties}
-            title={`${date}: ${count}${habit.unit ? ' ' + habit.unit : ''}`}
+            title={`${date}: ${isDuration
+              ? formatDuration(count)
+              : `${count}${habit.unit ? ' ' + habit.unit : ''}`
+            }`}
           >
             <button
               className="habits-count-cell__tap"
-              onClick={() => setLogCount(habit.id, date, count + 1)}
-              title={`+1 (${date})`}
+              onClick={() => setLogCount(habit.id, date,
+                isDuration ? Math.round((count + 0.5) * 10) / 10 : count + 1)}
+              title={`${isDuration ? '+0.5h' : '+1'} (${date})`}
             >
-              {count > 0 ? count : ''}
+              {count > 0
+                ? (isDuration ? formatDuration(count) : count)
+                : ''}
             </button>
             {count > 0 && (
               <button
@@ -284,7 +300,7 @@ function LinearView({ habits, isLogged, getLogCount, toggleLog, setLogCount }: L
   const activeHabits = habits.filter(h => !h.archivedAt);
 
   const habitTotals = activeHabits.map(h => {
-    const total = h.habitType === 'count'
+    const total = (h.habitType === 'count' || h.habitType === 'duration')
       ? windowDates.reduce((s, d) => s + getLogCount(h.id, d), 0)
       : windowDates.filter(d => isLogged(h.id, d)).length;
     return { habit: h, total };
@@ -340,10 +356,11 @@ function LinearView({ habits, isLogged, getLogCount, toggleLog, setLogCount }: L
           <div className="habits-today-rows">
             {activeHabits.map(h => {
               const hexColor = accentToHex(h.color);
-              const isCount = h.habitType === 'count';
+              const isCount    = h.habitType === 'count';
+              const isDuration = h.habitType === 'duration';
               const currentCount = getLogCount(h.id, todayISO);
               const logged = isLogged(h.id, todayISO);
-              const total = isCount ? currentCount : (logged ? 1 : 0);
+              const total = (isCount || isDuration) ? currentCount : (logged ? 1 : 0);
               const pct = grandTotal > 0 ? Math.round((total / grandTotal) * 100) : 0;
 
               return (
@@ -351,20 +368,20 @@ function LinearView({ habits, isLogged, getLogCount, toggleLog, setLogCount }: L
                   <div className="habits-today-row__bar" style={{ backgroundColor: hexColor, opacity: total > 0 ? 0.85 : 0.18 }} />
                   <span className="habits-today-row__emoji">{h.emoji}</span>
                   <span className="habits-today-row__name">{h.name}</span>
-                  {isCount ? (
+                  {(isCount || isDuration) ? (
                     <div className="habits-today-row__count-wrap">
                       <input
                         className="habits-today-row__input"
                         type="number"
                         min="0"
-                        step="0.5"
+                        step={isDuration ? 0.5 : 0.5}
                         value={drafts[h.id] !== undefined ? drafts[h.id] : (currentCount || '')}
-                        placeholder="0"
+                        placeholder={isDuration ? '0.0' : '0'}
                         onChange={e => setDrafts(prev => ({ ...prev, [h.id]: e.target.value }))}
                         onBlur={() => commitDraft(h.id)}
                         onKeyDown={e => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
                       />
-                      <span className="habits-today-row__unit">{h.unit ?? '×'}</span>
+                      <span className="habits-today-row__unit">{isDuration ? 'hrs' : (h.unit ?? '×')}</span>
                     </div>
                   ) : (
                     <button
@@ -574,8 +591,258 @@ function HabitsEmptyState({ addHabit, onOpenAddForm }: HabitsEmptyStateProps) {
   );
 }
 
+// ── Day View ──────────────────────────────────────────────
+interface DayViewProps {
+  habits: Habit[];
+  logs: import('../types').HabitLog[];
+  isLogged: (id: string, date: string) => boolean;
+  toggleLog: (id: string, date: string) => void;
+  getLogCount: (id: string, date: string) => number;
+  setLogCount: (id: string, date: string, count: number) => void;
+  updateLogNote: (id: string, date: string, note: string) => void;
+}
+
+function DayView({
+  habits, logs, isLogged, toggleLog,
+  getLogCount, setLogCount, updateLogNote,
+}: DayViewProps) {
+  const [viewDate, setViewDate] = useState(() => formatDate(new Date()));
+  const [dayNote, setDayNote] = useState('');
+  const [noteDirty, setNoteDirty] = useState(false);
+  const saveNoteTimeout = useRef<number | null>(null);
+
+  const DAY_NOTE_ID = '__day__';
+
+  useEffect(() => {
+    const existing = logs.find(
+      l => l.habitId === DAY_NOTE_ID && l.date === viewDate
+    );
+    setDayNote(existing?.note ?? '');
+    setNoteDirty(false);
+  }, [viewDate, logs]);
+
+  useEffect(() => {
+    if (!noteDirty) return;
+    if (saveNoteTimeout.current) window.clearTimeout(saveNoteTimeout.current);
+    saveNoteTimeout.current = window.setTimeout(() => {
+      updateLogNote(DAY_NOTE_ID, viewDate, dayNote);
+      setNoteDirty(false);
+    }, 600);
+    return () => {
+      if (saveNoteTimeout.current) window.clearTimeout(saveNoteTimeout.current);
+    };
+  }, [dayNote, noteDirty, viewDate, updateLogNote]);
+
+  const activeHabits = habits.filter(h => !h.archivedAt);
+  const isToday = viewDate === formatDate(new Date());
+
+  const navigate = (delta: number) => {
+    const d = new Date(viewDate + 'T12:00:00');
+    d.setDate(d.getDate() + delta);
+    setViewDate(formatDate(d));
+  };
+
+  const dateLabel = (() => {
+    const d = new Date(viewDate + 'T12:00:00');
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    if (viewDate === formatDate(today)) return 'Today';
+    if (viewDate === formatDate(yesterday)) return 'Yesterday';
+    return d.toLocaleDateString('en-US', {
+      weekday: 'long', month: 'short', day: 'numeric',
+    });
+  })();
+
+  const loggedCount = activeHabits.filter(h => {
+    if (h.habitType === 'binary') return isLogged(h.id, viewDate);
+    return getLogCount(h.id, viewDate) > 0;
+  }).length;
+  const pct = activeHabits.length > 0
+    ? Math.round((loggedCount / activeHabits.length) * 100)
+    : 0;
+
+  const durationHabits = activeHabits.filter(h => h.habitType === 'duration');
+  const binaryHabits   = activeHabits.filter(h => h.habitType === 'binary');
+  const countHabits    = activeHabits.filter(h => h.habitType === 'count');
+
+  return (
+    <div className="habits-day-view">
+
+      {/* Date navigation bar */}
+      <div className="habits-day-nav">
+        <button
+          className="habits-day-nav__btn"
+          onClick={() => navigate(-1)}
+          title="Previous day"
+        >‹</button>
+
+        <div className="habits-day-nav__center">
+          <span className="habits-day-nav__label">{dateLabel}</span>
+          {!isToday && (
+            <button
+              className="habits-day-nav__today"
+              onClick={() => setViewDate(formatDate(new Date()))}
+            >→ today</button>
+          )}
+        </div>
+
+        <button
+          className="habits-day-nav__btn"
+          onClick={() => navigate(1)}
+          disabled={isToday}
+          title="Next day"
+        >›</button>
+      </div>
+
+      {/* Completeness bar */}
+      {activeHabits.length > 0 && (
+        <div className="habits-day-completeness">
+          <div className="habits-day-completeness__bar">
+            <div
+              className="habits-day-completeness__fill"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <span className="habits-day-completeness__label">
+            {loggedCount}/{activeHabits.length} logged
+          </span>
+        </div>
+      )}
+
+      {activeHabits.length === 0 && (
+        <div className="habits-day-empty">
+          No habits to track yet — switch to grid view to add some.
+        </div>
+      )}
+
+      {/* Duration habits */}
+      {durationHabits.length > 0 && (
+        <div className="habits-day-section">
+          <div className="habits-day-section__label">time spent</div>
+          {durationHabits.map(h => {
+            const hex = accentToHex(h.color);
+            const hours = getLogCount(h.id, viewDate);
+            const hasValue = hours > 0;
+            return (
+              <div
+                key={h.id}
+                className={`habits-day-row habits-day-row--duration ${hasValue ? 'habits-day-row--logged' : ''}`}
+                style={{ '--day-color': hex } as React.CSSProperties}
+              >
+                <div className="habits-day-row__accent" />
+                <span className="habits-day-row__emoji">{h.emoji}</span>
+                <span className="habits-day-row__name">{h.name}</span>
+                <div className="habits-day-row__duration-controls">
+                  <button
+                    className="habits-day-dur-btn"
+                    onClick={() => setLogCount(h.id, viewDate, Math.max(0, Math.round((hours - 0.5) * 10) / 10))}
+                    disabled={hours <= 0}
+                    title="−30 min"
+                  >−</button>
+                  <span className="habits-day-dur-display" style={{ color: hasValue ? hex : undefined }}>
+                    {hasValue ? formatDuration(hours) : '—'}
+                  </span>
+                  <button
+                    className="habits-day-dur-btn"
+                    onClick={() => setLogCount(h.id, viewDate, Math.round((hours + 0.5) * 10) / 10)}
+                    title="+30 min"
+                  >+</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Binary habits */}
+      {binaryHabits.length > 0 && (
+        <div className="habits-day-section">
+          <div className="habits-day-section__label">did / didn't</div>
+          {binaryHabits.map(h => {
+            const hex = accentToHex(h.color);
+            const logged = isLogged(h.id, viewDate);
+            return (
+              <div
+                key={h.id}
+                className={`habits-day-row habits-day-row--binary ${logged ? 'habits-day-row--logged' : ''}`}
+                style={{ '--day-color': hex } as React.CSSProperties}
+              >
+                <div className="habits-day-row__accent" />
+                <span className="habits-day-row__emoji">{h.emoji}</span>
+                <span className="habits-day-row__name">{h.name}</span>
+                <button
+                  className={`habits-day-toggle ${logged ? 'habits-day-toggle--on' : ''}`}
+                  style={logged ? { borderColor: hex, color: hex } : {}}
+                  onClick={() => toggleLog(h.id, viewDate)}
+                >
+                  {logged ? '✓ yes' : '○ no'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Count habits */}
+      {countHabits.length > 0 && (
+        <div className="habits-day-section">
+          <div className="habits-day-section__label">how many</div>
+          {countHabits.map(h => {
+            const hex = accentToHex(h.color);
+            const count = getLogCount(h.id, viewDate);
+            const hasValue = count > 0;
+            return (
+              <div
+                key={h.id}
+                className={`habits-day-row habits-day-row--count ${hasValue ? 'habits-day-row--logged' : ''}`}
+                style={{ '--day-color': hex } as React.CSSProperties}
+              >
+                <div className="habits-day-row__accent" />
+                <span className="habits-day-row__emoji">{h.emoji}</span>
+                <span className="habits-day-row__name">{h.name}</span>
+                <div className="habits-day-row__count-controls">
+                  <button
+                    className="habits-day-dur-btn"
+                    onClick={() => setLogCount(h.id, viewDate, Math.max(0, count - 1))}
+                    disabled={count <= 0}
+                  >−</button>
+                  <span className="habits-day-dur-display" style={{ color: hasValue ? hex : undefined }}>
+                    {hasValue ? `${count}${h.unit ? ' ' + h.unit : ''}` : '—'}
+                  </span>
+                  <button
+                    className="habits-day-dur-btn"
+                    onClick={() => setLogCount(h.id, viewDate, count + 1)}
+                  >+</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Day note */}
+      {activeHabits.length > 0 && (
+        <div className="habits-day-note-wrap">
+          <div className="habits-day-section__label" style={{ marginBottom: 6 }}>day note</div>
+          <textarea
+            className="habits-day-note"
+            placeholder="Anything worth remembering about today…"
+            value={dayNote}
+            rows={3}
+            onChange={e => {
+              setDayNote(e.target.value);
+              setNoteDirty(true);
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────
-type ViewMode = 'grid' | 'linear';
+type ViewMode = 'grid' | 'linear' | 'day';
 
 export function HabitsPage({ pageId: _pageId }: Props) {
   const {
@@ -584,6 +851,7 @@ export function HabitsPage({ pageId: _pageId }: Props) {
     renameHabit,
     isLogged, toggleLog,
     getLogCount, setLogCount,
+    updateLogNote,
     getStreakForHabit, getLongestStreak,
   } = useHabits();
 
@@ -648,6 +916,11 @@ export function HabitsPage({ pageId: _pageId }: Props) {
             onClick={() => setView('linear')}
             title="Linear view"
           >▬</button>
+          <button
+            className={`habits-view-btn ${view === 'day' ? 'habits-view-btn--active' : ''}`}
+            onClick={() => setView('day')}
+            title="Day view"
+          >◈</button>
         </div>
         <button className="habits-add-btn" onClick={() => setShowAddForm(true)}>+ habit</button>
       </div>
@@ -660,6 +933,18 @@ export function HabitsPage({ pageId: _pageId }: Props) {
           getLogCount={getLogCount}
           toggleLog={toggleLog}
           setLogCount={setLogCount}
+        />
+      )}
+
+      {view === 'day' && (
+        <DayView
+          habits={habits}
+          logs={logs}
+          isLogged={isLogged}
+          toggleLog={toggleLog}
+          getLogCount={getLogCount}
+          setLogCount={setLogCount}
+          updateLogNote={updateLogNote}
         />
       )}
 
@@ -676,8 +961,9 @@ export function HabitsPage({ pageId: _pageId }: Props) {
           />
 
           {activeHabits.map(habit => {
-            const isWeekly = habit.frequency === 'weekly';
-            const isCount  = habit.habitType === 'count';
+            const isWeekly   = habit.frequency === 'weekly';
+            const isDuration = habit.habitType === 'duration';
+            const isCount    = habit.habitType === 'count';
             const streak   = isWeekly
               ? computeWeeklyStreak(habit.id, logs)
               : getStreakForHabit(habit.id);
@@ -685,7 +971,7 @@ export function HabitsPage({ pageId: _pageId }: Props) {
               ? computeWeeklyLongest(habit.id, logs)
               : getLongestStreak(habit.id);
             const streakUnit = isWeekly ? 'w' : 'd';
-            const totalCount = isCount
+            const totalCount = (isCount || isDuration)
               ? dotDates.reduce((s, d) => s + getLogCount(habit.id, d), 0)
               : null;
 
@@ -737,7 +1023,11 @@ export function HabitsPage({ pageId: _pageId }: Props) {
                   <span className="habits-card__name">{habit.name}</span>
 
                   {/* Streak display: current / best */}
-                  {isCount && totalCount !== null && totalCount > 0 ? (
+                  {isDuration && totalCount !== null && totalCount > 0 ? (
+                    <span className="habits-card__streak">
+                      {formatDuration(totalCount)} / 5w
+                    </span>
+                  ) : isCount && totalCount !== null && totalCount > 0 ? (
                     <span className="habits-card__streak">
                       {totalCount}{habit.unit ? ' ' + habit.unit : ''} / 5w
                     </span>
@@ -750,8 +1040,10 @@ export function HabitsPage({ pageId: _pageId }: Props) {
                     </span>
                   ) : null}
 
-                  <span className="habits-card__type-badge">
-                    {isWeekly ? 'weekly' : isCount ? 'count' : 'daily'}
+                  <span className={`habits-card__type-badge${
+                    isDuration ? ' habits-card__type-badge--duration' : ''
+                  }`}>
+                    {isWeekly ? 'weekly' : isDuration ? 'duration' : isCount ? 'count' : 'daily'}
                   </span>
 
                   {/* ⋯ menu button */}
@@ -797,13 +1089,14 @@ export function HabitsPage({ pageId: _pageId }: Props) {
                     isLogged={isLogged}
                     toggleLog={toggleLog}
                   />
-                ) : isCount ? (
+                ) : (isCount || isDuration) ? (
                   <CountGrid
                     habit={habit}
                     dotDates={dotDates}
                     todayISO={todayISO}
                     getLogCount={getLogCount}
                     setLogCount={setLogCount}
+                    isDuration={isDuration}
                   />
                 ) : (
                   <BinaryGrid
@@ -880,6 +1173,10 @@ export function HabitsPage({ pageId: _pageId }: Props) {
               className={`habits-type-btn ${newType === 'count' ? 'habits-type-btn--active' : ''}`}
               onClick={() => setNewType('count')}
             ># how many</button>
+            <button
+              className={`habits-type-btn ${newType === 'duration' ? 'habits-type-btn--active' : ''}`}
+              onClick={() => setNewType('duration')}
+            >⏱ how long</button>
           </div>
 
           {newType === 'count' && (
