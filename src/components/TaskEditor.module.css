@@ -91,3 +91,72 @@
 .clearBarBtn:hover {
   color: rgba(200, 80, 110, 0.85);
 }
+
+/* ── Status strip ── */
+.statusStrip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 6px 2px;
+  margin-bottom: 4px;
+}
+
+.statusCount {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 11px;
+  color: rgba(150, 100, 190, 0.55);
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 52px;
+}
+
+.progressTrack {
+  flex: 1;
+  height: 3px;
+  background: rgba(180, 130, 220, 0.13);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(180, 130, 220, 0.55),
+    rgba(90, 142, 252, 0.6)
+  );
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.clearBtn {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 11px;
+  color: rgba(150, 100, 190, 0.5);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 3px;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.clearBtn:hover {
+  color: rgba(180, 130, 220, 0.9);
+  background: rgba(180, 130, 220, 0.1);
+}
+
+/* ── All-done empty state ── */
+.allDoneState {
+  text-align: center;
+  padding: 18px 0 10px;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 13px;
+  font-style: italic;
+  color: rgba(150, 100, 190, 0.38);
+  letter-spacing: 0.08em;
+  user-select: none;
+  animation: fadeIn 0.4s ease;
+}

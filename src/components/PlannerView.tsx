@@ -522,7 +522,6 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
 
   // Quick-add state
   const [quickAddValue,    setQuickAddValue]    = useState('');
-  const [quickAddFocused,  setQuickAddFocused]  = useState(false);
   const [quickAddDuration, setQuickAddDuration] = useState(60);
   const [quickAddTime,     setQuickAddTime]     = useState(() => roundToNextHalfHour(new Date()));
   const quickAddRef     = useRef<HTMLInputElement>(null);
@@ -709,7 +708,6 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
     pendingLabel.current = label;
     addBlock(currentDate, startTime, quickAddDuration);
     setQuickAddValue('');
-    setQuickAddFocused(false);
     quickAddRef.current?.focus();
   };
 
@@ -943,8 +941,6 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
               value={quickAddValue}
               onChange={e => setQuickAddValue(e.target.value)}
               onKeyDown={handleQuickAdd}
-              onFocus={() => setQuickAddFocused(true)}
-              onBlur={() => setQuickAddFocused(false)}
             />
             <input
               ref={quickAddTimeRef}

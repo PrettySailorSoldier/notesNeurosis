@@ -28,9 +28,9 @@ function makeTask(type: TaskType = 'plain'): Task {
 export const TaskEditor: React.FC<Props> = ({ tasks, onChange, onSetReminder, onClearReminder, pageType }) => {
   useEffect(() => {
     if (tasks.length === 0) {
-      onChange([makeTask('plain')]);
+      onChange([makeTask(pageType === 'todo' ? 'checkbox' : 'plain')]);
     }
-  }, [tasks, onChange]);
+  }, [tasks, onChange, pageType]);
 
   const [draggedId, setDraggedId] = React.useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -52,11 +52,12 @@ export const TaskEditor: React.FC<Props> = ({ tasks, onChange, onSetReminder, on
 
   const handleAddAfter = useCallback((afterId: string, type: TaskType) => {
     const idx = tasks.findIndex(t => t.id === afterId);
-    const newTask = makeTask(type === 'heading' ? 'plain' : type);
+    const defaultType = pageType === 'todo' ? 'checkbox' : 'plain';
+    const newTask = makeTask(type === 'heading' ? defaultType : type);
     const next = [...tasks];
     next.splice(idx + 1, 0, newTask);
     onChange(next);
-  }, [tasks, onChange]);
+  }, [tasks, onChange, pageType]);
 
   const handleMergePrev = useCallback((id: string) => {
     const idx = tasks.findIndex(t => t.id === id);
@@ -114,6 +115,11 @@ export const TaskEditor: React.FC<Props> = ({ tasks, onChange, onSetReminder, on
     setSelectedIds(new Set());
   }, [tasks, selectedIds, onChange]);
 
+  const handleClearCompleted = useCallback(() => {
+    const next = tasks.filter(t => !(t.type === 'checkbox' && t.completed));
+    onChange(next.length > 0 ? next : [makeTask('checkbox')]);
+  }, [tasks, onChange]);
+
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.ctrlKey && e.key === 'a') {
       // Only intercept if focus is NOT inside a contenteditable (let the text field handle its own Ctrl+A)
@@ -125,6 +131,19 @@ export const TaskEditor: React.FC<Props> = ({ tasks, onChange, onSetReminder, on
   }, [handleSelectAll]);
 
   if (tasks.length === 0) return null;
+
+  // Status strip derived values (todo pages only)
+  const checkboxTasks = tasks.filter(t => t.type === 'checkbox');
+  const completedCount = checkboxTasks.filter(t => t.completed).length;
+  const totalCheckbox = checkboxTasks.length;
+  const hasCompleted = completedCount > 0;
+  const allDone = totalCheckbox > 0 && completedCount === totalCheckbox;
+
+  // Soft-sink completed checkboxes to bottom (cosmetic only — drag still uses real `tasks`)
+  const displayTasks = [
+    ...tasks.filter(t => !(t.type === 'checkbox' && t.completed)),
+    ...tasks.filter(t => t.type === 'checkbox' && t.completed),
+  ];
 
   return (
     <div className={styles.editor} onKeyDown={handleKeyDown}>
@@ -149,7 +168,31 @@ export const TaskEditor: React.FC<Props> = ({ tasks, onChange, onSetReminder, on
         </div>
       )}
 
-      {tasks.map((task, i) => (
+      {/* Status strip — todo pages with at least one checkbox task */}
+      {pageType === 'todo' && totalCheckbox > 0 && (
+        <div className={styles.statusStrip}>
+          <span className={styles.statusCount}>
+            {completedCount}/{totalCheckbox} done
+          </span>
+          <div className={styles.progressTrack}>
+            <div
+              className={styles.progressFill}
+              style={{ width: `${Math.round((completedCount / totalCheckbox) * 100)}%` }}
+            />
+          </div>
+          {hasCompleted && (
+            <button
+              className={styles.clearBtn}
+              onClick={handleClearCompleted}
+              title="Remove completed tasks"
+            >
+              clear ✓
+            </button>
+          )}
+        </div>
+      )}
+
+      {displayTasks.map((task, i) => (
         <div key={task.id} style={{ opacity: draggedId === task.id ? 0.3 : 1 }}>
           <TaskItem
             task={task}
@@ -171,30 +214,11 @@ export const TaskEditor: React.FC<Props> = ({ tasks, onChange, onSetReminder, on
         </div>
       ))}
 
-      {(() => {
-        const completedTasks = tasks.filter(t => t.completed);
-        const total = tasks.length;
-        if (completedTasks.length === 0) return null;
-        return (
-          <div className={styles.clearBar}>
-            <span className={styles.clearBarCount}>
-              {completedTasks.length} of {total} done
-            </span>
-            <button
-              className={styles.clearBarBtn}
-              onClick={() => {
-                const remaining = tasks.filter(t => !t.completed);
-                onChange(remaining.length > 0
-                  ? remaining
-                  : [makeTask('plain')]
-                );
-              }}
-            >
-              clear
-            </button>
-          </div>
-        );
-      })()}
+      {allDone && pageType === 'todo' && (
+        <div className={styles.allDoneState}>
+          ✦ all clear ✦
+        </div>
+      )}
     </div>
   );
 };
