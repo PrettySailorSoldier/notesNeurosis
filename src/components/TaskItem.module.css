@@ -101,7 +101,7 @@
   flex-shrink: 0;
   width: 18px;
   height: 18px;
-  border: 1.5px solid rgba(180, 140, 220, 0.4);
+  border: 1.5px solid rgba(180, 140, 220, 0.5);
   border-radius: 3px;
   background: transparent;
   cursor: pointer;
@@ -109,7 +109,7 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  opacity: 0;
+  opacity: 0.45;
   transition: opacity 0.15s, background 0.15s, border-color 0.15s;
   color: rgba(210, 170, 255, 1);
 }
