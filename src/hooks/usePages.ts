@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { load } from '@tauri-apps/plugin-store';
-import type { Page, Task, PageType, PlannerSubtype, TodoList, TodoBoard, TodoSubtype } from '../types';
+import type { Page, Task, PageType, PlannerSubtype, TodoList, TodoBoard, TodoSubtype, SequenceTask } from '../types';
 
 const STORE_FILE = 'planner.json';
 const PAGES_KEY = 'pages';
@@ -9,6 +9,16 @@ const CURRENT_PAGE_KEY = 'currentPageId';
 
 function makeTask(content = '') {
   return { id: crypto.randomUUID(), content, type: 'plain' as const, completed: false, createdAt: Date.now() };
+}
+
+function makeSequenceTask(content = ''): SequenceTask {
+  return {
+    id: crypto.randomUUID(),
+    content,
+    notes: '',
+    status: 'pending',
+    createdAt: Date.now(),
+  };
 }
 
 function makeTodoList(label = 'List'): TodoList {
@@ -163,6 +173,7 @@ export function usePages() {
       goals: pageType === 'planner' && plannerSubtype === 'goals' ? [] : undefined,
       todoBoards: pageType === 'todo' ? [makeTodoBoard('Board 1')] : undefined,
       todoSubtype: pageType === 'todo' ? 'list' : undefined,
+      sequenceTasks: pageType === 'todo' ? [makeSequenceTask('')] : undefined,
     };
     const nextPages = [...pages, newPage];
     updatePages(nextPages, newPage.id);
@@ -250,6 +261,13 @@ export function usePages() {
     updatePages(nextPages);
   }, [pages, updatePages]);
 
+  const updateSequenceTasksForPage = useCallback((pageId: string, tasks: SequenceTask[]) => {
+    const nextPages = pages.map(p =>
+      p.id === pageId ? { ...p, sequenceTasks: tasks } : p
+    );
+    updatePages(nextPages);
+  }, [pages, updatePages]);
+
   const reorderPages = useCallback((fromId: string, toId: string) => {
     if (fromId === toId) return;
     const from = pages.findIndex(p => p.id === fromId);
@@ -281,5 +299,6 @@ export function usePages() {
     updateTodoBoardsForPage,
     updateTodoSubtypeForPage,
     updateNoteContentForPage,
+    updateSequenceTasksForPage,
   };
 }

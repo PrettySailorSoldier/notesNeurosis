@@ -1,7 +1,7 @@
 export type TaskType = 'bullet' | 'checkbox' | 'heading' | 'plain';
 
 export type PageType = 'notes' | 'todo' | 'interval' | 'planner' | 'habits' | 'multitodo';
-export type TodoSubtype = 'list' | 'board';
+export type TodoSubtype = 'list' | 'board' | 'sequence';
 export type PlannerSubtype = 'schedule' | 'caregiving' | 'goals';
 
 export interface Task {
@@ -61,6 +61,16 @@ export interface GoalEntry {
   pinned?: boolean;
 }
 
+export type SequenceStatus = 'pending' | 'active' | 'done' | 'skipped';
+
+export interface SequenceTask {
+  id: string;
+  content: string;
+  notes: string;
+  status: SequenceStatus;
+  createdAt: number;
+}
+
 export interface Page {
   id: string;
   name: string;
@@ -74,6 +84,7 @@ export interface Page {
   todoLists?: TodoList[];   // legacy — migrated to todoBoards on first load
   todoBoards?: TodoBoard[];
   noteContent?: string;     // freeform text for notes pages
+  sequenceTasks?: SequenceTask[];
 }
 
 // Multi-list to-do board — each TodoList is one column

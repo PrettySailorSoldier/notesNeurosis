@@ -10,9 +10,10 @@ import { PlannerView } from './components/PlannerView';
 import { IntervalView } from './components/IntervalView';
 import { HabitsPage } from './components/HabitsPage';
 import { MultiTodoView } from './components/MultiTodoView';
+import { SequenceView } from './components/SequenceView';
 import { ContextMenu } from './components/ContextMenu';
 import { ClockDisplay } from './components/ClockDisplay';
-import type { Task, Reminder, ReminderSound, PageType, PlannerSubtype, TodoSubtype } from './types';
+import type { Task, Reminder, ReminderSound, PageType, PlannerSubtype, TodoSubtype, SequenceTask } from './types';
 import { updateTaskInPage } from './utils/taskLookup';
 import appFrame from './assets/frame_blue_orchid.png';
 import './App.css';
@@ -39,8 +40,9 @@ const PLANNER_SUBTYPES: { sub: PlannerSubtype; icon: string; label: string }[] =
 ];
 
 const TODO_SUBTYPES: { sub: TodoSubtype; icon: string; label: string }[] = [
-  { sub: 'list',  icon: '📋', label: 'List'  },
-  { sub: 'board', icon: '⊞',  label: 'Board' },
+  { sub: 'list',     icon: '📋', label: 'List'     },
+  { sub: 'board',    icon: '⊞',  label: 'Board'    },
+  { sub: 'sequence', icon: '⬇',  label: 'Sequence' },
 ];
 
 function pageTypeIcon(type?: PageType, plannerSubtype?: PlannerSubtype, todoSubtype?: TodoSubtype): string {
@@ -48,7 +50,9 @@ function pageTypeIcon(type?: PageType, plannerSubtype?: PlannerSubtype, todoSubt
     return PLANNER_SUBTYPES.find(s => s.sub === plannerSubtype)?.icon ?? '📅';
   }
   if (type === 'todo') {
-    return todoSubtype === 'board' ? '⊞' : '✅';
+    if (todoSubtype === 'board')    return '⊞';
+    if (todoSubtype === 'sequence') return '⬇';
+    return '✅';
   }
   return PAGE_TYPES.find(p => p.type === type)?.icon ?? '📝';
 }
@@ -96,6 +100,7 @@ export default function App() {
     updateTodoBoardsForPage,
     updateTodoSubtypeForPage,
     updateNoteContentForPage,
+    updateSequenceTasksForPage,
     reorderPages,
   } = usePages();
 
@@ -426,8 +431,9 @@ export default function App() {
     }
 
     if (page.pageType === 'todo') {
+      const styleIcon = page.todoSubtype === 'board' ? '⊞' : page.todoSubtype === 'sequence' ? '⬇' : '📋';
       options.push({
-        icon: page.todoSubtype === 'board' ? '⊞' : '📋',
+        icon: styleIcon,
         label: 'Todo style →',
         onClick: () => setTabMenu(prev => prev ? { ...prev, phase: 'todostyle' } : null),
       });
@@ -490,9 +496,19 @@ export default function App() {
       return <HabitsPage pageId={currentPage.id} />;
     }
 
-    // Unified todo: list OR board subtype
+    // Unified todo: list OR board OR sequence subtype
     if (type === 'todo' || type === 'multitodo') {
       const todoSubtype = currentPage.todoSubtype ?? (type === 'multitodo' ? 'board' : 'list');
+
+      if (todoSubtype === 'sequence') {
+        return (
+          <SequenceView
+            tasks={currentPage.sequenceTasks ?? []}
+            onChange={(tasks: SequenceTask[]) => updateSequenceTasksForPage(currentPage.id, tasks)}
+          />
+        );
+      }
+
       if (todoSubtype === 'board') {
         return (
           <MultiTodoView

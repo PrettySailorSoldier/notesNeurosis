@@ -218,7 +218,12 @@ export const TaskItem: React.FC<Props> = ({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onContextMenu={handleContextMenu}
-      onDragEnter={() => onDragEnter(task.id)}
+      onDragEnter={(e) => {
+        e.preventDefault();
+        onDragEnter(task.id);
+      }}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => e.preventDefault()}
     >
       {/* Selection checkbox */}
       {onSelect && (
@@ -242,6 +247,7 @@ export const TaskItem: React.FC<Props> = ({
         draggable
         onDragStart={(e) => {
           e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', task.id);
           onDragStart(task.id);
         }}
         onDragEnd={onDragEnd}
