@@ -21,7 +21,8 @@ export function findTaskInPage(page: Page, taskId: string): Task | null {
 
 /**
  * Return a deep-updated Page where the task matching taskId is replaced
- * by the result of updater(task). Searches flat tasks first, then board tasks.
+ * by the result of updater(task). Searches flat tasks first, then board tasks,
+ * then taskListBoards.
  */
 export function updateTaskInPage(
   page: Page,
@@ -33,18 +34,39 @@ export function updateTaskInPage(
     return { ...page, tasks: page.tasks.map(t => t.id === taskId ? updater(t) : t) };
   }
 
-  // Check board tasks
+  // Check todoBoard tasks
   if (page.todoBoards) {
-    return {
-      ...page,
-      todoBoards: page.todoBoards.map(board => ({
-        ...board,
-        lists: board.lists.map(list => ({
-          ...list,
-          tasks: list.tasks.map(t => t.id === taskId ? updater(t) : t),
-        })),
-      })),
-    };
+    for (const board of page.todoBoards) {
+      for (const list of board.lists) {
+        if (list.tasks.some(t => t.id === taskId)) {
+          return {
+            ...page,
+            todoBoards: page.todoBoards.map(b => ({
+              ...b,
+              lists: b.lists.map(l => ({
+                ...l,
+                tasks: l.tasks.map(t => t.id === taskId ? updater(t) : t),
+              })),
+            })),
+          };
+        }
+      }
+    }
+  }
+
+  // Check taskListBoards
+  if (page.taskListBoards) {
+    for (const board of page.taskListBoards) {
+      if (board.tasks.some(t => t.id === taskId)) {
+        return {
+          ...page,
+          taskListBoards: page.taskListBoards.map(b => ({
+            ...b,
+            tasks: b.tasks.map(t => t.id === taskId ? updater(t) : t),
+          })),
+        };
+      }
+    }
   }
 
   return page; // task not found — return unchanged
@@ -67,7 +89,7 @@ export function collectRemindableTasks(
       }
     }
 
-    // Board tasks
+    // TodoBoard tasks
     if (page.todoBoards) {
       for (const board of page.todoBoards) {
         for (const list of board.lists) {
@@ -75,6 +97,17 @@ export function collectRemindableTasks(
             if (task.reminder?.active && task.reminder.alarmEnabled !== false) {
               result.push({ task, page });
             }
+          }
+        }
+      }
+    }
+
+    // TaskListBoard tasks
+    if (page.taskListBoards) {
+      for (const board of page.taskListBoards) {
+        for (const task of board.tasks) {
+          if (task.reminder?.active && task.reminder.alarmEnabled !== false) {
+            result.push({ task, page });
           }
         }
       }

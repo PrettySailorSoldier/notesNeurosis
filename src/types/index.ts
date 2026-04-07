@@ -85,6 +85,9 @@ export interface Page {
   todoBoards?: TodoBoard[];
   noteContent?: string;     // freeform text for notes pages
   sequenceTasks?: SequenceTask[];
+  taskListBoards?: TaskListBoard[];    // multi-tab list pages
+  noteBoards?: NoteBoard[];            // multi-tab note pages
+  sequenceBoards?: SequenceBoard[];    // multi-tab sequence pages
 }
 
 // Multi-list to-do board — each TodoList is one column
@@ -102,6 +105,29 @@ export interface TodoBoard {
   id: string;
   name: string;           // board tab label, e.g. "Week 1"
   lists: TodoList[];
+  createdAt: number;
+}
+
+// ── Multi-board wrappers for list / notes / sequence ──
+
+export interface TaskListBoard {
+  id: string;
+  name: string;
+  tasks: Task[];
+  createdAt: number;
+}
+
+export interface NoteBoard {
+  id: string;
+  name: string;
+  content: string;       // the freeform note text for this tab
+  createdAt: number;
+}
+
+export interface SequenceBoard {
+  id: string;
+  name: string;
+  tasks: SequenceTask[];
   createdAt: number;
 }
 

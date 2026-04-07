@@ -13,7 +13,7 @@ import { MultiTodoView } from './components/MultiTodoView';
 import { SequenceView } from './components/SequenceView';
 import { ContextMenu } from './components/ContextMenu';
 import { ClockDisplay } from './components/ClockDisplay';
-import type { Task, Reminder, ReminderSound, PageType, PlannerSubtype, TodoSubtype, SequenceTask } from './types';
+import type { Reminder, ReminderSound, PageType, PlannerSubtype, TodoSubtype } from './types';
 import { updateTaskInPage } from './utils/taskLookup';
 import appFrame from './assets/frame_blue_orchid.png';
 import './App.css';
@@ -99,8 +99,9 @@ export default function App() {
     updateGoalsForPage,
     updateTodoBoardsForPage,
     updateTodoSubtypeForPage,
-    updateNoteContentForPage,
-    updateSequenceTasksForPage,
+    updateTaskListBoardsForPage,
+    updateNoteBoardsForPage,
+    updateSequenceBoardsForPage,
     reorderPages,
   } = usePages();
 
@@ -158,52 +159,56 @@ export default function App() {
   }, []);
 
   /**
-   * Generic reminder updater — works for tasks in flat lists AND in board columns.
+   * Generic reminder updater — works for tasks in flat lists, board columns, and taskListBoards.
    */
   const handleUpdateReminder = useCallback((taskId: string, pageId: string, reminder: Reminder | undefined) => {
     const pageToUpdate = pages.find(p => p.id === pageId);
     if (!pageToUpdate) return;
     const updatedPage = updateTaskInPage(pageToUpdate, taskId, t => ({ ...t, reminder }));
-    // Determine which update fn to call based on what changed
     if (updatedPage.tasks !== pageToUpdate.tasks) {
       updateTasksForPage(pageId, updatedPage.tasks);
     } else if (updatedPage.todoBoards !== pageToUpdate.todoBoards) {
       updateTodoBoardsForPage(pageId, updatedPage.todoBoards!);
+    } else if (updatedPage.taskListBoards !== pageToUpdate.taskListBoards) {
+      updateTaskListBoardsForPage(pageId, updatedPage.taskListBoards!);
     }
-  }, [pages, updateTasksForPage, updateTodoBoardsForPage]);
+  }, [pages, updateTasksForPage, updateTodoBoardsForPage, updateTaskListBoardsForPage]);
 
   const { ringingIds, stopRinging } = useReminders(pages, handleUpdateReminder, settings.customTones, settings.volume);
 
-  const handleTasksChange = useCallback((updated: Task[]) => {
-    if (currentPageId) updateTasksForPage(currentPageId, updated);
-  }, [currentPageId, updateTasksForPage]);
-
   const handleSetReminder = useCallback((taskId: string, intervalMinutes: number, sound: ReminderSound, alarmEnabled = true) => {
     if (!currentPage) return;
-    const nextTasks = currentPage.tasks.map(t => {
-      if (t.id !== taskId) return t;
-      const reminder: Reminder = {
-        id: makeId(),
-        taskId,
-        intervalMinutes,
-        fireAt: Date.now() + intervalMinutes * 60 * 1000,
-        label: intervalMinutes >= 60 ? `every ${intervalMinutes / 60}h` : `every ${intervalMinutes}m`,
-        sound,
-        active: true,
-        alarmEnabled,
-      };
-      return { ...t, reminder };
-    });
-    updateTasksForPage(currentPageId, nextTasks);
-  }, [currentPage, currentPageId, updateTasksForPage]);
+    const reminder: Reminder = {
+      id: makeId(),
+      taskId,
+      intervalMinutes,
+      fireAt: Date.now() + intervalMinutes * 60 * 1000,
+      label: intervalMinutes >= 60 ? `every ${intervalMinutes / 60}h` : `every ${intervalMinutes}m`,
+      sound,
+      active: true,
+      alarmEnabled,
+    };
+    const updatedPage = updateTaskInPage(currentPage, taskId, t => ({ ...t, reminder }));
+    if (updatedPage.tasks !== currentPage.tasks) {
+      updateTasksForPage(currentPageId, updatedPage.tasks);
+    } else if (updatedPage.todoBoards !== currentPage.todoBoards) {
+      updateTodoBoardsForPage(currentPageId, updatedPage.todoBoards!);
+    } else if (updatedPage.taskListBoards !== currentPage.taskListBoards) {
+      updateTaskListBoardsForPage(currentPageId, updatedPage.taskListBoards!);
+    }
+  }, [currentPage, currentPageId, updateTasksForPage, updateTodoBoardsForPage, updateTaskListBoardsForPage]);
 
   const handleClearReminder = useCallback((taskId: string) => {
     if (!currentPage) return;
-    const nextTasks = currentPage.tasks.map(t =>
-      t.id !== taskId ? t : { ...t, reminder: undefined }
-    );
-    updateTasksForPage(currentPageId, nextTasks);
-  }, [currentPage, currentPageId, updateTasksForPage]);
+    const updatedPage = updateTaskInPage(currentPage, taskId, t => ({ ...t, reminder: undefined }));
+    if (updatedPage.tasks !== currentPage.tasks) {
+      updateTasksForPage(currentPageId, updatedPage.tasks);
+    } else if (updatedPage.todoBoards !== currentPage.todoBoards) {
+      updateTodoBoardsForPage(currentPageId, updatedPage.todoBoards!);
+    } else if (updatedPage.taskListBoards !== currentPage.taskListBoards) {
+      updateTaskListBoardsForPage(currentPageId, updatedPage.taskListBoards!);
+    }
+  }, [currentPage, currentPageId, updateTasksForPage, updateTodoBoardsForPage, updateTaskListBoardsForPage]);
 
   const handleUpdateTimerSettings = useCallback((taskId: string, pageId: string, intervalMinutes: number, sound: ReminderSound) => {
     const pageToUpdate = pages.find(p => p.id === pageId);
@@ -503,8 +508,9 @@ export default function App() {
       if (todoSubtype === 'sequence') {
         return (
           <SequenceView
-            tasks={currentPage.sequenceTasks ?? []}
-            onChange={(tasks: SequenceTask[]) => updateSequenceTasksForPage(currentPage.id, tasks)}
+            boards={currentPage.sequenceBoards ?? []}
+            onBoardsChange={boards => updateSequenceBoardsForPage(currentPage.id, boards)}
+            legacyTasks={currentPage.sequenceTasks}
           />
         );
       }
@@ -526,18 +532,20 @@ export default function App() {
     if (type === 'notes') {
       return (
         <NoteEditor
-          value={currentPage.noteContent ?? ''}
-          onChange={text => updateNoteContentForPage(currentPage.id, text)}
+          boards={currentPage.noteBoards ?? []}
+          onBoardsChange={boards => updateNoteBoardsForPage(currentPage.id, boards)}
+          legacyContent={currentPage.noteContent}
           placeholder="Begin writing\u2026"
         />
       );
     }
 
-    // notes + todo/list both use TaskEditor
+    // todo/list uses TaskEditor with multi-board tabs
     return (
       <TaskEditor
-        tasks={currentPage.tasks}
-        onChange={handleTasksChange}
+        boards={currentPage.taskListBoards ?? []}
+        onBoardsChange={boards => updateTaskListBoardsForPage(currentPage.id, boards)}
+        legacyTasks={currentPage.tasks}
         onSetReminder={handleSetReminder}
         onClearReminder={handleClearReminder}
         pageType={currentPage.pageType}

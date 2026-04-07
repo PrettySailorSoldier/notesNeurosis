@@ -1,10 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import type { SequenceTask, SequenceStatus } from '../types';
+import type { SequenceTask, SequenceStatus, SequenceBoard } from '../types';
+import { BoardTabStrip } from './BoardTabStrip';
 import styles from './SequenceView.module.css';
 
 interface Props {
-  tasks: SequenceTask[];
-  onChange: (tasks: SequenceTask[]) => void;
+  boards: SequenceBoard[];
+  onBoardsChange: (boards: SequenceBoard[]) => void;
+  legacyTasks?: SequenceTask[];   // one-time migration
 }
 
 function makeTask(content = ''): SequenceTask {
@@ -17,19 +19,78 @@ function makeTask(content = ''): SequenceTask {
   };
 }
 
-export const SequenceView: React.FC<Props> = ({ tasks, onChange }) => {
+export const SequenceView: React.FC<Props> = ({ boards, onBoardsChange, legacyTasks }) => {
+  const [activeBoardId, setActiveBoardId] = useState<string>('');
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const initializedRef = useRef(false);
 
-  // Seed one empty task if list is empty
+  // One-time migration from flat sequenceTasks to sequenceBoards
   useEffect(() => {
-    if (tasks.length === 0) {
-      onChange([makeTask('')]);
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+    if (boards.length === 0) {
+      const seed: SequenceBoard = {
+        id: crypto.randomUUID(),
+        name: 'Sequence 1',
+        tasks: legacyTasks && legacyTasks.length > 0
+          ? legacyTasks
+          : [makeTask('')],
+        createdAt: Date.now(),
+      };
+      onBoardsChange([seed]);
+      setActiveBoardId(seed.id);
+    } else {
+      setActiveBoardId(boards[0].id);
     }
   }, []);
 
-  const activeIndex = tasks.findIndex(t => t.status === 'active');
+  // Snap active board if it becomes stale
+  useEffect(() => {
+    if (boards.length > 0 && !boards.find(b => b.id === activeBoardId)) {
+      setActiveBoardId(boards[0].id);
+    }
+  }, [boards, activeBoardId]);
+
+  // Clear transient UI state when switching boards
+  useEffect(() => {
+    setExpandedNotes(new Set());
+    setEditingId(null);
+  }, [activeBoardId]);
+
+  const activeBoard = boards.find(b => b.id === activeBoardId) ?? boards[0];
+  const tasks = activeBoard?.tasks ?? [];
+
+  // Board CRUD helpers
+  const addBoard = () => {
+    const n = boards.length + 1;
+    const b: SequenceBoard = {
+      id: crypto.randomUUID(),
+      name: `Sequence ${n}`,
+      tasks: [makeTask('')],
+      createdAt: Date.now(),
+    };
+    onBoardsChange([...boards, b]);
+    setActiveBoardId(b.id);
+  };
+
+  const deleteBoard = (id: string) => {
+    if (boards.length <= 1) return;
+    const remaining = boards.filter(b => b.id !== id);
+    onBoardsChange(remaining);
+    if (activeBoardId === id) setActiveBoardId(remaining[0].id);
+  };
+
+  const renameBoard = (id: string, name: string) => {
+    onBoardsChange(boards.map(b => b.id === id ? { ...b, name } : b));
+  };
+
+  const updateActiveTasks = useCallback((newTasks: SequenceTask[]) => {
+    if (!activeBoard) return;
+    onBoardsChange(boards.map(b => b.id === activeBoard.id ? { ...b, tasks: newTasks } : b));
+  }, [boards, activeBoard, onBoardsChange]);
+
   const firstPendingIndex = tasks.findIndex(t => t.status === 'pending');
   const allDone = tasks.length > 0 && tasks.every(t => t.status === 'done' || t.status === 'skipped');
   const sessionStarted = tasks.some(t => t.status === 'active' || t.status === 'done' || t.status === 'skipped');
@@ -38,52 +99,51 @@ export const SequenceView: React.FC<Props> = ({ tasks, onChange }) => {
 
   const startSequence = useCallback(() => {
     if (firstPendingIndex === -1) return;
-    onChange(tasks.map((t, i) =>
+    updateActiveTasks(tasks.map((t, i) =>
       i === firstPendingIndex ? { ...t, status: 'active' as SequenceStatus } : t
     ));
-  }, [tasks, firstPendingIndex, onChange]);
+  }, [tasks, firstPendingIndex, updateActiveTasks]);
 
   const advanceToNext = useCallback((currentId: string, markAs: 'done' | 'skipped') => {
     const updated = tasks.map(t =>
       t.id === currentId ? { ...t, status: markAs as SequenceStatus } : t
     );
-    // Find next pending
     const nextPending = updated.findIndex(t => t.status === 'pending');
     const final = updated.map((t, i) =>
       i === nextPending ? { ...t, status: 'active' as SequenceStatus } : t
     );
-    onChange(final);
-  }, [tasks, onChange]);
+    updateActiveTasks(final);
+  }, [tasks, updateActiveTasks]);
 
   const resetAll = useCallback(() => {
-    onChange(tasks.map(t => ({ ...t, status: 'pending' as SequenceStatus })));
-  }, [tasks, onChange]);
+    updateActiveTasks(tasks.map(t => ({ ...t, status: 'pending' as SequenceStatus })));
+  }, [tasks, updateActiveTasks]);
 
   // ── Task editing ───────────────────────────────────────────────────
 
   const updateTask = useCallback((id: string, patch: Partial<SequenceTask>) => {
-    onChange(tasks.map(t => t.id === id ? { ...t, ...patch } : t));
-  }, [tasks, onChange]);
+    updateActiveTasks(tasks.map(t => t.id === id ? { ...t, ...patch } : t));
+  }, [tasks, updateActiveTasks]);
 
   const addTaskAfter = useCallback((afterId: string) => {
     const idx = tasks.findIndex(t => t.id === afterId);
     const newTask = makeTask('');
     const next = [...tasks];
     next.splice(idx + 1, 0, newTask);
-    onChange(next);
+    updateActiveTasks(next);
     setEditingId(newTask.id);
-  }, [tasks, onChange]);
+  }, [tasks, updateActiveTasks]);
 
   const deleteTask = useCallback((id: string) => {
     const next = tasks.filter(t => t.id !== id);
-    onChange(next.length > 0 ? next : [makeTask('')]);
-  }, [tasks, onChange]);
+    updateActiveTasks(next.length > 0 ? next : [makeTask('')]);
+  }, [tasks, updateActiveTasks]);
 
   const addTaskAtEnd = useCallback(() => {
     const newTask = makeTask('');
-    onChange([...tasks, newTask]);
+    updateActiveTasks([...tasks, newTask]);
     setEditingId(newTask.id);
-  }, [tasks, onChange]);
+  }, [tasks, updateActiveTasks]);
 
   // Drag reorder — only among pending tasks
   const dragId = useRef<string | null>(null);
@@ -100,7 +160,7 @@ export const SequenceView: React.FC<Props> = ({ tasks, onChange }) => {
     const toIdx = next.findIndex(t => t.id === targetId);
     const [removed] = next.splice(fromIdx, 1);
     next.splice(toIdx, 0, removed);
-    onChange(next);
+    updateActiveTasks(next);
   };
   const handleDragEnd = () => { dragId.current = null; };
 
@@ -114,8 +174,19 @@ export const SequenceView: React.FC<Props> = ({ tasks, onChange }) => {
 
   // ── Render ─────────────────────────────────────────────────────────
 
+  if (!activeBoard) return null;
+
   return (
     <div className={styles.root}>
+      <BoardTabStrip
+        tabs={boards.map(b => ({ id: b.id, name: b.name }))}
+        activeId={activeBoardId}
+        onSelect={setActiveBoardId}
+        onRename={renameBoard}
+        onAdd={addBoard}
+        onDelete={deleteBoard}
+        addLabel="+ sequence"
+      />
 
       {/* ── Header bar ── */}
       <div className={styles.header}>
@@ -274,7 +345,6 @@ export const SequenceView: React.FC<Props> = ({ tasks, onChange }) => {
           + Add step
         </button>
       )}
-
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { load } from '@tauri-apps/plugin-store';
-import type { Page, Task, PageType, PlannerSubtype, TodoList, TodoBoard, TodoSubtype, SequenceTask } from '../types';
+import type { Page, Task, PageType, PlannerSubtype, TodoList, TodoBoard, TodoSubtype, SequenceTask, TaskListBoard, NoteBoard, SequenceBoard } from '../types';
 
 const STORE_FILE = 'planner.json';
 const PAGES_KEY = 'pages';
@@ -27,6 +27,23 @@ function makeTodoList(label = 'List'): TodoList {
     label,
     tasks: [{ id: crypto.randomUUID(), content: '', type: 'plain' as const, completed: false, createdAt: Date.now() }],
     collapsed: false,
+    createdAt: Date.now(),
+  };
+}
+
+function makeTaskListBoard(name = 'List 1'): TaskListBoard {
+  return { id: crypto.randomUUID(), name, tasks: [makeTask('')], createdAt: Date.now() };
+}
+
+function makeNoteBoard(name = 'Note 1'): NoteBoard {
+  return { id: crypto.randomUUID(), name, content: '', createdAt: Date.now() };
+}
+
+function makeSequenceBoard(name = 'Sequence 1'): SequenceBoard {
+  return {
+    id: crypto.randomUUID(),
+    name,
+    tasks: [makeSequenceTask('')],
     createdAt: Date.now(),
   };
 }
@@ -174,6 +191,9 @@ export function usePages() {
       todoBoards: pageType === 'todo' ? [makeTodoBoard('Board 1')] : undefined,
       todoSubtype: pageType === 'todo' ? 'list' : undefined,
       sequenceTasks: pageType === 'todo' ? [makeSequenceTask('')] : undefined,
+      taskListBoards: pageType === 'todo'  ? [makeTaskListBoard('List 1')]     : undefined,
+      noteBoards:     pageType === 'notes' ? [makeNoteBoard('Note 1')]         : undefined,
+      sequenceBoards: pageType === 'todo'  ? [makeSequenceBoard('Sequence 1')] : undefined,
     };
     const nextPages = [...pages, newPage];
     updatePages(nextPages, newPage.id);
@@ -206,6 +226,15 @@ export function usePages() {
         todoBoards: pageType === 'todo' && !p.todoBoards?.length
           ? [makeTodoBoard('Board 1')]
           : p.todoBoards,
+        taskListBoards: pageType === 'todo' && !p.taskListBoards?.length
+          ? [makeTaskListBoard('List 1')]
+          : p.taskListBoards,
+        noteBoards: pageType === 'notes' && !p.noteBoards?.length
+          ? [makeNoteBoard('Note 1')]
+          : p.noteBoards,
+        sequenceBoards: pageType === 'todo' && !p.sequenceBoards?.length
+          ? [makeSequenceBoard('Sequence 1')]
+          : p.sequenceBoards,
       };
     });
     updatePages(nextPages);
@@ -268,6 +297,21 @@ export function usePages() {
     updatePages(nextPages);
   }, [pages, updatePages]);
 
+  const updateTaskListBoardsForPage = useCallback((pageId: string, boards: TaskListBoard[]) => {
+    const nextPages = pages.map(p => p.id === pageId ? { ...p, taskListBoards: boards } : p);
+    updatePages(nextPages);
+  }, [pages, updatePages]);
+
+  const updateNoteBoardsForPage = useCallback((pageId: string, boards: NoteBoard[]) => {
+    const nextPages = pages.map(p => p.id === pageId ? { ...p, noteBoards: boards } : p);
+    updatePages(nextPages);
+  }, [pages, updatePages]);
+
+  const updateSequenceBoardsForPage = useCallback((pageId: string, boards: SequenceBoard[]) => {
+    const nextPages = pages.map(p => p.id === pageId ? { ...p, sequenceBoards: boards } : p);
+    updatePages(nextPages);
+  }, [pages, updatePages]);
+
   const reorderPages = useCallback((fromId: string, toId: string) => {
     if (fromId === toId) return;
     const from = pages.findIndex(p => p.id === fromId);
@@ -300,5 +344,8 @@ export function usePages() {
     updateTodoSubtypeForPage,
     updateNoteContentForPage,
     updateSequenceTasksForPage,
+    updateTaskListBoardsForPage,
+    updateNoteBoardsForPage,
+    updateSequenceBoardsForPage,
   };
 }
