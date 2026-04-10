@@ -187,21 +187,20 @@
   color: rgba(35, 10, 60, 0.92);
 }
 
-/* Change 9 — drag handle (hidden until hover) */
+/* Change 9 — drag handle */
 .dragHandle {
-  color: rgba(180, 100, 220, 0.3);
+  color: rgba(180, 100, 220, 0.45);
   width: 10px;
   height: 14px;
   cursor: grab;
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  opacity: 0;
   transition: opacity 0.15s, color 0.15s;
 }
 
 .taskRow:hover .dragHandle {
-  opacity: 1;
+  color: rgba(180, 100, 220, 0.6);
 }
 
 .dragHandle:hover {
