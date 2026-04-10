@@ -36,9 +36,13 @@ export const TaskEditor: React.FC<Props> = ({
   pageType,
 }) => {
   const [activeBoardId, setActiveBoardId] = useState<string>('');
-  const [draggedId, setDraggedId] = useState<string | null>(null);
+  // Drag state — we use refs during the drag so React never re-renders mid-drag
+  // (any setState during a drag severs the browser's dragged-element reference → 🚫)
+  const [draggedId, setDraggedId] = useState<string | null>(null);   // for opacity dimming only
   const draggedIdRef = useRef<string | null>(null);
-  const liveOrderRef = useRef<Task[]>([]);
+  const pendingOrderRef = useRef<string[]>([]);  // IDs in the intended final order
+  const rowRefsMap = useRef<Map<string, HTMLDivElement>>(new Map()); // for direct DOM highlight
+  const highlightedRowId = useRef<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const initializedRef = useRef(false);
 
@@ -133,32 +137,52 @@ export const TaskEditor: React.FC<Props> = ({
 
   const handleDragStart = useCallback((id: string) => {
     draggedIdRef.current = id;
-    liveOrderRef.current = [...tasks];
-    setDraggedId(id);
+    pendingOrderRef.current = tasks.map(t => t.id);
+    setDraggedId(id); // only state update before drag starts — safe
   }, [tasks]);
 
   const handleDragEnter = useCallback((targetId: string) => {
     const srcId = draggedIdRef.current;
     if (!srcId || srcId === targetId) return;
-    const current = liveOrderRef.current;
-    const sourceIdx = current.findIndex(t => t.id === srcId);
-    const targetIdx = current.findIndex(t => t.id === targetId);
-    if (sourceIdx === -1 || targetIdx === -1) return;
-    const next = [...current];
-    const [removed] = next.splice(sourceIdx, 1);
-    next.splice(targetIdx, 0, removed);
-    liveOrderRef.current = next;
-    // Update visually without a re-render by mutating DOM order would be ideal,
-    // but we still update React state — the key fix is that draggedIdRef keeps
-    // the drag session alive across re-renders.
-    updateActiveTasks(next);
-  }, [updateActiveTasks]);
+    // Recompute intended order in ref — NO state updates → NO re-renders during drag
+    const ids = [...pendingOrderRef.current];
+    const srcIdx = ids.indexOf(srcId);
+    const tgtIdx = ids.indexOf(targetId);
+    if (srcIdx === -1 || tgtIdx === -1) return;
+    ids.splice(srcIdx, 1);
+    ids.splice(tgtIdx, 0, srcId);
+    pendingOrderRef.current = ids;
+    // Direct DOM mutation for the drop-target highlight — bypasses React entirely
+    if (highlightedRowId.current) {
+      const prev = rowRefsMap.current.get(highlightedRowId.current);
+      if (prev) prev.style.borderTop = '2px solid transparent';
+    }
+    const el = rowRefsMap.current.get(targetId);
+    if (el) el.style.borderTop = '2px solid rgba(180,130,220,0.7)';
+    highlightedRowId.current = targetId;
+  }, []);
 
   const handleDragEnd = useCallback(() => {
+    // Clear DOM highlight
+    if (highlightedRowId.current) {
+      const el = rowRefsMap.current.get(highlightedRowId.current);
+      if (el) el.style.borderTop = '2px solid transparent';
+      highlightedRowId.current = null;
+    }
+    // Now that the drag session is done, commit the new order to state
+    const srcId = draggedIdRef.current;
+    const ids = pendingOrderRef.current;
+    if (srcId && ids.length > 0) {
+      const taskMap = new Map(tasks.map(t => [t.id, t]));
+      const reordered = ids.map(id => taskMap.get(id)).filter(Boolean) as Task[];
+      if (reordered.length === tasks.length) {
+        updateActiveTasks(reordered);
+      }
+    }
     draggedIdRef.current = null;
-    liveOrderRef.current = [];
+    pendingOrderRef.current = [];
     setDraggedId(null);
-  }, []);
+  }, [tasks, updateActiveTasks]);
 
   // --- Multi-select ---
   const toggleSelect = useCallback((id: string) => {
@@ -282,7 +306,18 @@ export const TaskEditor: React.FC<Props> = ({
         )}
 
         {displayTasks.map((task, i) => (
-          <div key={task.id} style={{ opacity: draggedId === task.id ? 0.3 : 1 }}>
+          <div
+            key={task.id}
+            ref={el => {
+              if (el) rowRefsMap.current.set(task.id, el);
+              else rowRefsMap.current.delete(task.id);
+            }}
+            style={{
+              opacity: draggedId === task.id ? 0.3 : 1,
+              borderTop: '2px solid transparent',
+              transition: 'border-color 0.1s',
+            }}
+          >
             <TaskItem
               task={task}
               isNew={i === tasks.length - 1 && task.content === ''}
