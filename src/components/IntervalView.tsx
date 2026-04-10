@@ -110,8 +110,6 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
   const pendingFocusId       = useRef<string | null>(null);
   // Drag refs — zero setState during drag to avoid breaking the browser's drag session
   const draggedTaskIdRef     = useRef<string | null>(null);
-  const [draggedTaskId,
-         setDraggedTaskId]   = useState<string | null>(null); // opacity only
   const pendingDragOrderRef  = useRef<string[]>([]);
   const dragRowRefsMap       = useRef<Map<string, HTMLDivElement>>(new Map());
   const dragHighlightedId    = useRef<string | null>(null);
@@ -855,7 +853,7 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
       {/* Task list */}
       <div 
         className={styles.taskList}
-        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+        onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => e.preventDefault()}
       >
         {tasks.map((task, idx) => {
@@ -922,11 +920,8 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
                 if (el) el.style.boxShadow = '0 -3px 0 0 rgba(180,130,220,0.9)';
                 dragHighlightedId.current = task.id;
               }}
-              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
-              onDrop={e => e.preventDefault()}
-              style={{
-                opacity: draggedTaskId === task.id ? 0.4 : 1,
-              }}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => e.preventDefault()}
             >
               {!running && (
                 <div 
@@ -938,7 +933,10 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
                     e.dataTransfer.setData('text/plain', task.id);
                     draggedTaskIdRef.current = task.id;
                     pendingDragOrderRef.current = tasks.map(t => t.id);
-                    setDraggedTaskId(task.id); 
+                    setTimeout(() => {
+                      const el = dragRowRefsMap.current.get(task.id);
+                      if (el) el.style.opacity = '0.4';
+                    }, 0);
                   }}
                   onDragEnd={() => {
                     if (dragHighlightedId.current) {
@@ -946,6 +944,9 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
                       if (el) el.style.boxShadow = '';
                       dragHighlightedId.current = null;
                     }
+                    const selfEl = dragRowRefsMap.current.get(task.id);
+                    if (selfEl) selfEl.style.opacity = '1';
+                    
                     const srcId = draggedTaskIdRef.current;
                     const ids = pendingDragOrderRef.current;
                     if (srcId && ids.length > 0) {
@@ -955,10 +956,9 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
                     }
                     draggedTaskIdRef.current = null;
                     pendingDragOrderRef.current = [];
-                    setDraggedTaskId(null);
                   }}
                 >
-                  <svg viewBox="0 0 8 12" fill="currentColor" width="8" height="12" style={{ pointerEvents: 'none' }}>
+                  <svg viewBox="0 0 8 12" fill="currentColor" width="8" height="12" style={{ pointerEvents: 'none' }} draggable="false">
                     <circle cx="2" cy="2"  r="1.2"/><circle cx="6" cy="2"  r="1.2"/>
                     <circle cx="2" cy="6"  r="1.2"/><circle cx="6" cy="6"  r="1.2"/>
                     <circle cx="2" cy="10" r="1.2"/><circle cx="6" cy="10" r="1.2"/>
