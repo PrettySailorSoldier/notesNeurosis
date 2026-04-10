@@ -107,8 +107,14 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
   const [editingDuration, setEditingDuration] = useState<string | null>(null);
   const intervalRef = useRef<number | null>(null);
 
-  const pendingFocusId = useRef<string | null>(null);
-  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const pendingFocusId       = useRef<string | null>(null);
+  // Drag refs — zero setState during drag to avoid breaking the browser's drag session
+  const draggedTaskIdRef     = useRef<string | null>(null);
+  const [draggedTaskId,
+         setDraggedTaskId]   = useState<string | null>(null); // opacity only
+  const pendingDragOrderRef  = useRef<string[]>([]);
+  const dragRowRefsMap       = useRef<Map<string, HTMLDivElement>>(new Map());
+  const dragHighlightedId    = useRef<string | null>(null);
 
   // ── Break gate ────────────────────────────────────────────────────────────
   const [breakGate,          setBreakGate]          = useState(false);
@@ -856,6 +862,10 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
             <div
               key={task.id}
               data-task-id={task.id}
+              ref={el => {
+                if (el) dragRowRefsMap.current.set(task.id, el as HTMLDivElement);
+                else dragRowRefsMap.current.delete(task.id);
+              }}
               className={[
                 styles.taskRow,
                 styles[`phaseCard--${phase}`],
@@ -867,16 +877,51 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
                 if (!running) { setActiveIdx(idx); setSecondsLeft(task.durationSeconds); }
               }}
               draggable={!running}
-              onDragStart={() => setDraggedTaskId(task.id)}
-              onDragEnter={() => {
-                if (!draggedTaskId || draggedTaskId === task.id || running) return;
-                const next = [...tasks];
-                const fromIdx = next.findIndex(t => t.id === draggedTaskId);
-                const [removed] = next.splice(fromIdx, 1);
-                next.splice(idx, 0, removed);
-                onChange(next);
+              onDragStart={() => {
+                if (running) return;
+                draggedTaskIdRef.current = task.id;
+                pendingDragOrderRef.current = tasks.map(t => t.id);
+                setDraggedTaskId(task.id); // triggers opacity re-render before drag moves — safe
               }}
-              onDragEnd={() => setDraggedTaskId(null)}
+              onDragEnter={() => {
+                const srcId = draggedTaskIdRef.current;
+                if (!srcId || srcId === task.id || running) return;
+                // Recompute order in ref only — no setState → no re-renders during drag
+                const ids = [...pendingDragOrderRef.current];
+                const fromIdx = ids.indexOf(srcId);
+                const toIdx   = ids.indexOf(task.id);
+                if (fromIdx === -1 || toIdx === -1) return;
+                ids.splice(fromIdx, 1);
+                ids.splice(toIdx, 0, srcId);
+                pendingDragOrderRef.current = ids;
+                // Direct DOM highlight — bypasses React
+                if (dragHighlightedId.current) {
+                  const prev = dragRowRefsMap.current.get(dragHighlightedId.current);
+                  if (prev) prev.style.borderTop = '';
+                }
+                const el = dragRowRefsMap.current.get(task.id);
+                if (el) el.style.borderTop = '2px solid rgba(180,130,220,0.7)';
+                dragHighlightedId.current = task.id;
+              }}
+              onDragEnd={() => {
+                // Clear highlight
+                if (dragHighlightedId.current) {
+                  const el = dragRowRefsMap.current.get(dragHighlightedId.current);
+                  if (el) el.style.borderTop = '';
+                  dragHighlightedId.current = null;
+                }
+                // Commit reorder now that drag session is safely over
+                const srcId = draggedTaskIdRef.current;
+                const ids   = pendingDragOrderRef.current;
+                if (srcId && ids.length > 0) {
+                  const taskMap = new Map(tasks.map(t => [t.id, t]));
+                  const reordered = ids.map(id => taskMap.get(id)).filter(Boolean) as IntervalTask[];
+                  if (reordered.length === tasks.length) onChange(reordered);
+                }
+                draggedTaskIdRef.current = null;
+                pendingDragOrderRef.current = [];
+                setDraggedTaskId(null);
+              }}
               onDragOver={e => e.preventDefault()}
               style={{
                 opacity: draggedTaskId === task.id ? 0.4 : 1,
