@@ -921,10 +921,29 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
                 dragHighlightedId.current = task.id;
               }}
               onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const srcId = draggedTaskIdRef.current;
+                if (!srcId || running || srcId === task.id) return;
+                const ids = pendingDragOrderRef.current;
+                if (ids.length > 0) {
+                  const taskMap = new Map(tasks.map(t => [t.id, t]));
+                  const reordered = ids.map(id => taskMap.get(id)).filter(Boolean) as IntervalTask[];
+                  if (reordered.length === tasks.length) onChange(reordered);
+                }
+                // Cleanup
+                if (dragHighlightedId.current) {
+                  const el = dragRowRefsMap.current.get(dragHighlightedId.current);
+                  if (el) el.style.boxShadow = '';
+                  dragHighlightedId.current = null;
+                }
+                dragRowRefsMap.current.forEach(el => { el.style.opacity = '1'; });
+                draggedTaskIdRef.current = null;
+                pendingDragOrderRef.current = [];
+              }}
             >
               {!running && (
-                <div 
+                <div
                   className={styles.dragHandle}
                   draggable={!running}
                   onDragStart={(e) => {
@@ -939,21 +958,13 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
                     }, 0);
                   }}
                   onDragEnd={() => {
+                    // Cleanup visual state only — reorder is committed in onDrop
                     if (dragHighlightedId.current) {
                       const el = dragRowRefsMap.current.get(dragHighlightedId.current);
                       if (el) el.style.boxShadow = '';
                       dragHighlightedId.current = null;
                     }
-                    const selfEl = dragRowRefsMap.current.get(task.id);
-                    if (selfEl) selfEl.style.opacity = '1';
-                    
-                    const srcId = draggedTaskIdRef.current;
-                    const ids = pendingDragOrderRef.current;
-                    if (srcId && ids.length > 0) {
-                      const taskMap = new Map(tasks.map(t => [t.id, t]));
-                      const reordered = ids.map(id => taskMap.get(id)).filter(Boolean) as IntervalTask[];
-                      if (reordered.length === tasks.length) onChange(reordered);
-                    }
+                    dragRowRefsMap.current.forEach(el => { el.style.opacity = '1'; });
                     draggedTaskIdRef.current = null;
                     pendingDragOrderRef.current = [];
                   }}

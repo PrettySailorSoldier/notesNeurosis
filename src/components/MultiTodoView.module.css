@@ -252,6 +252,26 @@
   background: rgba(180, 130, 220, 0.06);
 }
 
+/* Drag handle for within-list reordering */
+.dragHandle {
+  color: rgba(180, 100, 220, 0.25);
+  width: 8px;
+  height: 12px;
+  cursor: grab;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.taskRow:hover .dragHandle {
+  opacity: 1;
+  color: rgba(180, 100, 220, 0.5);
+}
+.dragHandle:hover {
+  color: rgba(180, 100, 220, 0.75);
+}
+
 .taskDone .taskInput {
   opacity: 0.4;
   text-decoration: line-through;

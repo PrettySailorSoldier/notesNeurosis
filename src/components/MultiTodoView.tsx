@@ -161,6 +161,13 @@ export const MultiTodoView: React.FC<Props> = ({ boards, onChange, onSetReminder
     updateList(listId, { color: next });
   }, [updateList]);
 
+  const reorderTasks = useCallback((listId: string, newTasks: Task[]) => {
+    if (!activeBoard) return;
+    updateBoard(activeBoard.id, {
+      lists: activeBoard.lists.map(l => l.id === listId ? { ...l, tasks: newTasks } : l),
+    });
+  }, [activeBoard, updateBoard]);
+
   // Move within the same board
   const moveTask = useCallback((fromListId: string, taskId: string, toListId: string) => {
     if (!activeBoard) return;
@@ -313,6 +320,7 @@ export const MultiTodoView: React.FC<Props> = ({ boards, onChange, onSetReminder
               onMoveToDestination={(taskId, toBoardId, toListId) =>
                 moveTaskAcrossBoards(activeBoard.id, list.id, taskId, toBoardId, toListId)
               }
+              onReorderTasks={newTasks => reorderTasks(list.id, newTasks)}
             />
           );
         })}
@@ -352,6 +360,7 @@ interface ColumnProps {
   currentBoardId: string;
   currentListId: string;
   onMoveToDestination: (taskId: string, toBoardId: string, toListId: string) => void;
+  onReorderTasks: (newTasks: Task[]) => void;
 }
 
 const TodoColumn: React.FC<ColumnProps> = ({
@@ -361,9 +370,16 @@ const TodoColumn: React.FC<ColumnProps> = ({
   prevListLabel, nextListLabel, onMoveLeft, onMoveRight,
   onSetReminder, onClearReminder,
   boards, currentBoardId, currentListId, onMoveToDestination,
+  onReorderTasks,
 }) => {
   const [editingLabel, setEditingLabel] = useState(false);
   const labelRef = useRef<HTMLInputElement>(null);
+
+  // ── Drag-to-reorder state (refs only — no setState during drag) ──
+  const draggedTaskIdRef    = useRef<string | null>(null);
+  const pendingDragOrderRef = useRef<string[]>([]);
+  const dragRowRefsMap      = useRef<Map<string, HTMLDivElement>>(new Map());
+  const dragHighlightedId   = useRef<string | null>(null);
 
   const completedCount = list.tasks.filter(t => t.completed).length;
   const totalCount = list.tasks.length;
@@ -434,28 +450,101 @@ const TodoColumn: React.FC<ColumnProps> = ({
       {!list.collapsed && (
         <div className={styles.taskList}>
           {list.tasks.map(task => (
-            <MiniTaskRow
+            <div
               key={task.id}
-              task={task}
-              accentColor={accentColor}
-              onChange={onUpdateTask}
-              onDelete={() => onDeleteTask(task.id)}
-              onAddBelow={() => onAddTask(task.id)}
-              autoFocus={focusTaskId === task.id}
-              onFocusConsumed={onFocusConsumed}
-              onMoveLeft={onMoveLeft ? () => onMoveLeft(task.id) : undefined}
-              onMoveRight={onMoveRight ? () => onMoveRight(task.id) : undefined}
-              prevListLabel={prevListLabel}
-              nextListLabel={nextListLabel}
-              onSetReminder={onSetReminder}
-              onClearReminder={onClearReminder}
-              boards={boards}
-              currentBoardId={currentBoardId}
-              currentListId={currentListId}
-              onMoveToDestination={(toBoardId, toListId) =>
-                onMoveToDestination(task.id, toBoardId, toListId)
-              }
-            />
+              ref={el => {
+                if (el) dragRowRefsMap.current.set(task.id, el as HTMLDivElement);
+                else dragRowRefsMap.current.delete(task.id);
+              }}
+              onDragEnter={(e) => {
+                e.preventDefault();
+                const srcId = draggedTaskIdRef.current;
+                if (!srcId) return;
+                if (srcId === task.id) {
+                  if (dragHighlightedId.current) {
+                    const prev = dragRowRefsMap.current.get(dragHighlightedId.current);
+                    if (prev) prev.style.borderTop = '';
+                  }
+                  dragHighlightedId.current = null;
+                  pendingDragOrderRef.current = list.tasks.map(t => t.id);
+                  return;
+                }
+                if (dragHighlightedId.current === task.id) return;
+                const baseIds = list.tasks.map(t => t.id);
+                if (!baseIds.includes(srcId) || !baseIds.includes(task.id)) return;
+                const filtered = baseIds.filter(id => id !== srcId);
+                const insertIdx = filtered.indexOf(task.id);
+                filtered.splice(insertIdx, 0, srcId);
+                pendingDragOrderRef.current = filtered;
+                if (dragHighlightedId.current) {
+                  const prev = dragRowRefsMap.current.get(dragHighlightedId.current);
+                  if (prev) prev.style.borderTop = '';
+                }
+                const el = dragRowRefsMap.current.get(task.id);
+                if (el) el.style.borderTop = '2px solid rgba(180,100,220,0.75)';
+                dragHighlightedId.current = task.id;
+              }}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const srcId = draggedTaskIdRef.current;
+                if (!srcId || srcId === task.id) return;
+                const ids = pendingDragOrderRef.current;
+                if (ids.length > 0) {
+                  const taskMap = new Map(list.tasks.map(t => [t.id, t]));
+                  const reordered = ids.map(id => taskMap.get(id)).filter(Boolean) as Task[];
+                  if (reordered.length === list.tasks.length) onReorderTasks(reordered);
+                }
+                if (dragHighlightedId.current) {
+                  const el = dragRowRefsMap.current.get(dragHighlightedId.current);
+                  if (el) el.style.borderTop = '';
+                  dragHighlightedId.current = null;
+                }
+                dragRowRefsMap.current.forEach(el => { el.style.opacity = '1'; });
+                draggedTaskIdRef.current = null;
+                pendingDragOrderRef.current = [];
+              }}
+            >
+              <MiniTaskRow
+                task={task}
+                accentColor={accentColor}
+                onChange={onUpdateTask}
+                onDelete={() => onDeleteTask(task.id)}
+                onAddBelow={() => onAddTask(task.id)}
+                autoFocus={focusTaskId === task.id}
+                onFocusConsumed={onFocusConsumed}
+                onMoveLeft={onMoveLeft ? () => onMoveLeft(task.id) : undefined}
+                onMoveRight={onMoveRight ? () => onMoveRight(task.id) : undefined}
+                prevListLabel={prevListLabel}
+                nextListLabel={nextListLabel}
+                onSetReminder={onSetReminder}
+                onClearReminder={onClearReminder}
+                boards={boards}
+                currentBoardId={currentBoardId}
+                currentListId={currentListId}
+                onMoveToDestination={(toBoardId, toListId) =>
+                  onMoveToDestination(task.id, toBoardId, toListId)
+                }
+                onDragStart={() => {
+                  draggedTaskIdRef.current = task.id;
+                  pendingDragOrderRef.current = list.tasks.map(t => t.id);
+                  setTimeout(() => {
+                    const el = dragRowRefsMap.current.get(task.id);
+                    if (el) el.style.opacity = '0.4';
+                  }, 0);
+                }}
+                onDragEnd={() => {
+                  if (dragHighlightedId.current) {
+                    const el = dragRowRefsMap.current.get(dragHighlightedId.current);
+                    if (el) el.style.borderTop = '';
+                    dragHighlightedId.current = null;
+                  }
+                  dragRowRefsMap.current.forEach(el => { el.style.opacity = '1'; });
+                  draggedTaskIdRef.current = null;
+                  pendingDragOrderRef.current = [];
+                }}
+              />
+            </div>
           ))}
 
           <button
@@ -492,6 +581,9 @@ interface RowProps {
   currentBoardId: string;
   currentListId: string;
   onMoveToDestination: (toBoardId: string, toListId: string) => void;
+  // Drag-to-reorder
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
 }
 
 const MiniTaskRow: React.FC<RowProps> = ({
@@ -499,6 +591,7 @@ const MiniTaskRow: React.FC<RowProps> = ({
   onMoveLeft, onMoveRight, prevListLabel, nextListLabel,
   onSetReminder, onClearReminder,
   boards, currentBoardId, currentListId, onMoveToDestination,
+  onDragStart, onDragEnd,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [showModal, setShowModal] = useState(false);
@@ -574,6 +667,28 @@ const MiniTaskRow: React.FC<RowProps> = ({
       onMouseLeave={() => setHovered(false)}
       onContextMenu={e => { e.preventDefault(); setTaskContextMenu({ x: e.clientX, y: e.clientY }); }}
     >
+      {/* Drag handle */}
+      <div
+        className={styles.dragHandle}
+        draggable
+        onDragStart={(e) => {
+          e.stopPropagation();
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', task.id);
+          onDragStart?.();
+        }}
+        onDragEnd={(e) => {
+          e.stopPropagation();
+          onDragEnd?.();
+        }}
+      >
+        <svg viewBox="0 0 8 12" fill="currentColor" width="8" height="12" style={{ pointerEvents: 'none' }}>
+          <circle cx="2" cy="2"  r="1.2"/><circle cx="6" cy="2"  r="1.2"/>
+          <circle cx="2" cy="6"  r="1.2"/><circle cx="6" cy="6"  r="1.2"/>
+          <circle cx="2" cy="10" r="1.2"/><circle cx="6" cy="10" r="1.2"/>
+        </svg>
+      </div>
+
       <button
         className={styles.checkBtn}
         style={{ borderColor: accentColor, background: task.completed ? accentColor : undefined }}
