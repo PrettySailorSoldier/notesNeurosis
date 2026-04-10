@@ -37,6 +37,8 @@ export const TaskEditor: React.FC<Props> = ({
 }) => {
   const [activeBoardId, setActiveBoardId] = useState<string>('');
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  const draggedIdRef = useRef<string | null>(null);
+  const liveOrderRef = useRef<Task[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const initializedRef = useRef(false);
 
@@ -130,20 +132,31 @@ export const TaskEditor: React.FC<Props> = ({
   }, [tasks, handleDelete]);
 
   const handleDragStart = useCallback((id: string) => {
+    draggedIdRef.current = id;
+    liveOrderRef.current = [...tasks];
     setDraggedId(id);
-  }, []);
+  }, [tasks]);
 
   const handleDragEnter = useCallback((targetId: string) => {
-    if (!draggedId || draggedId === targetId) return;
-    const next = [...tasks];
-    const sourceIdx = next.findIndex(t => t.id === draggedId);
-    const targetIdx = next.findIndex(t => t.id === targetId);
+    const srcId = draggedIdRef.current;
+    if (!srcId || srcId === targetId) return;
+    const current = liveOrderRef.current;
+    const sourceIdx = current.findIndex(t => t.id === srcId);
+    const targetIdx = current.findIndex(t => t.id === targetId);
+    if (sourceIdx === -1 || targetIdx === -1) return;
+    const next = [...current];
     const [removed] = next.splice(sourceIdx, 1);
     next.splice(targetIdx, 0, removed);
+    liveOrderRef.current = next;
+    // Update visually without a re-render by mutating DOM order would be ideal,
+    // but we still update React state — the key fix is that draggedIdRef keeps
+    // the drag session alive across re-renders.
     updateActiveTasks(next);
-  }, [draggedId, tasks, updateActiveTasks]);
+  }, [updateActiveTasks]);
 
   const handleDragEnd = useCallback(() => {
+    draggedIdRef.current = null;
+    liveOrderRef.current = [];
     setDraggedId(null);
   }, []);
 
@@ -202,11 +215,14 @@ export const TaskEditor: React.FC<Props> = ({
   const hasCompleted = completedCount > 0;
   const allDone = totalCheckbox > 0 && completedCount === totalCheckbox;
 
-  // Soft-sink completed checkboxes to bottom (cosmetic only — drag still uses real `tasks`)
-  const displayTasks = [
-    ...tasks.filter(t => !(t.type === 'checkbox' && t.completed)),
-    ...tasks.filter(t => t.type === 'checkbox' && t.completed),
-  ];
+  // Soft-sink completed checkboxes to bottom — but skip reordering while dragging
+  // so the dragged element doesn't visually jump out of position mid-drag.
+  const displayTasks = draggedId
+    ? tasks
+    : [
+        ...tasks.filter(t => !(t.type === 'checkbox' && t.completed)),
+        ...tasks.filter(t => t.type === 'checkbox' && t.completed),
+      ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
