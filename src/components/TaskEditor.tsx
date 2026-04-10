@@ -144,6 +144,7 @@ export const TaskEditor: React.FC<Props> = ({
   const handleDragEnter = useCallback((targetId: string) => {
     const srcId = draggedIdRef.current;
     if (!srcId || srcId === targetId) return;
+    if (highlightedRowId.current === targetId) return;
     // Recompute intended order in ref — NO state updates → NO re-renders during drag
     const ids = [...pendingOrderRef.current];
     const srcIdx = ids.indexOf(srcId);
@@ -317,6 +318,12 @@ export const TaskEditor: React.FC<Props> = ({
               borderTop: '2px solid transparent',
               transition: 'border-color 0.1s',
             }}
+            onDragEnter={(e) => {
+              e.preventDefault();
+              handleDragEnter(task.id);
+            }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => e.preventDefault()}
           >
             <TaskItem
               task={task}
