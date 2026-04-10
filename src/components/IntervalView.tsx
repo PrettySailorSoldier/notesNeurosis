@@ -876,13 +876,6 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
               onClick={() => {
                 if (!running) { setActiveIdx(idx); setSecondsLeft(task.durationSeconds); }
               }}
-              draggable={!running}
-              onDragStart={() => {
-                if (running) return;
-                draggedTaskIdRef.current = task.id;
-                pendingDragOrderRef.current = tasks.map(t => t.id);
-                setDraggedTaskId(task.id); // triggers opacity re-render before drag moves — safe
-              }}
               onDragEnter={() => {
                 const srcId = draggedTaskIdRef.current;
                 if (!srcId || srcId === task.id || running) return;
@@ -903,25 +896,6 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
                 if (el) el.style.borderTop = '2px solid rgba(180,130,220,0.7)';
                 dragHighlightedId.current = task.id;
               }}
-              onDragEnd={() => {
-                // Clear highlight
-                if (dragHighlightedId.current) {
-                  const el = dragRowRefsMap.current.get(dragHighlightedId.current);
-                  if (el) el.style.borderTop = '';
-                  dragHighlightedId.current = null;
-                }
-                // Commit reorder now that drag session is safely over
-                const srcId = draggedTaskIdRef.current;
-                const ids   = pendingDragOrderRef.current;
-                if (srcId && ids.length > 0) {
-                  const taskMap = new Map(tasks.map(t => [t.id, t]));
-                  const reordered = ids.map(id => taskMap.get(id)).filter(Boolean) as IntervalTask[];
-                  if (reordered.length === tasks.length) onChange(reordered);
-                }
-                draggedTaskIdRef.current = null;
-                pendingDragOrderRef.current = [];
-                setDraggedTaskId(null);
-              }}
               onDragOver={e => e.preventDefault()}
               style={{
                 opacity: draggedTaskId === task.id ? 0.4 : 1,
@@ -929,7 +903,37 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
               }}
             >
               {!running && (
-                <div className={styles.dragHandle}>
+                <div 
+                  className={styles.dragHandle}
+                  draggable={!running}
+                  onDragStart={(e) => {
+                    if (running) return;
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', task.id);
+                    draggedTaskIdRef.current = task.id;
+                    pendingDragOrderRef.current = tasks.map(t => t.id);
+                    setDraggedTaskId(task.id); 
+                  }}
+                  onDragEnd={() => {
+                    // Clear highlight
+                    if (dragHighlightedId.current) {
+                      const el = dragRowRefsMap.current.get(dragHighlightedId.current);
+                      if (el) el.style.borderTop = '';
+                      dragHighlightedId.current = null;
+                    }
+                    // Commit reorder now that drag session is safely over
+                    const srcId = draggedTaskIdRef.current;
+                    const ids   = pendingDragOrderRef.current;
+                    if (srcId && ids.length > 0) {
+                      const taskMap = new Map(tasks.map(t => [t.id, t]));
+                      const reordered = ids.map(id => taskMap.get(id)).filter(Boolean) as IntervalTask[];
+                      if (reordered.length === tasks.length) onChange(reordered);
+                    }
+                    draggedTaskIdRef.current = null;
+                    pendingDragOrderRef.current = [];
+                    setDraggedTaskId(null);
+                  }}
+                >
                   <svg viewBox="0 0 8 12" fill="currentColor" width="8" height="12">
                     <circle cx="2" cy="2"  r="1.2"/><circle cx="6" cy="2"  r="1.2"/>
                     <circle cx="2" cy="6"  r="1.2"/><circle cx="6" cy="6"  r="1.2"/>
