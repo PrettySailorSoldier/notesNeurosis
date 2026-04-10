@@ -879,16 +879,32 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
               onDragEnter={(e) => {
                 e.preventDefault();
                 const srcId = draggedTaskIdRef.current;
-                if (!srcId || srcId === task.id || running) return;
+                if (!srcId || running) return;
+                
+                // If mousing over itself, clear border and reset to original
+                if (srcId === task.id) {
+                  if (dragHighlightedId.current) {
+                    const prev = dragRowRefsMap.current.get(dragHighlightedId.current);
+                    if (prev) prev.style.borderTop = '';
+                  }
+                  dragHighlightedId.current = null;
+                  pendingDragOrderRef.current = tasks.map(t => t.id);
+                  return;
+                }
+
                 if (dragHighlightedId.current === task.id) return;
-                // Recompute order in ref only — no setState → no re-renders during drag
-                const ids = [...pendingDragOrderRef.current];
-                const fromIdx = ids.indexOf(srcId);
-                const toIdx   = ids.indexOf(task.id);
-                if (fromIdx === -1 || toIdx === -1) return;
-                ids.splice(fromIdx, 1);
-                ids.splice(toIdx, 0, srcId);
-                pendingDragOrderRef.current = ids;
+
+                // Base calculation entirely on original state
+                const baseIds = tasks.map(t => t.id);
+                if (!baseIds.includes(srcId) || !baseIds.includes(task.id)) return;
+                
+                // Remove source, then find target's current position to insert BEFORE it
+                const filtered = baseIds.filter(id => id !== srcId);
+                const insertIdx = filtered.indexOf(task.id);
+                filtered.splice(insertIdx, 0, srcId);
+                
+                pendingDragOrderRef.current = filtered;
+
                 // Direct DOM highlight — bypasses React
                 if (dragHighlightedId.current) {
                   const prev = dragRowRefsMap.current.get(dragHighlightedId.current);
