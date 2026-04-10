@@ -958,7 +958,7 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
                     pendingDragOrderRef.current = [];
                   }}
                 >
-                  <svg viewBox="0 0 8 12" fill="currentColor" width="8" height="12" style={{ pointerEvents: 'none' }} draggable="false">
+                  <svg viewBox="0 0 8 12" fill="currentColor" width="8" height="12" style={{ pointerEvents: 'none' }}>
                     <circle cx="2" cy="2"  r="1.2"/><circle cx="6" cy="2"  r="1.2"/>
                     <circle cx="2" cy="6"  r="1.2"/><circle cx="6" cy="6"  r="1.2"/>
                     <circle cx="2" cy="10" r="1.2"/><circle cx="6" cy="10" r="1.2"/>
