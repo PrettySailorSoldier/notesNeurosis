@@ -893,7 +893,7 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
                 if (srcId === task.id) {
                   if (dragHighlightedId.current) {
                     const prev = dragRowRefsMap.current.get(dragHighlightedId.current);
-                    if (prev) prev.style.borderTop = '';
+                    if (prev) prev.style.boxShadow = '';
                   }
                   dragHighlightedId.current = null;
                   pendingDragOrderRef.current = tasks.map(t => t.id);
@@ -916,10 +916,10 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
                 // Direct DOM highlight — bypasses React
                 if (dragHighlightedId.current) {
                   const prev = dragRowRefsMap.current.get(dragHighlightedId.current);
-                  if (prev) prev.style.borderTop = '';
+                  if (prev) prev.style.boxShadow = '';
                 }
                 const el = dragRowRefsMap.current.get(task.id);
-                if (el) el.style.borderTop = '2px solid rgba(180,130,220,0.7)';
+                if (el) el.style.boxShadow = '0 -3px 0 0 rgba(180,130,220,0.9)';
                 dragHighlightedId.current = task.id;
               }}
               onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
@@ -943,7 +943,7 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
                   onDragEnd={() => {
                     if (dragHighlightedId.current) {
                       const el = dragRowRefsMap.current.get(dragHighlightedId.current);
-                      if (el) el.style.borderTop = '';
+                      if (el) el.style.boxShadow = '';
                       dragHighlightedId.current = null;
                     }
                     const srcId = draggedTaskIdRef.current;
@@ -958,7 +958,7 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
                     setDraggedTaskId(null);
                   }}
                 >
-                  <svg viewBox="0 0 8 12" fill="currentColor" width="8" height="12">
+                  <svg viewBox="0 0 8 12" fill="currentColor" width="8" height="12" style={{ pointerEvents: 'none' }}>
                     <circle cx="2" cy="2"  r="1.2"/><circle cx="6" cy="2"  r="1.2"/>
                     <circle cx="2" cy="6"  r="1.2"/><circle cx="6" cy="6"  r="1.2"/>
                     <circle cx="2" cy="10" r="1.2"/><circle cx="6" cy="10" r="1.2"/>
