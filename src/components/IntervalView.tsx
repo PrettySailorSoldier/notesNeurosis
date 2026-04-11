@@ -926,6 +926,8 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
                 const srcId = draggedTaskIdRef.current;
                 if (!srcId || running || srcId === task.id) return;
                 const ids = pendingDragOrderRef.current;
+                // Clear ref first so dragEnd fallback knows drop already fired
+                pendingDragOrderRef.current = [];
                 if (ids.length > 0) {
                   const taskMap = new Map(tasks.map(t => [t.id, t]));
                   const reordered = ids.map(id => taskMap.get(id)).filter(Boolean) as IntervalTask[];
@@ -939,7 +941,6 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
                 }
                 dragRowRefsMap.current.forEach(el => { el.style.opacity = '1'; });
                 draggedTaskIdRef.current = null;
-                pendingDragOrderRef.current = [];
               }}
             >
               {!running && (
@@ -957,8 +958,17 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
                       if (el) el.style.opacity = '0.4';
                     }, 0);
                   }}
-                  onDragEnd={() => {
-                    // Cleanup visual state only — reorder is committed in onDrop
+                  onDragEnd={(e) => {
+                    // Commit here as fallback — WebView2 on Windows often swallows the `drop` event.
+                    // If `drop` already fired it cleared pendingDragOrderRef, so this is a no-op.
+                    // Skip commit if drag was cancelled (Escape key → dropEffect 'none').
+                    const ids = pendingDragOrderRef.current;
+                    if (ids.length > 0 && e.dataTransfer.dropEffect !== 'none') {
+                      const taskMap = new Map(tasks.map(t => [t.id, t]));
+                      const reordered = ids.map(id => taskMap.get(id)).filter(Boolean) as IntervalTask[];
+                      if (reordered.length === tasks.length) onChange(reordered);
+                    }
+                    // Cleanup
                     if (dragHighlightedId.current) {
                       const el = dragRowRefsMap.current.get(dragHighlightedId.current);
                       if (el) el.style.boxShadow = '';
