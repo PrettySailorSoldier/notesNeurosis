@@ -108,11 +108,15 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
   const intervalRef = useRef<number | null>(null);
 
   const pendingFocusId       = useRef<string | null>(null);
-  // Drag refs — zero setState during drag to avoid breaking the browser's drag session
-  const draggedTaskIdRef     = useRef<string | null>(null);
-  const pendingDragOrderRef  = useRef<string[]>([]);
-  const dragRowRefsMap       = useRef<Map<string, HTMLDivElement>>(new Map());
-  const dragHighlightedId    = useRef<string | null>(null);
+  // Drag state — mouse-event based to avoid WebView2 HTML5-drag-drop interception
+  const dragActiveRef       = useRef(false);
+  const dragSrcIdRef        = useRef<string | null>(null);
+  const pendingDragOrderRef = useRef<string[]>([]);
+  const [draggingTaskId,  setDraggingTaskId]  = useState<string | null>(null);
+  const [dropIndicatorId, setDropIndicatorId] = useState<string | null>(null);
+  // Stable ref so the document mouseup handler never goes stale
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
   // ── Break gate ────────────────────────────────────────────────────────────
   const [breakGate,          setBreakGate]          = useState(false);
@@ -146,6 +150,29 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
     const stop = playTone(s, settingsRef.current.volume, settingsRef.current.customTones);
     setTimeout(stop, 2500);
   }, [playTone]);
+
+  // ── Drag commit on mouseup (document-level, avoids WebView2 drop interception) ──
+  useEffect(() => {
+    const handleMouseUp = () => {
+      if (dragActiveRef.current) {
+        const ids = pendingDragOrderRef.current;
+        const currentTasks = tasksRef.current;
+        if (ids.length > 0 && ids.length === currentTasks.length) {
+          const taskMap = new Map(currentTasks.map(t => [t.id, t]));
+          const reordered = ids.map(id => taskMap.get(id)).filter(Boolean) as IntervalTask[];
+          if (reordered.length === currentTasks.length) onChangeRef.current(reordered);
+        }
+      }
+      dragActiveRef.current = false;
+      dragSrcIdRef.current = null;
+      pendingDragOrderRef.current = [];
+      setDraggingTaskId(null);
+      setDropIndicatorId(null);
+      document.body.style.cursor = '';
+    };
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => document.removeEventListener('mouseup', handleMouseUp);
+  }, []); // empty deps — reads tasks/onChange via stable refs
 
   // ── Persistence ───────────────────────────────────────────────────────────
   const loadedRef               = useRef(false);
@@ -825,11 +852,7 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
   //  EDIT MODE
   // ════════════════════════════════════════════════════════════════════════
   return (
-    <div 
-      className={styles.container}
-      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
-      onDrop={(e) => e.preventDefault()}
-    >
+    <div className={styles.container}>
       {restBanner}
 
       {/* Sequence strip + Run button */}
@@ -851,11 +874,7 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
       {templatesPanel}
 
       {/* Task list */}
-      <div 
-        className={styles.taskList}
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => e.preventDefault()}
-      >
+      <div className={styles.taskList}>
         {tasks.map((task, idx) => {
           const isActive   = idx === activeIdx;
           const phase      = (task.phaseType ?? 'work') as IntervalPhaseType;
@@ -868,115 +887,45 @@ export function IntervalView({ tasks, onChange, settings, onUpdateSettings, page
             <div
               key={task.id}
               data-task-id={task.id}
-              ref={el => {
-                if (el) dragRowRefsMap.current.set(task.id, el as HTMLDivElement);
-                else dragRowRefsMap.current.delete(task.id);
-              }}
               className={[
                 styles.taskRow,
                 styles[`phaseCard--${phase}`],
-                task.completed ? styles.completed        : '',
-                isActive       ? styles.active           : '',
-                isBreakRow     ? styles.intervalBreakRow : '',
+                task.completed        ? styles.completed        : '',
+                isActive              ? styles.active           : '',
+                isBreakRow            ? styles.intervalBreakRow : '',
+                draggingTaskId === task.id  ? styles.dragging   : '',
+                dropIndicatorId === task.id ? styles.dropTarget : '',
               ].filter(Boolean).join(' ')}
               onClick={() => {
                 if (!running) { setActiveIdx(idx); setSecondsLeft(task.durationSeconds); }
               }}
-              onDragEnter={(e) => {
-                e.preventDefault();
-                const srcId = draggedTaskIdRef.current;
-                if (!srcId || running) return;
-                
-                // If mousing over itself, clear border and reset to original
-                if (srcId === task.id) {
-                  if (dragHighlightedId.current) {
-                    const prev = dragRowRefsMap.current.get(dragHighlightedId.current);
-                    if (prev) prev.style.boxShadow = '';
-                  }
-                  dragHighlightedId.current = null;
+              onMouseEnter={() => {
+                if (!dragActiveRef.current || running) return;
+                const srcId = dragSrcIdRef.current;
+                if (!srcId || srcId === task.id) {
                   pendingDragOrderRef.current = tasks.map(t => t.id);
+                  setDropIndicatorId(null);
                   return;
                 }
-
-                if (dragHighlightedId.current === task.id) return;
-
-                // Base calculation entirely on original state
                 const baseIds = tasks.map(t => t.id);
-                if (!baseIds.includes(srcId) || !baseIds.includes(task.id)) return;
-                
-                // Remove source, then find target's current position to insert BEFORE it
                 const filtered = baseIds.filter(id => id !== srcId);
                 const insertIdx = filtered.indexOf(task.id);
                 filtered.splice(insertIdx, 0, srcId);
-                
                 pendingDragOrderRef.current = filtered;
-
-                // Direct DOM highlight — bypasses React
-                if (dragHighlightedId.current) {
-                  const prev = dragRowRefsMap.current.get(dragHighlightedId.current);
-                  if (prev) prev.style.boxShadow = '';
-                }
-                const el = dragRowRefsMap.current.get(task.id);
-                if (el) el.style.boxShadow = '0 -3px 0 0 rgba(180,130,220,0.9)';
-                dragHighlightedId.current = task.id;
-              }}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                const srcId = draggedTaskIdRef.current;
-                if (!srcId || running || srcId === task.id) return;
-                const ids = pendingDragOrderRef.current;
-                // Clear ref first so dragEnd fallback knows drop already fired
-                pendingDragOrderRef.current = [];
-                if (ids.length > 0) {
-                  const taskMap = new Map(tasks.map(t => [t.id, t]));
-                  const reordered = ids.map(id => taskMap.get(id)).filter(Boolean) as IntervalTask[];
-                  if (reordered.length === tasks.length) onChange(reordered);
-                }
-                // Cleanup
-                if (dragHighlightedId.current) {
-                  const el = dragRowRefsMap.current.get(dragHighlightedId.current);
-                  if (el) el.style.boxShadow = '';
-                  dragHighlightedId.current = null;
-                }
-                dragRowRefsMap.current.forEach(el => { el.style.opacity = '1'; });
-                draggedTaskIdRef.current = null;
+                setDropIndicatorId(task.id);
               }}
             >
               {!running && (
                 <div
                   className={styles.dragHandle}
-                  draggable={!running}
-                  onDragStart={(e) => {
+                  onMouseDown={(e) => {
                     if (running) return;
-                    e.dataTransfer.effectAllowed = 'move';
-                    e.dataTransfer.setData('text/plain', task.id);
-                    draggedTaskIdRef.current = task.id;
+                    e.preventDefault(); // prevent text selection
+                    dragActiveRef.current = true;
+                    dragSrcIdRef.current = task.id;
                     pendingDragOrderRef.current = tasks.map(t => t.id);
-                    setTimeout(() => {
-                      const el = dragRowRefsMap.current.get(task.id);
-                      if (el) el.style.opacity = '0.4';
-                    }, 0);
-                  }}
-                  onDragEnd={(e) => {
-                    // Commit here as fallback — WebView2 on Windows often swallows the `drop` event.
-                    // If `drop` already fired it cleared pendingDragOrderRef, so this is a no-op.
-                    // Skip commit if drag was cancelled (Escape key → dropEffect 'none').
-                    const ids = pendingDragOrderRef.current;
-                    if (ids.length > 0 && e.dataTransfer.dropEffect !== 'none') {
-                      const taskMap = new Map(tasks.map(t => [t.id, t]));
-                      const reordered = ids.map(id => taskMap.get(id)).filter(Boolean) as IntervalTask[];
-                      if (reordered.length === tasks.length) onChange(reordered);
-                    }
-                    // Cleanup
-                    if (dragHighlightedId.current) {
-                      const el = dragRowRefsMap.current.get(dragHighlightedId.current);
-                      if (el) el.style.boxShadow = '';
-                      dragHighlightedId.current = null;
-                    }
-                    dragRowRefsMap.current.forEach(el => { el.style.opacity = '1'; });
-                    draggedTaskIdRef.current = null;
-                    pendingDragOrderRef.current = [];
+                    setDraggingTaskId(task.id);
+                    document.body.style.cursor = 'grabbing';
                   }}
                 >
                   <svg viewBox="0 0 8 12" fill="currentColor" width="8" height="12" style={{ pointerEvents: 'none' }}>
