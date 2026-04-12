@@ -16,13 +16,13 @@ let openCount = 0;
 export function onModalMount(): void {
   openCount++;
   if (openCount === 1) {
-    getCurrentWindow().setAlwaysOnTop(true).catch(() => {});
+    getCurrentWindow().setAlwaysOnTop(true).catch(console.warn);
   }
 }
 
 export function onModalUnmount(): void {
   openCount = Math.max(0, openCount - 1);
   if (openCount === 0) {
-    getCurrentWindow().setAlwaysOnTop(false).catch(() => {});
+    getCurrentWindow().setAlwaysOnTop(false).catch(console.warn);
   }
 }
