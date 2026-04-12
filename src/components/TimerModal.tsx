@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import type { Reminder, ReminderSound } from '../types';
 import { useSettings } from '../hooks/useSettings';
 import { useAudio } from '../hooks/useAudio';
+import { useDraggable } from '../hooks/useDraggable';
 import styles from './TimerModal.module.css';
 
 interface Props {
@@ -34,6 +35,7 @@ export const TimerModal: React.FC<Props> = ({
 }) => {
   const { settings } = useSettings();
   const { playTone } = useAudio();
+  const { dragPos, modalRef, onHandleMouseDown } = useDraggable();
   const [minutes, setMinutes] = useState<number>(existing?.intervalMinutes ?? 30);
   const [sound, setSound] = useState<ReminderSound>(existing?.sound ?? 'chime');
   const [custom, setCustom] = useState<string>('');
@@ -42,9 +44,11 @@ export const TimerModal: React.FC<Props> = ({
   const [previewing, setPreviewing] = useState(false);
   const stopPreviewRef = useRef<(() => void) | null>(null);
 
-  // Position: try to anchor below the task row, clamped to window
-  const top = Math.min(anchorRect.bottom + 6, window.innerHeight - 280);
-  const left = Math.max(8, Math.min(anchorRect.left, window.innerWidth - 240));
+  // Position: use drag position if dragged, otherwise anchor below the task row
+  const anchorTop = Math.min(anchorRect.bottom + 6, window.innerHeight - 280);
+  const anchorLeft = Math.max(8, Math.min(anchorRect.left, window.innerWidth - 240));
+  const top = dragPos ? dragPos.y : anchorTop;
+  const left = dragPos ? dragPos.x : anchorLeft;
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -113,11 +117,16 @@ export const TimerModal: React.FC<Props> = ({
       {/* Backdrop */}
       <div className={styles.backdrop} onClick={() => { stopPreview(); onClose(); }} />
       <div
+        ref={modalRef}
         className={styles.modal}
         style={{ top, left }}
         onClick={e => e.stopPropagation()}
       >
-        <div className={styles.header}>
+        <div
+          className={styles.header}
+          onMouseDown={onHandleMouseDown}
+          style={{ cursor: dragPos ? 'grabbing' : 'grab' }}
+        >
           <span className={styles.headerIcon}>⏱</span>
           <span className={styles.headerTitle}>Set Reminder</span>
           <button className={styles.closeBtn} onClick={() => { stopPreview(); onClose(); }} title="Close">×</button>

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import type { Page, ReminderSound, IntervalTask } from '../types';
 import type { Settings, CustomTone } from '../hooks/useSettings';
 import { useAudio } from '../hooks/useAudio';
+import { useDraggable } from '../hooks/useDraggable';
 import styles from './OptionsModal.module.css';
 
 interface Props {
@@ -72,6 +73,7 @@ export const OptionsModal: React.FC<Props> = ({
   onUpdateIntervalTask,
 }) => {
   const { playTone } = useAudio();
+  const { dragPos, modalRef, onHandleMouseDown } = useDraggable();
   const [tab, setTab] = useState<Tab>('timers');
   const [previewingId, setPreviewingId] = useState<string | null>(null);
   const stopPreviewRef = useRef<(() => void) | null>(null);
@@ -143,8 +145,17 @@ export const OptionsModal: React.FC<Props> = ({
 
   return (
     <div className={styles.backdrop} onClick={onClose}>
-      <div className={styles.modal} onClick={e => e.stopPropagation()}>
-        <div className={styles.header}>
+      <div
+        ref={modalRef}
+        className={styles.modal}
+        onClick={e => e.stopPropagation()}
+        style={dragPos ? { position: 'fixed', left: dragPos.x, top: dragPos.y } : undefined}
+      >
+        <div
+          className={styles.header}
+          onMouseDown={onHandleMouseDown}
+          style={{ cursor: dragPos ? 'grabbing' : 'grab' }}
+        >
           <div className={styles.title}>⚙ Options</div>
           <button className={styles.closeBtn} onClick={onClose} title="Close">×</button>
         </div>

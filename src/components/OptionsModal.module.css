@@ -37,7 +37,10 @@
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
+  cursor: grab;
+  user-select: none;
 }
+.header:active { cursor: grabbing; }
 
 .title {
   font-size: 19px;

@@ -29,7 +29,10 @@
   align-items: center;
   gap: 6px;
   margin-bottom: 10px;
+  cursor: grab;
+  user-select: none;
 }
+.header:active { cursor: grabbing; }
 
 .headerIcon {
   font-size: 13px;
