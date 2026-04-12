@@ -136,11 +136,12 @@ export interface PlannerBlock {
   date: string;            // ISO date string e.g. "2026-03-07"
   startTime: string;       // "HH:MM" 24-hour format
   endTime: string;         // "HH:MM" 24-hour format
-  label: string;           
-  notes: string;           
+  label: string;
+  notes: string;
   color: AccentColor;
   completed: boolean;
   tasks?: Task[];
+  reminder?: Reminder;     // optional timer attached to this block
 }
 
 export type AccentColor = 

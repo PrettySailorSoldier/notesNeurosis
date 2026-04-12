@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { load } from '@tauri-apps/plugin-store';
 import { usePlanner } from '../hooks/usePlanner';
-import type { AccentColor, PlannerBlock, Task, GoalEntry, PlannerSubtype } from '../types';
+import { usePlannerReminders, makeBlockReminder } from '../hooks/usePlannerReminders';
+import { useSettings } from '../hooks/useSettings';
+import type { AccentColor, PlannerBlock, Task, GoalEntry, PlannerSubtype, ReminderSound } from '../types';
 import { IntegratedSchedulePanel } from './IntegratedSchedulePanel';
 import { accentToHex } from '../utils/accentToHex';
 import '../styles/planner.css';
@@ -223,6 +225,22 @@ function parseTimeFromText(text: string): {
   return { time: null, cleanedLabel: text };
 }
 
+const REMINDER_SOUNDS: { value: ReminderSound; label: string }[] = [
+  { value: 'chime',    label: '🎵 Chime'    },
+  { value: 'bell',     label: '🔔 Bell'     },
+  { value: 'blip',     label: '📡 Blip'     },
+  { value: 'soft_ding',label: '✨ Soft Ding'},
+  { value: 'none',     label: '🔇 None'     },
+];
+
+const REMINDER_PRESETS: { label: string; minutesBefore: number }[] = [
+  { label: 'At start', minutesBefore: 0  },
+  { label: '5m early', minutesBefore: 5  },
+  { label: '10m',      minutesBefore: 10 },
+  { label: '15m',      minutesBefore: 15 },
+  { label: '30m',      minutesBefore: 30 },
+];
+
 // ── Block editor sub-component (avoids contentEditable/re-render issues) ──
 interface BlockEditorProps {
   block: PlannerBlock;
@@ -230,9 +248,12 @@ interface BlockEditorProps {
   onClose: () => void;
   allBlocks: PlannerBlock[];
   onTimeChange: (id: string, field: 'start' | 'end', val: string, all: PlannerBlock[]) => void;
+  isRinging?: boolean;
+  onStopRinging?: (reminderId: string) => void;
+  defaultSound?: ReminderSound;
 }
 
-function BlockEditor({ block, onUpdate, onClose, allBlocks, onTimeChange }: BlockEditorProps) {
+function BlockEditor({ block, onUpdate, onClose, allBlocks, onTimeChange, isRinging, onStopRinging, defaultSound = 'chime' }: BlockEditorProps) {
   const labelRef = useRef<HTMLDivElement>(null);
   const labelTextRef = useRef(block.label);
   const onUpdateRef = useRef(onUpdate);
@@ -240,6 +261,12 @@ function BlockEditor({ block, onUpdate, onClose, allBlocks, onTimeChange }: Bloc
 
   const [subtaskInput, setSubtaskInput] = useState('');
   const subtaskInputRef = useRef<HTMLInputElement>(null);
+
+  // Reminder picker state
+  const [showReminderPicker, setShowReminderPicker] = useState(false);
+  const [reminderSound, setReminderSound] = useState<ReminderSound>(
+    block.reminder?.sound ?? defaultSound
+  );
 
   // Duration display — derived from block times, updated when times change
   const [durationMins, setDurationMins] = useState(() => {
@@ -480,6 +507,72 @@ function BlockEditor({ block, onUpdate, onClose, allBlocks, onTimeChange }: Bloc
         </div>
       </div>
 
+      {/* Row 6: Reminder */}
+      <div className="planner-be-reminder-row">
+        {isRinging && block.reminder ? (
+          <div className="planner-be-reminder-ringing">
+            <span className="planner-be-reminder-ringing-label">🔔 Ringing!</span>
+            <button
+              className="planner-be-reminder-stop"
+              onClick={() => onStopRinging?.(block.reminder!.id)}
+            >Stop sound</button>
+            <button
+              className="planner-be-reminder-clear"
+              onClick={() => onUpdate({ reminder: undefined })}
+            >Clear ✕</button>
+          </div>
+        ) : block.reminder?.active ? (
+          <div className="planner-be-reminder-active">
+            <span className="planner-be-reminder-icon">🔔</span>
+            <span className="planner-be-reminder-info">{block.reminder.label} · {block.reminder.sound}</span>
+            <button
+              className="planner-be-reminder-clear"
+              onClick={() => onUpdate({ reminder: undefined })}
+            >✕</button>
+          </div>
+        ) : (
+          <button
+            className={`planner-be-reminder-btn${showReminderPicker ? ' planner-be-reminder-btn--open' : ''}`}
+            onClick={() => setShowReminderPicker(v => !v)}
+            title="Set a reminder for this block"
+          >
+            🔔 Remind me
+          </button>
+        )}
+
+        {showReminderPicker && !block.reminder?.active && (
+          <div className="planner-be-reminder-picker">
+            <div className="planner-be-reminder-presets">
+              {REMINDER_PRESETS.map(p => (
+                <button
+                  key={p.minutesBefore}
+                  className="planner-be-reminder-preset"
+                  onClick={() => {
+                    const r = makeBlockReminder(block, p.minutesBefore, reminderSound);
+                    onUpdate({ reminder: r });
+                    setShowReminderPicker(false);
+                  }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <div className="planner-be-reminder-sound-row">
+              <span className="planner-be-reminder-sound-label">Sound:</span>
+              <select
+                className="planner-be-reminder-sound-select"
+                value={reminderSound}
+                onChange={e => setReminderSound(e.target.value as ReminderSound)}
+              >
+                {REMINDER_SOUNDS.map(s => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
@@ -492,7 +585,14 @@ interface Props {
 }
 
 export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsChange }: Props) {
-  const { ready, addBlock, updateBlock, batchUpdateBlocks, deleteBlock, getBlocksForDate } = usePlanner(pageId);
+  const { ready, blocks, addBlock, updateBlock, batchUpdateBlocks, deleteBlock, getBlocksForDate } = usePlanner(pageId);
+  const { settings } = useSettings();
+  const { ringingIds: plannerRingingIds, stopRinging: stopPlannerRinging } = usePlannerReminders(
+    blocks,
+    updateBlock,
+    settings.customTones,
+    settings.volume
+  );
   const [currentDate, setCurrentDate] = useState(() => formatDate(new Date()));
   const [isToday, setIsToday] = useState(true);
   const [currentMinutes, setCurrentMinutes] = useState(() => {
@@ -1085,6 +1185,12 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
                     <div className="planner-block-card__time">
                       {block.startTime} – {block.endTime}
                       {isCurrent && <span className="planner-current-indicator"> ● now</span>}
+                      {block.reminder?.active && (
+                        <span
+                          className={`planner-block-reminder-badge${block.reminder && plannerRingingIds.includes(block.reminder.id) ? ' planner-block-reminder-badge--ringing' : ''}`}
+                          title={`Reminder: ${block.reminder.label}`}
+                        > 🔔</span>
+                      )}
                     </div>
                     {/* Label — hidden when expanded (editor shows its own title) */}
                     {!isExpanded && (
@@ -1121,6 +1227,9 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
                         onClose={() => setExpandedBlockId(null)}
                         allBlocks={dailyBlocks}
                         onTimeChange={handleTimeChange}
+                        isRinging={!!(block.reminder && plannerRingingIds.includes(block.reminder.id))}
+                        onStopRinging={stopPlannerRinging}
+                        defaultSound={settings.defaultReminderSound}
                       />
                     )}
                   </div>

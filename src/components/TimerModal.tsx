@@ -3,6 +3,7 @@ import type { Reminder, ReminderSound } from '../types';
 import { useSettings } from '../hooks/useSettings';
 import { useAudio } from '../hooks/useAudio';
 import { useDraggable } from '../hooks/useDraggable';
+import { onModalMount, onModalUnmount } from '../utils/modalAlwaysOnTop';
 import styles from './TimerModal.module.css';
 
 interface Props {
@@ -49,6 +50,12 @@ export const TimerModal: React.FC<Props> = ({
   const anchorLeft = Math.max(8, Math.min(anchorRect.left, window.innerWidth - 240));
   const top = dragPos ? dragPos.y : anchorTop;
   const left = dragPos ? dragPos.x : anchorLeft;
+
+  // Keep window on top while this popup is open
+  useEffect(() => {
+    onModalMount();
+    return () => onModalUnmount();
+  }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {

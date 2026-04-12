@@ -3,6 +3,7 @@ import type { Page, ReminderSound, IntervalTask } from '../types';
 import type { Settings, CustomTone } from '../hooks/useSettings';
 import { useAudio } from '../hooks/useAudio';
 import { useDraggable } from '../hooks/useDraggable';
+import { onModalMount, onModalUnmount } from '../utils/modalAlwaysOnTop';
 import styles from './OptionsModal.module.css';
 
 interface Props {
@@ -89,6 +90,12 @@ export const OptionsModal: React.FC<Props> = ({
     return () => clearInterval(timer);
   }, []);
 
+  // Keep window on top while this popup is open
+  useEffect(() => {
+    onModalMount();
+    return () => onModalUnmount();
+  }, []);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose();
@@ -112,9 +119,20 @@ export const OptionsModal: React.FC<Props> = ({
     }
   };
 
-  const activeTimers = pages.flatMap(p =>
-    p.tasks.filter(t => t.reminder?.active).map(t => ({ page: p, task: t, reminder: t.reminder! }))
-  );
+  const activeTimers = pages.flatMap(p => {
+    const entries: { page: Page; task: import('../types').Task; reminder: import('../types').Reminder }[] = [];
+    // Flat task lists
+    p.tasks.forEach(t => { if (t.reminder?.active) entries.push({ page: p, task: t, reminder: t.reminder! }); });
+    // Board columns (todo board mode)
+    p.todoBoards?.forEach(b => b.lists.forEach(l => l.tasks.forEach(t => {
+      if (t.reminder?.active) entries.push({ page: p, task: t, reminder: t.reminder! });
+    })));
+    // Multi-tab list boards
+    p.taskListBoards?.forEach(b => b.tasks.forEach(t => {
+      if (t.reminder?.active) entries.push({ page: p, task: t, reminder: t.reminder! });
+    }));
+    return entries;
+  });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

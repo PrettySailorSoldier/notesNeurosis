@@ -575,10 +575,10 @@ export default function App() {
       {/* Window controls */}
       <div className="window-controls">
         <button
-          className="win-btn win-options"
+          className={`win-btn win-options${ringingIds.length > 0 ? ' win-options--ringing' : ''}`}
           onClick={() => setShowOptions(true)}
-          title="Options"
-        >⚙</button>
+          title={ringingIds.length > 0 ? `${ringingIds.length} timer(s) ringing — open Options to stop` : 'Options'}
+        >⚙{ringingIds.length > 0 && <span className="options-ringing-badge" />}</button>
         <button
           className="win-btn win-minimize"
           onClick={() => appWindow.minimize()}
