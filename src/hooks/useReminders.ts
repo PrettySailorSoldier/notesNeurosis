@@ -17,6 +17,15 @@ export function useReminders(
   const [ringingIds, setRingingIds] = useState<string[]>([]);
   const { playTone } = useAudio();
 
+  // Keep a stable ref to onUpdateReminder so timer callbacks always use the
+  // latest version even after pages state has changed.
+  const onUpdateReminderRef = useRef(onUpdateReminder);
+  useEffect(() => { onUpdateReminderRef.current = onUpdateReminder; });
+
+  // Stable ref to scheduleReminder so the recursive reschedule inside the
+  // setTimeout callback never captures a stale closure.
+  const scheduleReminderRef = useRef<(r: Reminder, task: Task, pageName: string, pageId: string) => void>(() => {});
+
   /**
    * Stop only the audio for this fire cycle — the alarm remains scheduled.
    * After the current sound is silenced, the alarm will still reschedule and
@@ -79,7 +88,7 @@ export function useReminders(
         console.warn('[useReminders] notification error:', err);
       }
 
-      // 3. Reschedule if interval (sound runs until user calls stopRinging; alarm keeps going)
+      // 3. Reschedule if interval — use refs so we always get the latest state
       if (reminder.intervalMinutes > 0) {
         const nextFire = Date.now() + reminder.intervalMinutes * 60 * 1000;
         const updated: Reminder = {
@@ -87,18 +96,21 @@ export function useReminders(
           fireAt: nextFire,
           label: `every ${reminder.intervalMinutes}m`,
         };
-        onUpdateReminder(task.id, pageId, updated);
-        scheduleReminder(updated, task, pageName, pageId);
+        onUpdateReminderRef.current(task.id, pageId, updated);
+        scheduleReminderRef.current(updated, task, pageName, pageId);
       } else {
         // One-shot: deactivate
-        onUpdateReminder(task.id, pageId, undefined);
+        onUpdateReminderRef.current(task.id, pageId, undefined);
       }
     }, msUntilFire);
 
     handles.current.set(reminder.id, handle);
-  }, [playTone, customTones, volume, onUpdateReminder]);
+  }, [playTone, customTones, volume]);
 
-  // Collect all tasks with active reminders across flat tasks AND board tasks
+  // Keep the scheduleReminder ref in sync
+  useEffect(() => { scheduleReminderRef.current = scheduleReminder; });
+
+  // Collect all tasks with active reminders across flat tasks, board tasks, and taskListBoards
   useEffect(() => {
     const now = Date.now();
     const activeIds = new Set<string>();
@@ -115,9 +127,10 @@ export function useReminders(
           if (r.fireAt > now) {
             scheduleReminder(r, task, page.name, page.id);
           } else if (r.intervalMinutes > 0) {
+            // Overdue repeating reminder — fire immediately at next interval
             const nextFire = now + r.intervalMinutes * 60 * 1000;
             const updated: Reminder = { ...r, fireAt: nextFire };
-            onUpdateReminder(task.id, page.id, updated);
+            onUpdateReminderRef.current(task.id, page.id, updated);
             scheduleReminder(updated, task, page.name, page.id);
           }
         }
@@ -126,12 +139,19 @@ export function useReminders(
       // Flat tasks
       page.tasks.forEach(processTask);
 
-      // Board tasks
+      // TodoBoard tasks (board/kanban columns)
       if (page.todoBoards) {
         page.todoBoards.forEach(board =>
           board.lists.forEach(list =>
             list.tasks.forEach(processTask)
           )
+        );
+      }
+
+      // TaskListBoard tasks (multi-tab list mode)
+      if (page.taskListBoards) {
+        page.taskListBoards.forEach(board =>
+          board.tasks.forEach(processTask)
         );
       }
     });
@@ -141,7 +161,7 @@ export function useReminders(
       if (!activeIds.has(id)) cancelReminder(id);
     });
 
-  }, [pages, scheduleReminder, cancelReminder, onUpdateReminder]);
+  }, [pages, scheduleReminder, cancelReminder]);
 
   useEffect(() => {
     return () => {

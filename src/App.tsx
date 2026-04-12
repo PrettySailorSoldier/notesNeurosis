@@ -216,8 +216,8 @@ export default function App() {
     const label = intervalMinutes >= 60
       ? `every ${intervalMinutes / 60}h`
       : `every ${intervalMinutes}m`;
-    const nextTasks = pageToUpdate.tasks.map(t => {
-      if (t.id !== taskId || !t.reminder) return t;
+    const updatedPage = updateTaskInPage(pageToUpdate, taskId, t => {
+      if (!t.reminder) return t;
       return {
         ...t,
         reminder: {
@@ -230,8 +230,14 @@ export default function App() {
         },
       };
     });
-    updateTasksForPage(pageId, nextTasks);
-  }, [pages, updateTasksForPage]);
+    if (updatedPage.tasks !== pageToUpdate.tasks) {
+      updateTasksForPage(pageId, updatedPage.tasks);
+    } else if (updatedPage.todoBoards !== pageToUpdate.todoBoards) {
+      updateTodoBoardsForPage(pageId, updatedPage.todoBoards!);
+    } else if (updatedPage.taskListBoards !== pageToUpdate.taskListBoards) {
+      updateTaskListBoardsForPage(pageId, updatedPage.taskListBoards!);
+    }
+  }, [pages, updateTasksForPage, updateTodoBoardsForPage, updateTaskListBoardsForPage]);
 
   /** Set reminder on a board task — called from MultiTodoView */
   const handleSetBoardReminder = useCallback((
@@ -696,8 +702,14 @@ export default function App() {
           onClearReminder={(taskId, pageId) => {
             const pageToUpdate = pages.find(p => p.id === pageId);
             if (!pageToUpdate) return;
-            const nextTasks = pageToUpdate.tasks.map(t => t.id === taskId ? { ...t, reminder: undefined } : t);
-            updateTasksForPage(pageId, nextTasks);
+            const updatedPage = updateTaskInPage(pageToUpdate, taskId, t => ({ ...t, reminder: undefined }));
+            if (updatedPage.tasks !== pageToUpdate.tasks) {
+              updateTasksForPage(pageId, updatedPage.tasks);
+            } else if (updatedPage.todoBoards !== pageToUpdate.todoBoards) {
+              updateTodoBoardsForPage(pageId, updatedPage.todoBoards!);
+            } else if (updatedPage.taskListBoards !== pageToUpdate.taskListBoards) {
+              updateTaskListBoardsForPage(pageId, updatedPage.taskListBoards!);
+            }
           }}
           onUpdateTimerSettings={handleUpdateTimerSettings}
           onUpdateIntervalTask={(pageId, taskId, sound) => {
