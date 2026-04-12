@@ -329,8 +329,8 @@ export const TaskItem: React.FC<Props> = ({
         🔔
       </button>
 
-      {/* Timer Modal */}
-      {showModal && modalAnchor && (
+      {/* Timer Modal — portalled to body to escape stacking context */}
+      {showModal && modalAnchor && ReactDOM.createPortal(
         <TimerModal
           taskId={task.id}
           taskContent={task.content}
@@ -345,7 +345,8 @@ export const TaskItem: React.FC<Props> = ({
             setShowModal(false);
           }}
           onClose={() => setShowModal(false)}
-        />
+        />,
+        document.body
       )}
 
       {/* Context Menu — rendered via portal to escape writing-zone stacking context */}
