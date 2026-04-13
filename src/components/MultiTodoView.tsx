@@ -487,10 +487,11 @@ const TodoColumn: React.FC<ColumnProps> = ({
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault();
-                const srcId = draggedTaskIdRef.current;
-                if (!srcId || srcId === task.id) return;
+                // Prefer the ref; fall back to the data-transfer payload if dragend cleared it first
+                const srcId = draggedTaskIdRef.current ?? e.dataTransfer.getData('text/plain');
+                if (!srcId) return;
                 const ids = pendingDragOrderRef.current;
-                if (ids.length > 0) {
+                if (ids.length > 0 && ids.includes(srcId)) {
                   const taskMap = new Map(list.tasks.map(t => [t.id, t]));
                   const reordered = ids.map(id => taskMap.get(id)).filter(Boolean) as Task[];
                   if (reordered.length === list.tasks.length) onReorderTasks(reordered);

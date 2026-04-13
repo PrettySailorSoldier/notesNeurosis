@@ -122,8 +122,13 @@ export const TaskEditor: React.FC<Props> = ({
 
   const handleAddAfter = useCallback((afterId: string, type: TaskType) => {
     const idx = tasks.findIndex(t => t.id === afterId);
-    const defaultType = pageType === 'todo' ? 'checkbox' : 'plain';
-    const newTask = makeTask(type === 'heading' ? defaultType : type);
+    const defaultType: TaskType = pageType === 'todo' ? 'checkbox' : 'plain';
+    // On todo pages always use checkbox for new tasks;
+    // on other pages carry the current task type (but don't propagate headings).
+    const newType = pageType === 'todo'
+      ? 'checkbox'
+      : (type === 'heading' ? defaultType : type);
+    const newTask = makeTask(newType);
     const next = [...tasks];
     next.splice(idx + 1, 0, newTask);
     updateActiveTasks(next);

@@ -147,22 +147,38 @@ export const SequenceView: React.FC<Props> = ({ boards, onBoardsChange, legacyTa
 
   // Drag reorder — only among pending tasks
   const dragId = useRef<string | null>(null);
+  const pendingDragOrder = useRef<string[]>([]);
 
-  const handleDragStart = (id: string) => { dragId.current = id; };
+  const handleDragStart = (id: string) => {
+    dragId.current = id;
+    pendingDragOrder.current = tasks.map(t => t.id);
+  };
   const handleDragEnter = (targetId: string) => {
     if (!dragId.current || dragId.current === targetId) return;
     const dragged = tasks.find(t => t.id === dragId.current);
     if (!dragged || dragged.status !== 'pending') return;
     const target = tasks.find(t => t.id === targetId);
     if (!target || target.status !== 'pending') return;
-    const next = [...tasks];
-    const fromIdx = next.findIndex(t => t.id === dragId.current);
-    const toIdx = next.findIndex(t => t.id === targetId);
-    const [removed] = next.splice(fromIdx, 1);
-    next.splice(toIdx, 0, removed);
-    updateActiveTasks(next);
+    // Recompute order in ref — no React state updates during drag
+    const ids = [...pendingDragOrder.current];
+    const fromIdx = ids.indexOf(dragId.current);
+    const toIdx = ids.indexOf(targetId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    ids.splice(fromIdx, 1);
+    ids.splice(toIdx, 0, dragId.current);
+    pendingDragOrder.current = ids;
   };
-  const handleDragEnd = () => { dragId.current = null; };
+  const handleDragEnd = () => {
+    const srcId = dragId.current;
+    const ids = pendingDragOrder.current;
+    if (srcId && ids.length > 0) {
+      const taskMap = new Map(tasks.map(t => [t.id, t]));
+      const reordered = ids.map(id => taskMap.get(id)).filter(Boolean) as SequenceTask[];
+      if (reordered.length === tasks.length) updateActiveTasks(reordered);
+    }
+    dragId.current = null;
+    pendingDragOrder.current = [];
+  };
 
   const toggleNotes = (id: string) => {
     setExpandedNotes(prev => {

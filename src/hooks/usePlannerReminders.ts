@@ -57,6 +57,10 @@ export function usePlannerReminders(
   const [ringingIds, setRingingIds] = useState<string[]>([]);
   const { playTone } = useAudio();
 
+  // Stable ref so timer callbacks always use the latest onUpdateBlock reference
+  const onUpdateBlockRef = useRef(onUpdateBlock);
+  useEffect(() => { onUpdateBlockRef.current = onUpdateBlock; });
+
   const stopRinging = useCallback((reminderId: string) => {
     const stop = stops.current.get(reminderId);
     if (stop) {
@@ -110,12 +114,12 @@ export function usePlannerReminders(
       }
 
       // 3. One-shot: deactivate after firing
-      onUpdateBlock(block.id, { reminder: undefined });
+      onUpdateBlockRef.current(block.id, { reminder: undefined });
       handles.current.delete(reminder.id);
     }, msUntilFire);
 
     handles.current.set(reminder.id, handle);
-  }, [playTone, customTones, volume, onUpdateBlock]);
+  }, [playTone, customTones, volume]);
 
   // Schedule / cancel as blocks change
   useEffect(() => {
@@ -132,7 +136,7 @@ export function usePlannerReminders(
           scheduleReminder(r, block);
         } else {
           // Already passed — clear the stale reminder
-          onUpdateBlock(block.id, { reminder: undefined });
+          onUpdateBlockRef.current(block.id, { reminder: undefined });
         }
       }
     });
@@ -141,7 +145,7 @@ export function usePlannerReminders(
     handles.current.forEach((_, id) => {
       if (!activeIds.has(id)) cancelReminder(id);
     });
-  }, [blocks, scheduleReminder, cancelReminder, onUpdateBlock]);
+  }, [blocks, scheduleReminder, cancelReminder]);
 
   // Cleanup on unmount
   useEffect(() => {

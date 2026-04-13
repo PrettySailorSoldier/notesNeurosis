@@ -89,8 +89,25 @@ function migrateTodoSubtype(p: Page): Page {
 }
 
 const DEFAULT_PAGES: Page[] = [
-  { id: crypto.randomUUID(), name: 'To-Do', tasks: [makeTask('')], createdAt: Date.now(), pageType: 'todo', todoSubtype: 'list' },
-  { id: crypto.randomUUID(), name: 'Notes', tasks: [makeTask('')], createdAt: Date.now() + 1, pageType: 'notes' }
+  {
+    id: crypto.randomUUID(),
+    name: 'To-Do',
+    tasks: [makeTask('')],
+    createdAt: Date.now(),
+    pageType: 'todo',
+    todoSubtype: 'list',
+    taskListBoards: [makeTaskListBoard('List 1')],
+    todoBoards: [makeTodoBoard('Board 1')],
+    sequenceBoards: [makeSequenceBoard('Sequence 1')],
+  },
+  {
+    id: crypto.randomUUID(),
+    name: 'Notes',
+    tasks: [makeTask('')],
+    createdAt: Date.now() + 1,
+    pageType: 'notes',
+    noteBoards: [makeNoteBoard('Note 1')],
+  },
 ];
 
 export function usePages() {

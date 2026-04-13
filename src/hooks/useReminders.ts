@@ -91,10 +91,13 @@ export function useReminders(
       // 3. Reschedule if interval — use refs so we always get the latest state
       if (reminder.intervalMinutes > 0) {
         const nextFire = Date.now() + reminder.intervalMinutes * 60 * 1000;
+        const label = reminder.intervalMinutes >= 60
+          ? `every ${reminder.intervalMinutes / 60}h`
+          : `every ${reminder.intervalMinutes}m`;
         const updated: Reminder = {
           ...reminder,
           fireAt: nextFire,
-          label: `every ${reminder.intervalMinutes}m`,
+          label,
         };
         onUpdateReminderRef.current(task.id, pageId, updated);
         scheduleReminderRef.current(updated, task, pageName, pageId);

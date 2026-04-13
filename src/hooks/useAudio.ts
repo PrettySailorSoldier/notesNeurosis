@@ -6,16 +6,24 @@ export function useAudio() {
   const ctxRef = useRef<AudioContext | null>(null);
   const keepAliveRef = useRef<AudioBufferSourceNode | null>(null);
   const keepAliveCount = useRef(0);
+  const visListenerRef = useRef<(() => void) | null>(null);
 
   function getCtx(): AudioContext {
     if (!ctxRef.current || ctxRef.current.state === 'closed') {
+      // Remove previous visibility listener before creating a new context
+      if (visListenerRef.current) {
+        document.removeEventListener('visibilitychange', visListenerRef.current);
+        visListenerRef.current = null;
+      }
       ctxRef.current = new AudioContext();
       // Re-attempt resume whenever the page visibility changes (window un-minimized)
-      document.addEventListener('visibilitychange', () => {
+      const listener = () => {
         if (ctxRef.current?.state === 'suspended') {
           ctxRef.current.resume().catch(() => {});
         }
-      });
+      };
+      visListenerRef.current = listener;
+      document.addEventListener('visibilitychange', listener);
     }
     return ctxRef.current;
   }
