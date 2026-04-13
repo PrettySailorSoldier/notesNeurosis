@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { load } from '@tauri-apps/plugin-store';
 import type { Page, Task, PageType, PlannerSubtype, TodoList, TodoBoard, TodoSubtype, SequenceTask, TaskListBoard, NoteBoard, SequenceBoard } from '../types';
 
@@ -98,6 +99,11 @@ export function usePages() {
   const [ready, setReady] = useState(false);
   const saveTimeout = useRef<number | null>(null);
 
+  // Always-current refs so the close-flush can write the latest state
+  const latestPagesRef = useRef<Page[]>([]);
+  const latestPageIdRef = useRef<string>('');
+  const pendingSaveRef = useRef(false); // true when a debounced save is queued
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -113,7 +119,10 @@ export function usePages() {
               .map(migrateTodoBoards)
               .map(migrateTodoSubtype);
             setPages(migrated);
-            setCurrentPageId(storedPageId && migrated.find(p => p.id === storedPageId) ? storedPageId : migrated[0].id);
+            latestPagesRef.current = migrated;
+            const cId = storedPageId && migrated.find(p => p.id === storedPageId) ? storedPageId : migrated[0].id;
+            setCurrentPageId(cId);
+            latestPageIdRef.current = cId;
           } else {
             const backupPages = await store.get<Page[]>(PAGES_BACKUP_KEY);
             if (backupPages && backupPages.length > 0) {
@@ -123,12 +132,17 @@ export function usePages() {
                 .map(migrateTodoBoards)
                 .map(migrateTodoSubtype);
               setPages(migrated);
-              setCurrentPageId(storedPageId && migrated.find(p => p.id === storedPageId) ? storedPageId : migrated[0].id);
+              latestPagesRef.current = migrated;
+              const cId = storedPageId && migrated.find(p => p.id === storedPageId) ? storedPageId : migrated[0].id;
+              setCurrentPageId(cId);
+              latestPageIdRef.current = cId;
               await store.set(PAGES_KEY, migrated);
               await store.save();
             } else {
               setPages(DEFAULT_PAGES);
+              latestPagesRef.current = DEFAULT_PAGES;
               setCurrentPageId(DEFAULT_PAGES[0].id);
+              latestPageIdRef.current = DEFAULT_PAGES[0].id;
               debouncedSave(DEFAULT_PAGES, DEFAULT_PAGES[0].id);
             }
           }
@@ -138,12 +152,35 @@ export function usePages() {
         console.error('[usePages] load error:', err);
         if (!cancelled) {
           setPages(DEFAULT_PAGES);
+          latestPagesRef.current = DEFAULT_PAGES;
           setCurrentPageId(DEFAULT_PAGES[0].id);
+          latestPageIdRef.current = DEFAULT_PAGES[0].id;
           setReady(true);
         }
       }
     })();
     return () => { cancelled = true; };
+  }, []);
+
+  // Intercept the Tauri close request: flush any pending debounced save first,
+  // then allow the window to close. Without this, the 400ms timer is killed
+  // before it fires whenever the user closes right after making changes.
+  useEffect(() => {
+    const appWindow = getCurrentWindow();
+    let unlisten: (() => void) | undefined;
+    appWindow.onCloseRequested(async (event) => {
+      event.preventDefault(); // hold the close
+      if (saveTimeout.current !== null) {
+        window.clearTimeout(saveTimeout.current);
+        saveTimeout.current = null;
+      }
+      if (pendingSaveRef.current) {
+        pendingSaveRef.current = false;
+        await saveToStore(latestPagesRef.current, latestPageIdRef.current);
+      }
+      await appWindow.destroy(); // now really close
+    }).then(fn => { unlisten = fn; });
+    return () => { unlisten?.(); };
   }, []);
 
   const saveToStore = async (p: Page[], cId: string) => {
@@ -162,7 +199,9 @@ export function usePages() {
     if (saveTimeout.current !== null) {
       window.clearTimeout(saveTimeout.current);
     }
+    pendingSaveRef.current = true;
     saveTimeout.current = window.setTimeout(() => {
+      pendingSaveRef.current = false;
       saveToStore(newPages, cId);
     }, 400);
   };
@@ -170,7 +209,11 @@ export function usePages() {
   const updatePages = useCallback((newPages: Page[], newPageId?: string) => {
     const pId = newPageId || currentPageId;
     setPages(newPages);
-    if (newPageId) setCurrentPageId(newPageId);
+    latestPagesRef.current = newPages;
+    if (newPageId) {
+      setCurrentPageId(newPageId);
+      latestPageIdRef.current = newPageId;
+    }
     debouncedSave(newPages, pId);
   }, [currentPageId]);
 
