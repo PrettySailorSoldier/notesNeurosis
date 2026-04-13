@@ -19,6 +19,8 @@
     "notification:allow-notify",
     "core:window:allow-start-dragging",
     "core:window:allow-close",
+    "core:window:allow-destroy",
+    "core:window:allow-on-close-requested",
     "core:window:allow-minimize",
     "core:window:allow-maximize",
     "core:window:allow-toggle-maximize",

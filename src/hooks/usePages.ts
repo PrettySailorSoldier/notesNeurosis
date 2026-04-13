@@ -162,27 +162,6 @@ export function usePages() {
     return () => { cancelled = true; };
   }, []);
 
-  // Intercept the Tauri close request: flush any pending debounced save first,
-  // then allow the window to close. Without this, the 400ms timer is killed
-  // before it fires whenever the user closes right after making changes.
-  useEffect(() => {
-    const appWindow = getCurrentWindow();
-    let unlisten: (() => void) | undefined;
-    appWindow.onCloseRequested(async (event) => {
-      event.preventDefault(); // hold the close
-      if (saveTimeout.current !== null) {
-        window.clearTimeout(saveTimeout.current);
-        saveTimeout.current = null;
-      }
-      if (pendingSaveRef.current) {
-        pendingSaveRef.current = false;
-        await saveToStore(latestPagesRef.current, latestPageIdRef.current);
-      }
-      await appWindow.destroy(); // now really close
-    }).then(fn => { unlisten = fn; });
-    return () => { unlisten?.(); };
-  }, []);
-
   const saveToStore = async (p: Page[], cId: string) => {
     try {
       const store = await load(STORE_FILE, { autoSave: false } as any);
@@ -205,6 +184,27 @@ export function usePages() {
       saveToStore(newPages, cId);
     }, 400);
   };
+
+  // Intercept the Tauri close request: flush any pending debounced save first,
+  // then allow the window to close. Without this, the 400ms timer is killed
+  // before it fires whenever the user closes right after making changes.
+  useEffect(() => {
+    const appWindow = getCurrentWindow();
+    let unlisten: (() => void) | undefined;
+    appWindow.onCloseRequested(async (event) => {
+      event.preventDefault(); // hold the close
+      if (saveTimeout.current !== null) {
+        window.clearTimeout(saveTimeout.current);
+        saveTimeout.current = null;
+      }
+      if (pendingSaveRef.current) {
+        pendingSaveRef.current = false;
+        await saveToStore(latestPagesRef.current, latestPageIdRef.current);
+      }
+      await appWindow.destroy(); // now really close
+    }).then(fn => { unlisten = fn; });
+    return () => { unlisten?.(); };
+  }, []);
 
   const updatePages = useCallback((newPages: Page[], newPageId?: string) => {
     const pId = newPageId || currentPageId;
