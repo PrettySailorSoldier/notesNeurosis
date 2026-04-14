@@ -1,7 +1,27 @@
 .editor {
   width: 100%;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding-top: 12px;
+  /* Thin custom scrollbar that matches the app palette */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(180, 130, 220, 0.35) transparent;
+}
+
+.editor::-webkit-scrollbar {
+  width: 4px;
+}
+.editor::-webkit-scrollbar-track {
+  background: transparent;
+}
+.editor::-webkit-scrollbar-thumb {
+  background: rgba(180, 130, 220, 0.35);
+  border-radius: 2px;
+}
+.editor::-webkit-scrollbar-thumb:hover {
+  background: rgba(180, 130, 220, 0.6);
 }
 
 /* Bulk action bar */
@@ -160,4 +180,50 @@
   letter-spacing: 0.08em;
   user-select: none;
   animation: fadeIn 0.4s ease;
+}
+
+/* ── Collapsible completed section ── */
+.completedSection {
+  margin-top: 8px;
+  border-top: 1px solid rgba(180, 130, 220, 0.14);
+  padding-top: 2px;
+}
+
+.completedToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 5px 2px;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 12px;
+  color: rgba(150, 100, 190, 0.55);
+  text-align: left;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+  letter-spacing: 0.04em;
+}
+.completedToggle:hover {
+  color: rgba(180, 130, 220, 0.85);
+  background: rgba(180, 130, 220, 0.07);
+}
+
+.completedChevron {
+  display: inline-block;
+  font-size: 16px;
+  line-height: 1;
+  transform: rotate(90deg);
+  transition: transform 0.2s ease;
+  color: rgba(150, 100, 190, 0.5);
+}
+.completedChevronOpen {
+  transform: rotate(270deg);
+}
+
+.completedList {
+  opacity: 0.82;
+  animation: fadeIn 0.15s ease;
 }

@@ -93,6 +93,8 @@ export const TaskItem: React.FC<Props> = ({
       const sel = window.getSelection();
       sel?.removeAllRanges();
       sel?.addRange(range);
+      // Scroll the new row into view inside the scrollable editor
+      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       // Notify parent that this focus request was consumed
       if (autoFocus) onFocusConsumed?.();
     }

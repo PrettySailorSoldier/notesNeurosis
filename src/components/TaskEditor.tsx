@@ -47,6 +47,8 @@ export const TaskEditor: React.FC<Props> = ({
   const initializedRef = useRef(false);
   // ID of the task that should receive focus after the next render
   const [pendingFocusId, setPendingFocusId] = useState<string | null>(null);
+  // Whether the completed tasks drawer is expanded
+  const [showCompleted, setShowCompleted] = useState(true);
 
   // One-time migration from flat tasks to taskListBoards
   useEffect(() => {
@@ -249,26 +251,29 @@ export const TaskEditor: React.FC<Props> = ({
   const hasCompleted = completedCount > 0;
   const allDone = totalCheckbox > 0 && completedCount === totalCheckbox;
 
-  // Soft-sink completed checkboxes to bottom — but skip reordering while dragging
-  // so the dragged element doesn't visually jump out of position mid-drag.
-  const displayTasks = draggedId
+  // Split tasks: active (non-completed checkboxes + all non-checkbox) vs completed checkboxes
+  // During a drag, show all tasks unmodified to keep drag refs stable.
+  const activeTasks = draggedId
     ? tasks
-    : [
-        ...tasks.filter(t => !(t.type === 'checkbox' && t.completed)),
-        ...tasks.filter(t => t.type === 'checkbox' && t.completed),
-      ];
+    : tasks.filter(t => !(t.type === 'checkbox' && t.completed));
+  const completedTasks = draggedId
+    ? []
+    : tasks.filter(t => t.type === 'checkbox' && t.completed);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-      <BoardTabStrip
-        tabs={boards.map(b => ({ id: b.id, name: b.name }))}
-        activeId={activeBoardId}
-        onSelect={setActiveBoardId}
-        onRename={renameBoard}
-        onAdd={addBoard}
-        onDelete={deleteBoard}
-        addLabel="+ list"
-      />
+      {/* flex-shrink:0 keeps the tab strip at its natural height */}
+      <div style={{ flexShrink: 0 }}>
+        <BoardTabStrip
+          tabs={boards.map(b => ({ id: b.id, name: b.name }))}
+          activeId={activeBoardId}
+          onSelect={setActiveBoardId}
+          onRename={renameBoard}
+          onAdd={addBoard}
+          onDelete={deleteBoard}
+          addLabel="+ list"
+        />
+      </div>
       <div className={styles.editor} onKeyDown={handleKeyDown}>
         {/* Bulk action bar */}
         {selectedIds.size > 0 && (
@@ -315,7 +320,7 @@ export const TaskEditor: React.FC<Props> = ({
           </div>
         )}
 
-        {displayTasks.map((task, i) => (
+        {activeTasks.map((task, i) => (
           <div
             key={task.id}
             ref={el => {
@@ -354,6 +359,55 @@ export const TaskEditor: React.FC<Props> = ({
             />
           </div>
         ))}
+
+        {/* Collapsible completed section */}
+        {completedTasks.length > 0 && (
+          <div className={styles.completedSection}>
+            <button
+              className={styles.completedToggle}
+              onClick={() => setShowCompleted(v => !v)}
+              aria-expanded={showCompleted}
+            >
+              <span className={`${styles.completedChevron} ${showCompleted ? styles.completedChevronOpen : ''}`}>
+                ›
+              </span>
+              <span>Completed ({completedTasks.length})</span>
+            </button>
+
+            {showCompleted && (
+              <div className={styles.completedList}>
+                {completedTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    ref={el => {
+                      if (el) rowRefsMap.current.set(task.id, el);
+                      else rowRefsMap.current.delete(task.id);
+                    }}
+                  >
+                    <TaskItem
+                      task={task}
+                      isNew={false}
+                      autoFocus={task.id === pendingFocusId}
+                      onFocusConsumed={task.id === pendingFocusId ? () => setPendingFocusId(null) : undefined}
+                      placeholder=""
+                      onUpdate={handleUpdate}
+                      onDelete={handleDelete}
+                      onAddAfter={handleAddAfter}
+                      onMergePrev={handleMergePrev}
+                      onSetReminder={onSetReminder}
+                      onClearReminder={onClearReminder}
+                      onDragStart={handleDragStart}
+                      onDragEnter={handleDragEnter}
+                      onDragEnd={handleDragEnd}
+                      selected={selectedIds.has(task.id)}
+                      onSelect={toggleSelect}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {allDone && pageType === 'todo' && (
           <div className={styles.allDoneState}>
