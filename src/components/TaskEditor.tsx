@@ -45,6 +45,8 @@ export const TaskEditor: React.FC<Props> = ({
   const highlightedRowId = useRef<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const initializedRef = useRef(false);
+  // ID of the task that should receive focus after the next render
+  const [pendingFocusId, setPendingFocusId] = useState<string | null>(null);
 
   // One-time migration from flat tasks to taskListBoards
   useEffect(() => {
@@ -132,6 +134,8 @@ export const TaskEditor: React.FC<Props> = ({
     const next = [...tasks];
     next.splice(idx + 1, 0, newTask);
     updateActiveTasks(next);
+    // Tell the list to focus the new task once it mounts
+    setPendingFocusId(newTask.id);
   }, [tasks, updateActiveTasks, pageType]);
 
   const handleMergePrev = useCallback((id: string) => {
@@ -333,7 +337,8 @@ export const TaskEditor: React.FC<Props> = ({
             <TaskItem
               task={task}
               isNew={i === tasks.length - 1 && task.content === ''}
-              autoFocus={i === 0 && task.content === '' && tasks.length === 1}
+              autoFocus={task.id === pendingFocusId}
+              onFocusConsumed={task.id === pendingFocusId ? () => setPendingFocusId(null) : undefined}
               placeholder={pageType === 'todo' ? "Get 'er done…" : 'Note…'}
               onUpdate={handleUpdate}
               onDelete={handleDelete}

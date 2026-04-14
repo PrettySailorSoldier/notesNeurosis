@@ -18,6 +18,7 @@ interface Props {
   onDragEnter: (id: string) => void;
   onDragEnd: () => void;
   autoFocus?: boolean;
+  onFocusConsumed?: () => void;   // called after autoFocus focus fires, so parent can clear pendingFocusId
   placeholder?: string;
   selected?: boolean;
   onSelect?: (id: string) => void;
@@ -58,6 +59,7 @@ export const TaskItem: React.FC<Props> = ({
   onDragEnter,
   onDragEnd,
   autoFocus,
+  onFocusConsumed,
   placeholder = 'Note…',
   selected = false,
   onSelect,
@@ -91,7 +93,10 @@ export const TaskItem: React.FC<Props> = ({
       const sel = window.getSelection();
       sel?.removeAllRanges();
       sel?.addRange(range);
+      // Notify parent that this focus request was consumed
+      if (autoFocus) onFocusConsumed?.();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoFocus, isNew]);
 
   // Reminder countdown display
