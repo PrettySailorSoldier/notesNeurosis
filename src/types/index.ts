@@ -10,6 +10,7 @@ export interface Task {
   type: TaskType;
   completed: boolean;
   createdAt: number;
+  indent?: number;   // 0 = top level, 1+ = subtask depth
   reminder?: Reminder;
   color?: AccentColor;
 }
