@@ -124,7 +124,7 @@ export const TaskEditor: React.FC<Props> = ({
     updateActiveTasks(next.length > 0 ? next : [makeTask('plain')]);
   }, [tasks, updateActiveTasks]);
 
-  const handleAddAfter = useCallback((afterId: string, type: TaskType) => {
+  const handleAddAfter = useCallback((afterId: string, type: TaskType, indent = 0) => {
     const idx = tasks.findIndex(t => t.id === afterId);
     const defaultType: TaskType = pageType === 'todo' ? 'checkbox' : 'plain';
     // On todo pages always use checkbox for new tasks;
@@ -132,7 +132,7 @@ export const TaskEditor: React.FC<Props> = ({
     const newType = pageType === 'todo'
       ? 'checkbox'
       : (type === 'heading' ? defaultType : type);
-    const newTask = makeTask(newType);
+    const newTask: Task = { ...makeTask(newType), indent: indent > 0 ? indent : undefined };
     const next = [...tasks];
     next.splice(idx + 1, 0, newTask);
     updateActiveTasks(next);

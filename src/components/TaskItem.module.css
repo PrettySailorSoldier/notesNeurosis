@@ -159,6 +159,12 @@
   pointer-events: none;
 }
 
+/* Subtask indent indicator — shown when marginLeft > 0 via JS */
+.taskItem[style*="margin-left"] {
+  border-left: 2px solid rgba(180, 130, 220, 0.25);
+  padding-left: 8px;
+}
+
 /* Completed */
 .completed .content {
   text-decoration: line-through;
