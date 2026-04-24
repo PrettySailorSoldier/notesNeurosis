@@ -10,7 +10,7 @@ interface Props {
   isNew?: boolean;
   onUpdate: (updated: Task) => void;
   onDelete: (id: string) => void;
-  onAddAfter: (afterId: string, type: TaskType) => void;
+  onAddAfter: (afterId: string, type: TaskType, indent: number) => void;
   onMergePrev: (id: string) => void;
   onSetReminder: (taskId: string, intervalMinutes: number, sound: ReminderSound, alarmEnabled?: boolean) => void;
   onClearReminder: (taskId: string) => void;
@@ -146,14 +146,16 @@ export const TaskItem: React.FC<Props> = ({
 
     if (e.key === 'Enter') {
       e.preventDefault();
-      onAddAfter(task.id, task.type);
+      onAddAfter(task.id, task.type, task.indent ?? 0);
     }
 
     if (e.key === 'Tab') {
       e.preventDefault();
-      const cycle: TaskType[] = ['plain', 'bullet', 'checkbox', 'heading'];
-      const next = cycle[(cycle.indexOf(task.type) + 1) % cycle.length];
-      onUpdate({ ...task, type: next });
+      if (e.shiftKey) {
+        onUpdate({ ...task, indent: Math.max(0, (task.indent ?? 0) - 1) });
+      } else {
+        onUpdate({ ...task, indent: Math.min(4, (task.indent ?? 0) + 1) });
+      }
     }
 
     if (e.key === 'Backspace') {
@@ -219,9 +221,12 @@ export const TaskItem: React.FC<Props> = ({
 
   const prefix = task.type === 'bullet' ? '•' : null;
 
+  const indentPx = (task.indent ?? 0) * 20;
+
   return (
     <div
       className={`${styles.taskItem} ${styles[`type_${task.type}`]} ${task.completed ? styles.completed : ''} ${hovered ? styles.hovered : ''} ${selected ? styles.selected : ''}`}
+      style={indentPx > 0 ? { marginLeft: indentPx } : undefined}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onContextMenu={handleContextMenu}
