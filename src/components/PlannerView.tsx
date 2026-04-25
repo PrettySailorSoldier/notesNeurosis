@@ -87,14 +87,6 @@ function timeToMinutes(t: string) {
   return h * 60 + (m || 0);
 }
 
-function roundToNearest15(date: Date): string {
-  const h = date.getHours();
-  let m = Math.round(date.getMinutes() / 15) * 15;
-  let adjustedH = h;
-  if (m === 60) { m = 0; adjustedH = (h + 1) % 24; }
-  return `${String(adjustedH).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
 function roundToNextHalfHour(date: Date): string {
   const h = date.getHours();
   const m = date.getMinutes();
