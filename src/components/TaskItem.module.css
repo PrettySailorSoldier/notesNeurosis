@@ -159,9 +159,11 @@
   pointer-events: none;
 }
 
-/* Subtask indent indicator — shown when marginLeft > 0 via JS */
+/* Subtask indent indicator — data-indent is the canonical selector; */
+/* [style*="margin-left"] kept as belt-and-suspenders fallback       */
+.taskItem:not([data-indent="0"]),
 .taskItem[style*="margin-left"] {
-  border-left: 2px solid rgba(180, 130, 220, 0.25);
+  border-left: 2px solid var(--accent-primary-border, rgba(155, 111, 166, 0.3));
   padding-left: 8px;
 }
 
@@ -170,6 +172,7 @@
   width: 14px;
   height: 14px;
   opacity: 0.7;
+  background: transparent;
 }
 
 .taskItem:not([data-indent="0"]) .content {
