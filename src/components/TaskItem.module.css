@@ -67,9 +67,9 @@
   flex-shrink: 0;
   width: 18px;
   height: 18px;
-  border: 2px solid rgba(200, 160, 240, 1);
+  border: 2px solid color-mix(in srgb, var(--accent-primary) 70%, transparent);
   border-radius: 4px;
-  background: rgba(30, 10, 50, 0.6);
+  background: transparent;
   cursor: pointer;
   display: flex;
   align-items: center;

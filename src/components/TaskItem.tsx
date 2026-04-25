@@ -146,7 +146,14 @@ export const TaskItem: React.FC<Props> = ({
 
     if (e.key === 'Enter') {
       e.preventDefault();
-      onAddAfter(task.id, task.type, task.indent ?? 0);
+      const el = contentRef.current;
+      const isEmpty = !el || el.textContent === '';
+      if (isEmpty && (task.indent ?? 0) > 0) {
+        // Empty indented task → escape one indent level (standard editor behaviour)
+        onUpdate({ ...task, indent: (task.indent ?? 0) - 1 });
+      } else {
+        onAddAfter(task.id, task.type, task.indent ?? 0);
+      }
     }
 
     if (e.key === 'Tab') {
@@ -162,7 +169,12 @@ export const TaskItem: React.FC<Props> = ({
       const el = contentRef.current;
       if (!el || el.textContent !== '') return;
       e.preventDefault();
-      onMergePrev(task.id);
+      if ((task.indent ?? 0) > 0) {
+        // Empty indented task → un-indent before merging
+        onUpdate({ ...task, indent: (task.indent ?? 0) - 1 });
+      } else {
+        onMergePrev(task.id);
+      }
     }
 
     if (e.key === 'Alt' && false) { /* Alt+T handled globally */ }
