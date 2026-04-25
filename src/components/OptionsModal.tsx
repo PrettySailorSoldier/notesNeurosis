@@ -252,7 +252,7 @@ export const OptionsModal: React.FC<Props> = ({
                         <div className={styles.timerActions}>
                           {ringing && (
                             <button className={styles.stopBtn} onClick={() => onStopRinging(reminder.id)}>
-                              Stop
+                              Snooze
                             </button>
                           )}
                           {!isEditing && (

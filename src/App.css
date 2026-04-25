@@ -93,9 +93,9 @@ html, body {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  border: 1px solid rgba(180, 130, 220, 0.4);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);
   background: rgba(30, 15, 55, 0.75);
-  color: rgba(200, 170, 240, 0.8);
+  color: color-mix(in srgb, var(--accent-primary) 80%, white);
   font-size: 13px;
   line-height: 1;
   display: flex;
@@ -108,7 +108,7 @@ html, body {
 }
 .win-btn:hover {
   background: rgba(60, 30, 100, 0.9);
-  border-color: rgba(200, 160, 255, 0.7);
+  border-color: color-mix(in srgb, var(--accent-primary) 70%, transparent);
   color: #fff;
 }
 .win-close:hover {
@@ -139,7 +139,7 @@ html, body {
 }
 /* Fix 1 — keyboard focus ring on window controls */
 .win-btn:focus-visible {
-  outline: 2px solid rgba(210,160,255,0.7);
+  outline: 2px solid color-mix(in srgb, var(--accent-primary) 70%, transparent);
   outline-offset: 1px;
   border-radius: 4px;
 }
@@ -582,7 +582,7 @@ html, body {
   flex-shrink: 0;
   padding: 4px 14px;
   border-radius: 8px 8px 0 0;
-  border: 1px solid rgba(180, 130, 220, 0.4);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);
   border-bottom: none;
   background: rgba(40, 20, 60, 0.85);
   color: rgba(240, 230, 255, 0.9);
@@ -593,9 +593,9 @@ html, body {
 }
 .tab-btn.active {
   background: rgba(70, 30, 100, 0.95);
-  color: rgba(255, 255, 255, 1);
-  border-color: rgba(210, 160, 255, 0.8);
-  box-shadow: 0 -2px 8px rgba(180, 130, 220, 0.3);
+  color: color-mix(in srgb, var(--accent-primary) 90%, white);
+  border-color: var(--accent-primary);
+  box-shadow: 0 -2px 8px color-mix(in srgb, var(--accent-primary) 30%, transparent);
 }
 .tab-btn:hover:not(.active) {
   background: rgba(60, 25, 80, 0.9);
@@ -615,7 +615,7 @@ html, body {
   cursor: grabbing;
 }
 .tab-btn.tab-drag-over {
-  border-left: 2px solid rgba(210, 160, 255, 0.9);
+  border-left: 2px solid var(--accent-primary);
   background: rgba(80, 35, 110, 0.9);
 }
 .tab-type-icon {
@@ -626,7 +626,7 @@ html, body {
 }
 /* Fix 5 — keyboard focus ring on tab buttons */
 .tab-btn:focus-visible {
-  outline: 2px solid rgba(210,160,255,0.8);
+  outline: 2px solid color-mix(in srgb, var(--accent-primary) 80%, transparent);
   outline-offset: -2px;
   border-radius: 8px 8px 0 0;
 }
@@ -635,7 +635,7 @@ html, body {
 .tab-rename-input {
   background: transparent;
   border: none;
-  border-bottom: 1px solid rgba(210, 160, 255, 0.7);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent-primary) 70%, transparent);
   color: rgba(255, 255, 255, 1);
   font-family: 'Cormorant Garamond', serif;
   font-size: 14px;
@@ -643,7 +643,7 @@ html, body {
   padding: 0 2px;
   min-width: 40px;
   max-width: 140px;
-  caret-color: rgba(210, 160, 255, 0.9);
+  caret-color: var(--accent-primary);
 }
 
 .tab-btn--renaming {
@@ -662,7 +662,7 @@ html, body {
 .tab-shortcut-hint {
   font-size: 8px;
   font-family: system-ui, sans-serif;
-  color: rgba(210, 160, 255, 0.3);
+  color: color-mix(in srgb, var(--accent-primary) 30%, transparent);
   margin-left: 4px;
   line-height: 1;
   vertical-align: middle;
@@ -672,7 +672,7 @@ html, body {
 
 .tab-btn:hover .tab-shortcut-hint,
 .tab-btn.active .tab-shortcut-hint {
-  color: rgba(210, 160, 255, 0.55);
+  color: color-mix(in srgb, var(--accent-primary) 55%, transparent);
 }
 
 /* ── Planner ── */

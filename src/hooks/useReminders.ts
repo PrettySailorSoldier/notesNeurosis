@@ -1,8 +1,10 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { Task, Reminder, Page } from '../types';
 import { useAudio } from './useAudio';
 import type { CustomTone } from './useSettings';
+import { onModalMount, onModalUnmount } from '../utils/modalAlwaysOnTop';
 
 type TimerHandle = ReturnType<typeof setTimeout>;
 
@@ -14,6 +16,7 @@ export function useReminders(
 ) {
   const handles = useRef<Map<string, TimerHandle>>(new Map());
   const stops = useRef<Map<string, () => void>>(new Map());
+  const ringingMountedRef = useRef<Set<string>>(new Set());
   const [ringingIds, setRingingIds] = useState<string[]>([]);
   const { playTone } = useAudio();
 
@@ -27,9 +30,8 @@ export function useReminders(
   const scheduleReminderRef = useRef<(r: Reminder, task: Task, pageName: string, pageId: string) => void>(() => {});
 
   /**
-   * Stop only the audio for this fire cycle — the alarm remains scheduled.
-   * After the current sound is silenced, the alarm will still reschedule and
-   * fire again at the next interval.
+   * Snooze: stop only the audio for this fire cycle — the alarm remains
+   * scheduled and will fire again at the next interval.
    */
   const stopRinging = useCallback((reminderId: string) => {
     const stop = stops.current.get(reminderId);
@@ -37,6 +39,10 @@ export function useReminders(
       stop();
       stops.current.delete(reminderId);
       setRingingIds(prev => prev.filter(id => id !== reminderId));
+    }
+    if (ringingMountedRef.current.has(reminderId)) {
+      ringingMountedRef.current.delete(reminderId);
+      onModalUnmount();
     }
   }, []);
 
@@ -63,7 +69,14 @@ export function useReminders(
     const msUntilFire = Math.max(0, reminder.fireAt - Date.now());
 
     const handle = setTimeout(async () => {
-      // 1. Play audio tone (loops indefinitely until stopRinging is called)
+      // 1. Bring window to front and keep it on top while ringing
+      if (!ringingMountedRef.current.has(reminder.id)) {
+        ringingMountedRef.current.add(reminder.id);
+        getCurrentWindow().setFocus().catch(console.warn);
+        onModalMount();
+      }
+
+      // 2. Play audio tone (loops indefinitely until stopRinging is called)
       const stopAud = playTone(reminder.sound, volume, customTones);
       stops.current.set(reminder.id, stopAud);
       setRingingIds(prev => {
@@ -71,7 +84,7 @@ export function useReminders(
         return prev;
       });
 
-      // 2. Show native Tauri notification
+      // 3. Show native Tauri notification
       try {
         let granted = await isPermissionGranted();
         if (!granted) {
@@ -88,7 +101,7 @@ export function useReminders(
         console.warn('[useReminders] notification error:', err);
       }
 
-      // 3. Reschedule if interval — use refs so we always get the latest state
+      // 4. Reschedule if interval — use refs so we always get the latest state
       if (reminder.intervalMinutes > 0) {
         const nextFire = Date.now() + reminder.intervalMinutes * 60 * 1000;
         const label = reminder.intervalMinutes >= 60
@@ -172,6 +185,8 @@ export function useReminders(
       handles.current.clear();
       stops.current.forEach(s => s());
       stops.current.clear();
+      ringingMountedRef.current.forEach(() => onModalUnmount());
+      ringingMountedRef.current.clear();
     };
   }, []);
 

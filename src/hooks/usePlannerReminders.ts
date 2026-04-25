@@ -1,8 +1,10 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { PlannerBlock, Reminder, ReminderSound } from '../types';
 import { useAudio } from './useAudio';
 import type { CustomTone } from './useSettings';
+import { onModalMount, onModalUnmount } from '../utils/modalAlwaysOnTop';
 
 type TimerHandle = ReturnType<typeof setTimeout>;
 
@@ -54,6 +56,7 @@ export function usePlannerReminders(
 ) {
   const handles = useRef<Map<string, TimerHandle>>(new Map());
   const stops   = useRef<Map<string, () => void>>(new Map());
+  const ringingMountedRef = useRef<Set<string>>(new Set());
   const [ringingIds, setRingingIds] = useState<string[]>([]);
   const { playTone } = useAudio();
 
@@ -67,6 +70,10 @@ export function usePlannerReminders(
       stop();
       stops.current.delete(reminderId);
       setRingingIds(prev => prev.filter(id => id !== reminderId));
+    }
+    if (ringingMountedRef.current.has(reminderId)) {
+      ringingMountedRef.current.delete(reminderId);
+      onModalUnmount();
     }
   }, []);
 
@@ -90,12 +97,19 @@ export function usePlannerReminders(
     const msUntilFire = Math.max(0, reminder.fireAt - Date.now());
 
     const handle = setTimeout(async () => {
-      // 1. Play audio
+      // 1. Bring window to front and keep it on top while ringing
+      if (!ringingMountedRef.current.has(reminder.id)) {
+        ringingMountedRef.current.add(reminder.id);
+        getCurrentWindow().setFocus().catch(console.warn);
+        onModalMount();
+      }
+
+      // 2. Play audio
       const stopAud = playTone(reminder.sound, volume, customTones);
       stops.current.set(reminder.id, stopAud);
       setRingingIds(prev => prev.includes(reminder.id) ? prev : [...prev, reminder.id]);
 
-      // 2. Native notification
+      // 3. Native notification
       try {
         let granted = await isPermissionGranted();
         if (!granted) {
@@ -113,7 +127,7 @@ export function usePlannerReminders(
         console.warn('[usePlannerReminders] notification error:', err);
       }
 
-      // 3. One-shot: deactivate after firing
+      // 4. One-shot: deactivate after firing
       onUpdateBlockRef.current(block.id, { reminder: undefined });
       handles.current.delete(reminder.id);
     }, msUntilFire);
@@ -154,6 +168,8 @@ export function usePlannerReminders(
       handles.current.clear();
       stops.current.forEach(s => s());
       stops.current.clear();
+      ringingMountedRef.current.forEach(() => onModalUnmount());
+      ringingMountedRef.current.clear();
     };
   }, []);
 
