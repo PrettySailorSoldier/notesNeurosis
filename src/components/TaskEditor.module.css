@@ -125,7 +125,7 @@
 .statusCount {
   font-family: 'Cormorant Garamond', serif;
   font-size: 11px;
-  color: rgba(150, 100, 190, 0.55);
+  color: rgba(80, 40, 130, 0.7);
   white-space: nowrap;
   flex-shrink: 0;
   min-width: 52px;
