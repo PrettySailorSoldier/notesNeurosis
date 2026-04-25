@@ -186,6 +186,20 @@ export interface HabitStore {
   logs: HabitLog[];
 }
 
+export interface ActivityEntry {
+  id: string;
+  name: string;
+  category: string;
+  startTime: number;
+  endTime: number | null;
+  notes: string;
+}
+
+export interface ActivityStore {
+  entries: ActivityEntry[];
+  categories: string[];
+}
+
 export type CareCategory =
   | 'medication'
   | 'walk'

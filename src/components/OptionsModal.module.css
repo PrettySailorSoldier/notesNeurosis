@@ -535,3 +535,71 @@ input[type="file"] { display: none; }
   color: rgba(180, 150, 220, 0.4);
   padding-top: 2px;
 }
+
+/* ── Accent Color Picker ── */
+.accentSection {
+  background: rgba(0,0,0,0.15);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.accentSwatches {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.accentSwatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.1s, border-color 0.15s;
+  flex-shrink: 0;
+}
+.accentSwatch:hover {
+  transform: scale(1.15);
+}
+.accentSwatchActive {
+  border-color: #fff;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.3);
+}
+
+.accentCustomRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.accentCustomPreview {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.15);
+  flex-shrink: 0;
+}
+
+.accentCustomInput {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(180, 130, 220, 0.25);
+  border-radius: 4px;
+  color: rgba(240, 230, 255, 0.9);
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  width: 90px;
+  letter-spacing: 0.04em;
+}
+.accentCustomInput:focus {
+  border-color: rgba(180, 130, 220, 0.6);
+}
+.accentCustomInput::placeholder {
+  color: rgba(180, 150, 220, 0.35);
+}

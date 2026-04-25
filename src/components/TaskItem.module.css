@@ -165,6 +165,18 @@
   padding-left: 8px;
 }
 
+/* Indented task visual de-emphasis */
+.taskItem:not([data-indent="0"]) .checkbox {
+  width: 14px;
+  height: 14px;
+  opacity: 0.7;
+}
+
+.taskItem:not([data-indent="0"]) .content {
+  font-size: 0.9em;
+  color: rgba(22, 22, 22, 0.72);
+}
+
 /* Completed */
 .completed .content {
   text-decoration: line-through;

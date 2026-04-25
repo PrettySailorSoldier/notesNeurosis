@@ -19,9 +19,18 @@ interface Props {
   onSetVolume: (volume: number) => void;
   onUpdateSettings: (patch: Partial<Settings>) => void;
   onUpdateIntervalTask: (pageId: string, taskId: string, sound: ReminderSound) => void;
+  onSaveAccentColor: (hex: string) => void;
 }
 
 type Tab = 'timers' | 'sounds' | 'settings';
+
+const ACCENT_PRESETS = [
+  { label: 'Lavender', hex: '#9b6fa6' },
+  { label: 'Cyan',     hex: '#00e8ff' },
+  { label: 'Lime',     hex: '#d0ff00' },
+  { label: 'Coral',    hex: '#ff9a80' },
+  { label: 'Pink',     hex: '#ff4cbc' },
+];
 
 const SOUND_OPTIONS: { value: ReminderSound; label: string }[] = [
   { value: 'chime', label: '🎵 Chime' },
@@ -72,6 +81,7 @@ export const OptionsModal: React.FC<Props> = ({
   onSetVolume,
   onUpdateSettings,
   onUpdateIntervalTask,
+  onSaveAccentColor,
 }) => {
   const { playTone } = useAudio();
   const { dragPos, modalRef, onHandleMouseDown } = useDraggable();
@@ -83,6 +93,8 @@ export const OptionsModal: React.FC<Props> = ({
   const [editInterval, setEditInterval] = useState<number>(30);
   const [editSound, setEditSound] = useState<ReminderSound>('chime');
   const [editCustomMinutes, setEditCustomMinutes] = useState<string>('');
+  const [customHex, setCustomHex] = useState('');
+  const hexDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Live countdown tick every second
   useEffect(() => {
@@ -458,6 +470,44 @@ export const OptionsModal: React.FC<Props> = ({
           {/* ── SETTINGS TAB ── */}
           {tab === 'settings' && (
             <>
+              <div className={styles.sectionTitle}>Accent Color</div>
+              <div className={styles.accentSection}>
+                <div className={styles.accentSwatches}>
+                  {ACCENT_PRESETS.map(preset => (
+                    <button
+                      key={preset.hex}
+                      className={`${styles.accentSwatch} ${settings.accentColor === preset.hex ? styles.accentSwatchActive : ''}`}
+                      style={{ background: preset.hex }}
+                      onClick={() => { onSaveAccentColor(preset.hex); setCustomHex(''); }}
+                      title={preset.label}
+                    />
+                  ))}
+                </div>
+                <div className={styles.accentCustomRow}>
+                  <div
+                    className={styles.accentCustomPreview}
+                    style={{ background: /^#[0-9a-fA-F]{6}$/.test(customHex) ? customHex : settings.accentColor }}
+                  />
+                  <input
+                    type="text"
+                    className={styles.accentCustomInput}
+                    placeholder="#hex"
+                    maxLength={7}
+                    value={customHex}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setCustomHex(val);
+                      if (hexDebounceRef.current) clearTimeout(hexDebounceRef.current);
+                      if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+                        hexDebounceRef.current = setTimeout(() => {
+                          onSaveAccentColor(val);
+                        }, 400);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
               <div className={styles.sectionTitle}>Default Reminder</div>
               <div className={styles.settingBlock}>
                 <div className={styles.settingRow}>

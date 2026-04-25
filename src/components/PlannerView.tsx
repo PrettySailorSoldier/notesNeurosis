@@ -813,9 +813,12 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
 
   const addBlockAtNow = () => {
     pendingExpand.current = true;
-    const now = roundToNearest15(new Date());
-    setQuickAddTime(now);
-    addBlock(currentDate, now, quickAddDuration);
+    const d = new Date();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const exactNow = `${hh}:${mm}`;
+    setQuickAddTime(exactNow);
+    addBlock(currentDate, exactNow, quickAddDuration);
   };
 
   const duplicateBlock = useCallback((block: PlannerBlock) => {
@@ -1042,6 +1045,7 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
               onChange={e => setQuickAddValue(e.target.value)}
               onKeyDown={handleQuickAdd}
             />
+            <span className="planner-quick-add-start-label">start</span>
             <input
               ref={quickAddTimeRef}
               className="planner-quick-add-time-native"

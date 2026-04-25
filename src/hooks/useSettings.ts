@@ -18,6 +18,7 @@ export interface Settings {
   defaultReminderSound: ReminderSound;
   defaultBlockDuration: number;
   savedSequences: SavedSequence[];
+  accentColor: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -27,6 +28,7 @@ const DEFAULT_SETTINGS: Settings = {
   defaultReminderSound: 'chime',
   defaultBlockDuration: 60,
   savedSequences: [],
+  accentColor: '#9b6fa6',
 };
 
 export function useSettings() {
@@ -42,6 +44,7 @@ export function useSettings() {
         const defSound = await store.get<ReminderSound>('defaultReminderSound');
         const defBlock = await store.get<number>('defaultBlockDuration');
         const seqs = await store.get<SavedSequence[]>('savedSequences');
+        const accent = await store.get<string>('accentColor');
 
         const hasData = tones || vol != null || defMin != null || defSound || defBlock != null;
 
@@ -50,13 +53,14 @@ export function useSettings() {
           const backup = await store.get<Settings>(SETTINGS_BACKUP_KEY);
           if (backup) {
             console.warn('[useSettings] main keys empty, restoring from backup');
-            setSettings(backup);
+            setSettings({ ...DEFAULT_SETTINGS, ...backup });
             // Restore individual keys
             await store.set('customTones', backup.customTones);
             await store.set('volume', backup.volume);
             await store.set('defaultReminderMinutes', backup.defaultReminderMinutes);
             await store.set('defaultReminderSound', backup.defaultReminderSound);
             await store.set('defaultBlockDuration', backup.defaultBlockDuration);
+            await store.set('accentColor', backup.accentColor ?? DEFAULT_SETTINGS.accentColor);
             await store.save();
             return;
           }
@@ -69,6 +73,7 @@ export function useSettings() {
           defaultReminderSound: defSound ?? prev.defaultReminderSound,
           defaultBlockDuration: defBlock ?? prev.defaultBlockDuration,
           savedSequences: seqs ?? prev.savedSequences,
+          accentColor: accent ?? prev.accentColor,
         }));
       } catch (err) {
         console.warn("[useSettings] load error:", err);
@@ -86,6 +91,7 @@ export function useSettings() {
       await store.set('defaultReminderSound', newSettings.defaultReminderSound);
       await store.set('defaultBlockDuration', newSettings.defaultBlockDuration);
       await store.set('savedSequences', newSettings.savedSequences);
+      await store.set('accentColor', newSettings.accentColor);
       await store.set(SETTINGS_BACKUP_KEY, newSettings);
       await store.save();
     } catch (e) {
@@ -125,5 +131,12 @@ export function useSettings() {
     });
   }, [saveSettings]);
 
-  return { settings, addCustomTone, removeCustomTone, setVolume, updateSettings };
+  const saveAccentColor = useCallback(async (hex: string) => {
+    const store = await load(STORE_FILE, { autoSave: false } as any);
+    await store.set('accentColor', hex);
+    await store.save();
+    setSettings(prev => ({ ...prev, accentColor: hex }));
+  }, []);
+
+  return { settings, addCustomTone, removeCustomTone, setVolume, updateSettings, saveAccentColor };
 }

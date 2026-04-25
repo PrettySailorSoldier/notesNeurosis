@@ -16,6 +16,7 @@
         "title": "Notes Neurosis",
         "width": 1100,
         "height": 860,
+        "maximized": true,
         "resizable": true,
         "decorations": false,
         "transparent": true,

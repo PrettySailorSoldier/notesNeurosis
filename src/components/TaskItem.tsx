@@ -226,6 +226,7 @@ export const TaskItem: React.FC<Props> = ({
   return (
     <div
       className={`${styles.taskItem} ${styles[`type_${task.type}`]} ${task.completed ? styles.completed : ''} ${hovered ? styles.hovered : ''} ${selected ? styles.selected : ''}`}
+      data-indent={(task.indent ?? 0).toString()}
       style={indentPx > 0 ? { marginLeft: indentPx } : undefined}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}

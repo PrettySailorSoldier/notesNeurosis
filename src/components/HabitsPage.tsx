@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useHabits } from '../hooks/useHabits';
 import { accentToHex } from '../utils/accentToHex';
-import type { AccentColor, HabitType, Habit } from '../types';
+import type { AccentColor, HabitType, Habit, ActivityEntry } from '../types';
 import '../styles/habits.css';
 
 const ACCENT_COLORS: AccentColor[] = ['plum', 'rose', 'peach', 'orange', 'yellow', 'blue', 'ghost'];
@@ -841,6 +841,210 @@ function DayView({
   );
 }
 
+// ── Activity Log Panel ────────────────────────────────────
+interface ActivityLogPanelProps {
+  activities: ActivityEntry[];
+  categories: string[];
+  clockIn: (name: string, category: string, notes?: string) => void;
+  clockOut: (id: string) => void;
+  deleteEntry: (id: string) => void;
+  addCategory: (name: string) => void;
+  getDurationMs: (entry: ActivityEntry) => number;
+}
+
+function formatActivityDuration(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  if (totalSec < 60) return `${totalSec}sec`;
+  const totalMin = Math.floor(totalSec / 60);
+  if (totalMin < 60) return `${totalMin}m`;
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
+function formatClockTime(ts: number): string {
+  const d = new Date(ts);
+  const h = d.getHours();
+  const m = String(d.getMinutes()).padStart(2, '0');
+  const period = h >= 12 ? 'pm' : 'am';
+  return `${h % 12 || 12}:${m}${period}`;
+}
+
+function ActivityLogPanel({ activities, categories, clockIn, clockOut, deleteEntry, getDurationMs }: ActivityLogPanelProps) {
+  const [actName, setActName] = useState('');
+  const [actCategory, setActCategory] = useState(() => categories[0] ?? '');
+  const [actNotes, setActNotes] = useState('');
+  const [weekOpen, setWeekOpen] = useState(true);
+  const [, setTick] = useState(0);
+
+  // Re-render every 30s to update active entry elapsed time
+  useEffect(() => {
+    const iv = setInterval(() => setTick(t => t + 1), 30000);
+    return () => clearInterval(iv);
+  }, []);
+
+  // Keep actCategory in sync if categories list loads after mount
+  useEffect(() => {
+    if (!actCategory && categories.length > 0) setActCategory(categories[0]);
+  }, [categories, actCategory]);
+
+  const todayStart = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
+  const tomorrowStart = todayStart + 86400000;
+
+  const activeEntry = activities.find(e => e.endTime === null);
+  const todayEntries = activities.filter(
+    e => e.startTime >= todayStart && e.startTime < tomorrowStart && e.endTime !== null
+  );
+  const todayTotalMs = todayEntries.reduce((sum, e) => sum + getDurationMs(e), 0);
+
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    d.setHours(0, 0, 0, 0);
+    const start = d.getTime();
+    const end = start + 86400000;
+    const label = i === 6 ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'short' });
+    const totalMs = activities
+      .filter(e => e.startTime >= start && e.startTime < end)
+      .reduce((sum, e) => sum + getDurationMs(e), 0);
+    return { label, totalMs };
+  });
+  const weekMaxMs = Math.max(1, ...weekDays.map(d => d.totalMs));
+
+  const handleClockIn = () => {
+    const name = actName.trim();
+    if (!name) return;
+    clockIn(name, actCategory, actNotes.trim() || undefined);
+    setActName('');
+    setActNotes('');
+  };
+
+  return (
+    <div className="activity-log">
+
+      {/* Clock In / Active session panel */}
+      <div className="activity-clock-panel">
+        <div className="activity-clock-panel__title">Clock In</div>
+
+        {activeEntry ? (
+          <div className="activity-active-session">
+            <div className="activity-active-row">
+              <div className="activity-active-indicator" />
+              <span className="activity-active-name">{activeEntry.name}</span>
+              <span className="activity-active-cat">{activeEntry.category}</span>
+              <span className="activity-active-elapsed">
+                {formatActivityDuration(getDurationMs(activeEntry))}
+              </span>
+              <button
+                className="activity-clock-out-btn"
+                onClick={() => clockOut(activeEntry.id)}
+              >Clock Out</button>
+            </div>
+            {activeEntry.notes && (
+              <div className="activity-active-notes">{activeEntry.notes}</div>
+            )}
+          </div>
+        ) : (
+          <div className="activity-clock-form">
+            <div className="activity-clock-form__row">
+              <input
+                className="activity-name-input"
+                type="text"
+                placeholder="Activity name…"
+                value={actName}
+                onChange={e => setActName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleClockIn(); }}
+              />
+              <select
+                className="activity-cat-select"
+                value={actCategory}
+                onChange={e => setActCategory(e.target.value)}
+              >
+                {categories.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <input
+              className="activity-notes-input"
+              type="text"
+              placeholder="Notes (optional)…"
+              value={actNotes}
+              onChange={e => setActNotes(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleClockIn(); }}
+            />
+            <button
+              className="activity-clock-in-btn"
+              onClick={handleClockIn}
+              disabled={!actName.trim()}
+            >Clock In</button>
+          </div>
+        )}
+      </div>
+
+      {/* Today section */}
+      <div className="activity-today-section">
+        <div className="activity-section-title">Today</div>
+
+        {todayEntries.length === 0 && !activeEntry && (
+          <div className="activity-empty">No entries yet today.</div>
+        )}
+
+        {todayEntries.map(entry => (
+          <div key={entry.id} className="activity-entry-row">
+            <span className="activity-entry-name">{entry.name}</span>
+            <span className="activity-entry-cat">{entry.category}</span>
+            <span className="activity-entry-time">{formatClockTime(entry.startTime)}</span>
+            <span className="activity-entry-dur">{formatActivityDuration(getDurationMs(entry))}</span>
+            <button
+              className="activity-entry-delete"
+              onClick={() => deleteEntry(entry.id)}
+              title="Delete entry"
+            >×</button>
+          </div>
+        ))}
+
+        {(todayEntries.length > 0 || !!activeEntry) && (
+          <div className="activity-today-total">
+            Total: {formatActivityDuration(
+              todayTotalMs + (activeEntry ? getDurationMs(activeEntry) : 0)
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Weekly summary */}
+      <div className="activity-week-section">
+        <button
+          className="activity-week-toggle"
+          onClick={() => setWeekOpen(v => !v)}
+        >
+          {weekOpen ? '▾' : '▸'} This Week
+        </button>
+        {weekOpen && (
+          <div className="activity-week-chart">
+            {weekDays.map(({ label, totalMs }) => (
+              <div key={label} className="activity-week-day">
+                <span className="activity-week-day-label">{label}</span>
+                <div className="activity-week-bar-track">
+                  <div
+                    className="activity-bar"
+                    style={{ '--bar-pct': `${Math.round((totalMs / weekMaxMs) * 100)}%` } as React.CSSProperties}
+                  />
+                </div>
+                <span className="activity-week-day-total">
+                  {totalMs > 0 ? formatActivityDuration(totalMs) : '—'}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────
 type ViewMode = 'grid' | 'linear' | 'day';
 
@@ -853,8 +1057,11 @@ export function HabitsPage({ pageId: _pageId }: Props) {
     getLogCount, setLogCount,
     updateLogNote,
     getStreakForHabit, getLongestStreak,
+    activities, categories,
+    clockIn, clockOut, deleteEntry, addCategory, getDurationMs,
   } = useHabits();
 
+  const [activeTab, setActiveTab] = useState<'patterns' | 'activity'>('patterns');
   const [view, setView] = useState<ViewMode>('grid');
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState('');
@@ -901,8 +1108,33 @@ export function HabitsPage({ pageId: _pageId }: Props) {
 
   return (
     <div className="habits-page" onClick={() => setMenuHabitId(null)}>
-      {/* Header */}
-      <div className="habits-header">
+      <div className="habits-tab-strip">
+        <button
+          className={`habits-tab-btn ${activeTab === 'patterns' ? 'habits-tab-btn--active' : ''}`}
+          onClick={() => setActiveTab('patterns')}
+        >Patterns</button>
+        <button
+          className={`habits-tab-btn ${activeTab === 'activity' ? 'habits-tab-btn--active' : ''}`}
+          onClick={() => setActiveTab('activity')}
+        >Activity</button>
+      </div>
+
+      {activeTab === 'activity' && (
+        <ActivityLogPanel
+          activities={activities}
+          categories={categories}
+          clockIn={clockIn}
+          clockOut={clockOut}
+          deleteEntry={deleteEntry}
+          addCategory={addCategory}
+          getDurationMs={getDurationMs}
+        />
+      )}
+
+      {activeTab === 'patterns' && (
+        <>
+          {/* Header */}
+          <div className="habits-header">
         <h2 className="habits-title">Rhythm Tracker</h2>
         <p className="habits-subtitle">No streaks. Just patterns.</p>
         <div className="habits-view-toggle">
@@ -1230,6 +1462,8 @@ export function HabitsPage({ pageId: _pageId }: Props) {
             <button className="habits-form-cancel" onClick={() => setShowAddForm(false)}>Cancel</button>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

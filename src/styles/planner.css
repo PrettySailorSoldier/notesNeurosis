@@ -32,9 +32,12 @@
   font-family: system-ui, sans-serif;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-faint);
+  color: var(--plum);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--plum) 12%, transparent);
+  border-radius: 4px;
+  padding: 2px 6px;
   flex-shrink: 0;
-  width: 36px;
 }
 
 .planner-allday-input {
@@ -1220,4 +1223,20 @@
   color: rgba(200, 160, 255, 0.85);
   font-size: 10px;
   padding: 2px 4px;
+}
+
+/* ── Quick-add wrap separator from all-day section ── */
+.planner-quick-add-wrap {
+  border-top: 1px solid var(--border);
+  padding-top: 4px;
+  margin-top: 4px;
+}
+
+/* ── "start" label beside the time input ── */
+.planner-quick-add-start-label {
+  font-size: 10px;
+  font-family: system-ui, sans-serif;
+  color: var(--text-faint);
+  flex-shrink: 0;
+  white-space: nowrap;
 }

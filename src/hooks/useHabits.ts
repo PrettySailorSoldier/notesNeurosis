@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { load } from '@tauri-apps/plugin-store';
-import type { Habit, HabitLog, HabitStore, AccentColor, HabitType } from '../types';
+import type { Habit, HabitLog, HabitStore, AccentColor, HabitType, ActivityEntry, ActivityStore } from '../types';
 
 const STORE_FILE = 'habits.json';
 const STORE_KEY = 'habit-data';
 const BACKUP_KEY = 'habit-data-backup';
+const ACTIVITY_KEY = 'activity-data';
+
+const DEFAULT_CATEGORIES = ['Computer/Screen', 'Self-Care', 'Transition', 'Exercise', 'Creative', 'Rest', 'Social', 'Admin'];
 
 function makeId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -26,14 +29,21 @@ export function useHabits() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [logs, setLogs] = useState<HabitLog[]>([]);
   const [ready, setReady] = useState(false);
+  const [activities, setActivities] = useState<ActivityEntry[]>([]);
+  const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
 
-  // Stable refs so debounced save always has latest values
+  // Stable refs so debounced saves always have latest values
   const habitsRef = useRef<Habit[]>([]);
   const logsRef = useRef<HabitLog[]>([]);
   const saveTimeout = useRef<number | null>(null);
+  const activitiesRef = useRef<ActivityEntry[]>([]);
+  const categoriesRef = useRef<string[]>(DEFAULT_CATEGORIES);
+  const activitySaveTimeout = useRef<number | null>(null);
 
   useEffect(() => { habitsRef.current = habits; }, [habits]);
   useEffect(() => { logsRef.current = logs; }, [logs]);
+  useEffect(() => { activitiesRef.current = activities; }, [activities]);
+  useEffect(() => { categoriesRef.current = categories; }, [categories]);
 
   // Load on mount
   useEffect(() => {
@@ -85,6 +95,40 @@ export function useHabits() {
   const scheduleSave = (h: Habit[], l: HabitLog[]) => {
     if (saveTimeout.current !== null) window.clearTimeout(saveTimeout.current);
     saveTimeout.current = window.setTimeout(() => saveToStore(h, l), 400);
+  };
+
+  // ── Activity data load ─────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const store = await load(STORE_FILE, { autoSave: false } as any);
+        const data = await store.get<ActivityStore>(ACTIVITY_KEY);
+        if (!cancelled) {
+          setActivities(data?.entries ?? []);
+          setCategories(data?.categories ?? DEFAULT_CATEGORIES);
+        }
+      } catch (err) {
+        console.error('[useHabits] activity load error:', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const saveActivityToStore = async (entries: ActivityEntry[], cats: string[]) => {
+    try {
+      const store = await load(STORE_FILE, { autoSave: false } as any);
+      const data: ActivityStore = { entries, categories: cats };
+      await store.set(ACTIVITY_KEY, data);
+      await store.save();
+    } catch (err) {
+      console.error('[useHabits] activity save error:', err);
+    }
+  };
+
+  const scheduleActivitySave = (entries: ActivityEntry[], cats: string[]) => {
+    if (activitySaveTimeout.current !== null) window.clearTimeout(activitySaveTimeout.current);
+    activitySaveTimeout.current = window.setTimeout(() => saveActivityToStore(entries, cats), 400);
   };
 
   // ── Mutations ──────────────────────────────────────────
@@ -186,6 +230,62 @@ export function useHabits() {
     });
   }, []);
 
+  // ── Activity mutations ─────────────────────────────────
+
+  const clockIn = useCallback((name: string, category: string, notes: string = '') => {
+    const newEntry: ActivityEntry = {
+      id: makeId(),
+      name,
+      category,
+      startTime: Date.now(),
+      endTime: null,
+      notes,
+    };
+    setActivities(prev => {
+      const now = Date.now();
+      const updated = prev.map(e => e.endTime === null ? { ...e, endTime: now } : e);
+      const next = [...updated, newEntry];
+      activitiesRef.current = next;
+      scheduleActivitySave(next, categoriesRef.current);
+      return next;
+    });
+  }, []);
+
+  const clockOut = useCallback((id: string) => {
+    setActivities(prev => {
+      const now = Date.now();
+      const next = prev.map(e => e.id === id ? { ...e, endTime: now } : e);
+      activitiesRef.current = next;
+      scheduleActivitySave(next, categoriesRef.current);
+      return next;
+    });
+  }, []);
+
+  const deleteEntry = useCallback((id: string) => {
+    setActivities(prev => {
+      const next = prev.filter(e => e.id !== id);
+      activitiesRef.current = next;
+      scheduleActivitySave(next, categoriesRef.current);
+      return next;
+    });
+  }, []);
+
+  const addCategory = useCallback((name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setCategories(prev => {
+      if (prev.includes(trimmed)) return prev;
+      const next = [...prev, trimmed];
+      categoriesRef.current = next;
+      scheduleActivitySave(activitiesRef.current, next);
+      return next;
+    });
+  }, []);
+
+  const getDurationMs = useCallback((entry: ActivityEntry): number => {
+    return (entry.endTime ?? Date.now()) - entry.startTime;
+  }, []);
+
   // ── Queries ────────────────────────────────────────────
 
   const isLogged = useCallback((habitId: string, date: string): boolean => {
@@ -257,5 +357,12 @@ export function useHabits() {
     getLogsForHabit,
     getStreakForHabit,
     getLongestStreak,
+    activities,
+    categories,
+    clockIn,
+    clockOut,
+    deleteEntry,
+    addCategory,
+    getDurationMs,
   };
 }

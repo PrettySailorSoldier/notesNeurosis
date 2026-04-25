@@ -105,7 +105,7 @@ export default function App() {
     reorderPages,
   } = usePages();
 
-  const { settings, addCustomTone, removeCustomTone, setVolume, updateSettings } = useSettings();
+  const { settings, addCustomTone, removeCustomTone, setVolume, updateSettings, saveAccentColor } = useSettings();
   const [showOptions, setShowOptions] = useState(false);
   const [tabMenu, setTabMenu] = useState<TabContextMenu | null>(null);
   const draggedTabId = useRef<string | null>(null);
@@ -116,6 +116,16 @@ export default function App() {
   const isDragging = useRef(false);
   const reorderPagesRef = useRef(reorderPages);
   useEffect(() => { reorderPagesRef.current = reorderPages; }, [reorderPages]);
+
+  useEffect(() => {
+    const hex = settings.accentColor;
+    if (!hex || !/^#[0-9a-fA-F]{6}$/.test(hex)) return;
+    const root = document.documentElement;
+    root.style.setProperty('--accent-primary', hex);
+    root.style.setProperty('--accent-primary-dim', hex + '4d');
+    root.style.setProperty('--accent-primary-border', hex + '66');
+    root.style.setProperty('--accent-primary-glow', hex + '26');
+  }, [settings.accentColor]);
 
   const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
   const [renameValue,   setRenameValue]   = useState('');
@@ -723,6 +733,7 @@ export default function App() {
           onRemoveCustomTone={removeCustomTone}
           onSetVolume={setVolume}
           onUpdateSettings={updateSettings}
+          onSaveAccentColor={saveAccentColor}
         />
       )}
 

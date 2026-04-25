@@ -1,12 +1,12 @@
 /* ── Habits page design tokens (scoped to habits namespace) ── */
 :root {
-  --plum:        rgba(155, 111, 166, 1);
-  --orchid:      rgba(180, 130, 220, 1);
+  --plum:        var(--accent-primary);
+  --orchid:      var(--accent-primary);
   --rose:        rgba(196, 123, 142, 1);
   --ghost:       rgba(144, 144, 160, 1);
   --surface:     rgba(255, 255, 255, 0.08);
   --surface-2:   rgba(255, 255, 255, 0.04);
-  --border:      rgba(180, 130, 220, 0.2);
+  --border:      var(--accent-primary-border);
   --text:        #161616;
   --text-muted:  #666;
   --text-faint:  #999;
@@ -1356,4 +1356,419 @@
   font-style: italic;
   text-align: center;
   padding: 24px 0;
+}
+
+/* ── Activity Log tab strip ── */
+.habits-tab-strip {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+
+.habits-tab-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 6px 14px;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 14px;
+  color: var(--text-muted);
+  cursor: pointer;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.habits-tab-btn:hover {
+  color: var(--text);
+}
+
+.habits-tab-btn--active {
+  color: var(--accent-primary);
+  border-bottom-color: var(--accent-primary);
+}
+
+/* ── Activity log container ── */
+.activity-log {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 2px;
+}
+
+/* ── Clock In panel ── */
+.activity-clock-panel {
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 8px);
+  padding: 12px 14px;
+}
+
+.activity-clock-panel__title {
+  font-family: system-ui, sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 10px;
+}
+
+.activity-clock-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.activity-clock-form__row {
+  display: flex;
+  gap: 8px;
+}
+
+.activity-name-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed var(--border);
+  color: var(--text);
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 14px;
+  padding: 3px 2px;
+  outline: none;
+  transition: border-bottom-color 0.15s;
+}
+
+.activity-name-input:focus {
+  border-bottom-color: var(--accent-primary);
+}
+
+.activity-name-input::placeholder {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.activity-cat-select {
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-family: system-ui, sans-serif;
+  font-size: 11px;
+  padding: 2px 6px;
+  outline: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.activity-notes-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed transparent;
+  color: var(--text-muted);
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 13px;
+  padding: 2px 2px;
+  outline: none;
+  transition: border-bottom-color 0.15s;
+}
+
+.activity-notes-input:focus {
+  border-bottom-color: var(--border);
+}
+
+.activity-notes-input::placeholder {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.activity-clock-in-btn {
+  align-self: flex-start;
+  background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);
+  border-radius: 6px;
+  color: var(--accent-primary);
+  font-family: system-ui, sans-serif;
+  font-size: 11px;
+  padding: 4px 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.activity-clock-in-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent-primary) 25%, transparent);
+}
+
+.activity-clock-in-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ── Active session ── */
+.activity-active-session {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.activity-active-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.activity-active-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  flex-shrink: 0;
+  animation: activityPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes activityPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.8); }
+}
+
+.activity-active-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 15px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.activity-active-cat {
+  font-family: system-ui, sans-serif;
+  font-size: 11px;
+  color: var(--text-faint);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1px 7px;
+}
+
+.activity-active-elapsed {
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--accent-primary);
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+
+.activity-active-notes {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 12px;
+  color: var(--text-faint);
+  font-style: italic;
+  padding-left: 16px;
+}
+
+.activity-clock-out-btn {
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 35%, transparent);
+  border-radius: 6px;
+  color: var(--accent-primary);
+  font-family: system-ui, sans-serif;
+  font-size: 11px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.activity-clock-out-btn:hover {
+  background: color-mix(in srgb, var(--accent-primary) 22%, transparent);
+}
+
+/* ── Today section ── */
+.activity-today-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.activity-section-title {
+  font-family: system-ui, sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.activity-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.activity-empty {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 13px;
+  color: var(--text-faint);
+  font-style: italic;
+  padding: 4px 0;
+}
+
+.activity-entry-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--surface) 40%, transparent);
+  transition: background 0.1s;
+}
+
+.activity-entry-row:hover {
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+}
+
+.activity-entry-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 14px;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-entry-cat {
+  font-family: system-ui, sans-serif;
+  font-size: 10px;
+  color: var(--text-faint);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1px 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.activity-entry-time {
+  font-family: system-ui, sans-serif;
+  font-size: 10px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.activity-entry-dur {
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+  color: var(--accent-primary);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  min-width: 36px;
+  text-align: right;
+}
+
+.activity-entry-delete {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-faint);
+  padding: 0 2px;
+  opacity: 0;
+  transition: opacity 0.12s, color 0.12s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.activity-entry-row:hover .activity-entry-delete {
+  opacity: 1;
+}
+
+.activity-entry-delete:hover {
+  color: var(--rose);
+}
+
+.activity-today-total {
+  font-family: system-ui, sans-serif;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+  margin-top: 2px;
+}
+
+/* ── Weekly summary ── */
+.activity-week-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.activity-week-toggle {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  text-align: left;
+  padding: 0;
+  transition: color 0.12s;
+}
+
+.activity-week-toggle:hover {
+  color: var(--text-muted);
+}
+
+.activity-week-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.activity-week-day {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.activity-week-day-label {
+  font-family: system-ui, sans-serif;
+  font-size: 10px;
+  color: var(--text-faint);
+  width: 32px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.activity-week-bar-track {
+  flex: 1;
+  height: 12px;
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.activity-bar {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--accent-primary);
+  width: var(--bar-pct, 0%);
+  transition: width 0.3s ease;
+  opacity: 0.75;
+}
+
+.activity-week-day-total {
+  font-family: system-ui, sans-serif;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  width: 42px;
+  flex-shrink: 0;
+  text-align: right;
 }

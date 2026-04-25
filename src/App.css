@@ -4,14 +4,19 @@
 :root {
   --font-primary: 'Crimson Pro', 'Cormorant Garamond', ui-serif, 'Georgia', 'Cambria', 'Times New Roman', Times, serif;
 
-  --app-purple: rgba(180, 130, 220, 1);
+  --app-purple: var(--accent-primary);
   --app-blue:   rgba(110, 160, 220, 1);
-  --app-glow:   rgba(200, 160, 255, 0.15);
+  --app-glow:   var(--accent-primary-glow);
   --text-primary:  #161616;
   --text-muted:    #555;
-  --checkbox-border: rgba(180, 140, 220, 0.5);
-  --reminder-pill: rgba(140, 100, 200, 0.3);
+  --checkbox-border: var(--accent-primary-border);
+  --reminder-pill: var(--accent-primary-dim);
   --scrollbar:     rgba(180, 140, 220, 0.2);
+
+  --accent-primary: #9b6fa6;
+  --accent-primary-dim: rgba(155, 111, 166, 0.3);
+  --accent-primary-border: rgba(155, 111, 166, 0.4);
+  --accent-primary-glow: rgba(155, 111, 166, 0.15);
 
   /* Writing zone geometry — wide frame */
   --zone-top:    32%;
@@ -418,7 +423,7 @@ html, body {
   border-radius: 50%;
   border: 1px solid rgba(180, 140, 220, 0.3);
   background: transparent;
-  color: rgba(180, 140, 220, 0.5);
+  color: var(--accent-primary-border);
   font-size: 10px;
   font-weight: 600;
   cursor: pointer;
