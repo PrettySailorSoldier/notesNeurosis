@@ -10,7 +10,7 @@ interface Props {
   isNew?: boolean;
   onUpdate: (updated: Task) => void;
   onDelete: (id: string) => void;
-  onAddAfter: (afterId: string, type: TaskType, indent: number) => void;
+  onAddAfter: (afterId: string, type: TaskType, indent: number, forceIndent?: boolean) => void;
   onMergePrev: (id: string) => void;
   onSetReminder: (taskId: string, intervalMinutes: number, sound: ReminderSound, alarmEnabled?: boolean) => void;
   onClearReminder: (taskId: string) => void;
@@ -149,9 +149,13 @@ export const TaskItem: React.FC<Props> = ({
       const el = contentRef.current;
       const isEmpty = !el || el.textContent === '';
       if (isEmpty && (task.indent ?? 0) > 0) {
-        // Empty indented task → escape one indent level (standard editor behaviour)
+        // Empty indented task → escape one indent level
         onUpdate({ ...task, indent: (task.indent ?? 0) - 1 });
+      } else if (e.shiftKey && (task.indent ?? 0) > 0) {
+        // Shift+Enter within a subtask → force-continue at same indent level
+        onAddAfter(task.id, task.type, task.indent ?? 0, true);
       } else {
+        // Default: handleAddAfter resolves to main level unless mid-chain sibling exists.
         onAddAfter(task.id, task.type, task.indent ?? 0);
       }
     }

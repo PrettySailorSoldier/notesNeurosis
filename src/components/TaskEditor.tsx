@@ -124,7 +124,7 @@ export const TaskEditor: React.FC<Props> = ({
     updateActiveTasks(next.length > 0 ? next : [makeTask('plain')]);
   }, [tasks, updateActiveTasks]);
 
-  const handleAddAfter = useCallback((afterId: string, type: TaskType, indent = 0) => {
+  const handleAddAfter = useCallback((afterId: string, type: TaskType, indent = 0, forceIndent = false) => {
     const idx = tasks.findIndex(t => t.id === afterId);
     const defaultType: TaskType = pageType === 'todo' ? 'checkbox' : 'plain';
     // On todo pages always use checkbox for new tasks;
@@ -132,7 +132,14 @@ export const TaskEditor: React.FC<Props> = ({
     const newType = pageType === 'todo'
       ? 'checkbox'
       : (type === 'heading' ? defaultType : type);
-    const newTask: Task = { ...makeTask(newType), indent: indent > 0 ? indent : undefined };
+    // Smart indent: forceIndent keeps the requested level (Shift+Enter).
+    // Otherwise default to main (0) unless a sibling at the same level follows (mid-chain).
+    const nextTask = tasks[idx + 1];
+    const nextIndent = nextTask?.indent ?? 0;
+    const effectiveIndent = forceIndent
+      ? indent
+      : (indent > 0 && nextIndent >= indent) ? indent : 0;
+    const newTask: Task = { ...makeTask(newType), indent: effectiveIndent > 0 ? effectiveIndent : undefined };
     const next = [...tasks];
     next.splice(idx + 1, 0, newTask);
     updateActiveTasks(next);
