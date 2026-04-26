@@ -147,10 +147,10 @@ export const TaskItem: React.FC<Props> = ({
     if (e.key === 'Enter') {
       e.preventDefault();
       const el = contentRef.current;
-      const isEmpty = !el || el.textContent === '';
+      const isEmpty = !el || (el.textContent ?? '').trim() === '';
       if (isEmpty && (task.indent ?? 0) > 0) {
-        // Empty indented task → escape one indent level
-        onUpdate({ ...task, indent: (task.indent ?? 0) - 1 });
+        // Empty subtask → jump back to main level by resetting indent and adding a fresh main task
+        onUpdate({ ...task, indent: undefined });
       } else if (e.shiftKey && (task.indent ?? 0) > 0) {
         // Shift+Enter within a subtask → force-continue at same indent level
         onAddAfter(task.id, task.type, task.indent ?? 0, true);

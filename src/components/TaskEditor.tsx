@@ -132,13 +132,8 @@ export const TaskEditor: React.FC<Props> = ({
     const newType = pageType === 'todo'
       ? 'checkbox'
       : (type === 'heading' ? defaultType : type);
-    // Smart indent: forceIndent keeps the requested level (Shift+Enter).
-    // Otherwise default to main (0) unless a sibling at the same level follows (mid-chain).
-    const nextTask = tasks[idx + 1];
-    const nextIndent = nextTask?.indent ?? 0;
-    const effectiveIndent = forceIndent
-      ? indent
-      : (indent > 0 && nextIndent >= indent) ? indent : 0;
+    // forceIndent (Shift+Enter) keeps the requested level; otherwise always return to main (0).
+    const effectiveIndent = forceIndent ? indent : 0;
     const newTask: Task = { ...makeTask(newType), indent: effectiveIndent > 0 ? effectiveIndent : undefined };
     const next = [...tasks];
     next.splice(idx + 1, 0, newTask);
