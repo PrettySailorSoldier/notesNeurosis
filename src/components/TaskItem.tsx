@@ -147,16 +147,14 @@ export const TaskItem: React.FC<Props> = ({
     if (e.key === 'Enter') {
       e.preventDefault();
       const el = contentRef.current;
-      const isEmpty = !el || (el.textContent ?? '').trim() === '';
-      if (isEmpty && (task.indent ?? 0) > 0) {
-        // Empty subtask → jump back to main level by resetting indent and adding a fresh main task
-        onUpdate({ ...task, indent: undefined });
-      } else if (e.shiftKey && (task.indent ?? 0) > 0) {
-        // Shift+Enter within a subtask → force-continue at same indent level
-        onAddAfter(task.id, task.type, task.indent ?? 0, true);
+      const isEmpty = (el?.textContent ?? '').replace(/[​­﻿]/g, '').trim() === '';
+      const currentIndent = task.indent ?? 0;
+      if (isEmpty && currentIndent > 0) {
+        // Empty subtask → escape directly to main level
+        onUpdate({ ...task, indent: 0 });
       } else {
-        // Default: handleAddAfter resolves to main level unless mid-chain sibling exists.
-        onAddAfter(task.id, task.type, task.indent ?? 0);
+        // Continue at same indent level; use Backspace or Shift+Tab to promote
+        onAddAfter(task.id, task.type, currentIndent, true);
       }
     }
 
@@ -171,11 +169,12 @@ export const TaskItem: React.FC<Props> = ({
 
     if (e.key === 'Backspace') {
       const el = contentRef.current;
-      if (!el || el.textContent !== '') return;
+      const isEmpty = (el?.textContent ?? '').replace(/[​­﻿]/g, '').trim() === '';
+      if (!el || !isEmpty) return;
       e.preventDefault();
       if ((task.indent ?? 0) > 0) {
-        // Empty indented task → un-indent before merging
-        onUpdate({ ...task, indent: (task.indent ?? 0) - 1 });
+        // Empty subtask → jump straight to main level
+        onUpdate({ ...task, indent: 0 });
       } else {
         onMergePrev(task.id);
       }
