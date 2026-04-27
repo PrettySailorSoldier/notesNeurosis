@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './NoteEditor.module.css';
 import { BoardTabStrip } from './BoardTabStrip';
+import { RichTextEditor } from './RichTextEditor';
 import type { NoteBoard } from '../types';
 
 interface Props {
@@ -10,8 +11,19 @@ interface Props {
   placeholder?: string;
 }
 
-function wordCount(text: string): number {
+function getTextFromHtml(html: string): string {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+}
+
+function wordCount(html: string): number {
+  const text = getTextFromHtml(html);
   return text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
+}
+
+function charCount(html: string): number {
+  return getTextFromHtml(html).length;
 }
 
 function formatStamp(): string {
@@ -30,9 +42,9 @@ export const NoteEditor: React.FC<Props> = ({
   legacyContent,
   placeholder = 'Begin writing…',
 }) => {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [activeBoardId, setActiveBoardId] = useState<string>('');
   const [words, setWords] = useState(0);
+  const [chars, setChars] = useState(0);
   const [copied, setCopied] = useState(false);
   const initializedRef = useRef(false);
 
@@ -67,6 +79,7 @@ export const NoteEditor: React.FC<Props> = ({
   // Keep word count in sync
   useEffect(() => {
     setWords(wordCount(content));
+    setChars(charCount(content));
   }, [content]);
 
   // Board CRUD helpers
@@ -89,120 +102,23 @@ export const NoteEditor: React.FC<Props> = ({
   };
 
   const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    (newHtml: string) => {
       if (!activeBoard) return;
-      onBoardsChange(boards.map(b => b.id === activeBoard.id ? { ...b, content: e.target.value } : b));
+      onBoardsChange(boards.map(b => b.id === activeBoard.id ? { ...b, content: newHtml } : b));
     },
     [activeBoard, boards, onBoardsChange]
   );
 
-  // ── Keyboard shortcuts inside the textarea ──
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      const ta = textareaRef.current;
-      if (!ta || !activeBoard) return;
-
-      // Tab → insert 2 spaces (don't lose focus)
-      if (e.key === 'Tab' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault();
-        const { selectionStart: s, selectionEnd: end } = ta;
-        const next = content.slice(0, s) + '  ' + content.slice(end);
-        onBoardsChange(boards.map(b => b.id === activeBoard.id ? { ...b, content: next } : b));
-        requestAnimationFrame(() => {
-          ta.selectionStart = ta.selectionEnd = s + 2;
-        });
-      }
-
-      // Ctrl+D → duplicate current line
-      if (e.ctrlKey && e.key === 'd') {
-        e.preventDefault();
-        const { selectionStart: s } = ta;
-        const lineStart = content.lastIndexOf('\n', s - 1) + 1;
-        const lineEnd = content.indexOf('\n', s);
-        const line = content.slice(lineStart, lineEnd === -1 ? undefined : lineEnd);
-        const insert = '\n' + line;
-        const pos = lineEnd === -1 ? content.length : lineEnd;
-        const next = content.slice(0, pos) + insert + content.slice(pos);
-        onBoardsChange(boards.map(b => b.id === activeBoard.id ? { ...b, content: next } : b));
-        requestAnimationFrame(() => {
-          ta.selectionStart = ta.selectionEnd = pos + insert.length;
-        });
-      }
-    },
-    [content, activeBoard, boards, onBoardsChange]
-  );
-
-  // Insert timestamp at cursor
-  const insertStamp = useCallback(() => {
-    const ta = textareaRef.current;
-    if (!ta || !activeBoard) return;
-    const s = ta.selectionStart;
-    const stamp = `\n— ${formatStamp()} —\n`;
-    const next = content.slice(0, s) + stamp + content.slice(s);
-    onBoardsChange(boards.map(b => b.id === activeBoard.id ? { ...b, content: next } : b));
-    requestAnimationFrame(() => {
-      ta.selectionStart = ta.selectionEnd = s + stamp.length;
-      ta.focus();
-    });
-  }, [content, activeBoard, boards, onBoardsChange]);
-
   const handleCopyAll = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(content);
+      const text = getTextFromHtml(content);
+      await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
-      textareaRef.current?.select();
+      // fallback
     }
   }, [content]);
-
-  // Wrap selection helper
-  const wrapSelection = useCallback(
-    (prefix: string, suffix = prefix) => {
-      const ta = textareaRef.current;
-      if (!ta || !activeBoard) return;
-      const { selectionStart: s, selectionEnd: e } = ta;
-      const selected = content.slice(s, e);
-      const next = content.slice(0, s) + prefix + selected + suffix + content.slice(e);
-      onBoardsChange(boards.map(b => b.id === activeBoard.id ? { ...b, content: next } : b));
-      requestAnimationFrame(() => {
-        if (selected.length > 0) {
-          ta.selectionStart = s + prefix.length;
-          ta.selectionEnd = e + prefix.length;
-        } else {
-          ta.selectionStart = ta.selectionEnd = s + prefix.length;
-        }
-        ta.focus();
-      });
-    },
-    [content, activeBoard, boards, onBoardsChange]
-  );
-
-  // Prefix current line
-  const prefixLine = useCallback(
-    (marker: string) => {
-      const ta = textareaRef.current;
-      if (!ta || !activeBoard) return;
-      const s = ta.selectionStart;
-      const lineStart = content.lastIndexOf('\n', s - 1) + 1;
-      const alreadyHas = content.slice(lineStart).startsWith(marker);
-      let next: string;
-      let newCursor: number;
-      if (alreadyHas) {
-        next = content.slice(0, lineStart) + content.slice(lineStart + marker.length);
-        newCursor = s - marker.length;
-      } else {
-        next = content.slice(0, lineStart) + marker + content.slice(lineStart);
-        newCursor = s + marker.length;
-      }
-      onBoardsChange(boards.map(b => b.id === activeBoard.id ? { ...b, content: next } : b));
-      requestAnimationFrame(() => {
-        ta.selectionStart = ta.selectionEnd = Math.max(lineStart, newCursor);
-        ta.focus();
-      });
-    },
-    [content, activeBoard, boards, onBoardsChange]
-  );
 
   if (!activeBoard) return null;
 
@@ -218,89 +134,15 @@ export const NoteEditor: React.FC<Props> = ({
         addLabel="+ note"
       />
       <div className={styles.container}>
-        {/* Floating toolbar — appears on focus/hover */}
-        <div className={styles.toolbar}>
-          <button
-            className={styles.toolbarBtn}
-            title="Bold (wrap selected text)"
-            onMouseDown={e => { e.preventDefault(); wrapSelection('**'); }}
-          >
-            <strong>B</strong>
-          </button>
-          <button
-            className={styles.toolbarBtn}
-            title="Italic (wrap selected text)"
-            onMouseDown={e => { e.preventDefault(); wrapSelection('_'); }}
-          >
-            <em>I</em>
-          </button>
-          <button
-            className={styles.toolbarBtn}
-            title="Heading line (prefix ##)"
-            style={{ fontSize: 11, fontWeight: 700 }}
-            onMouseDown={e => { e.preventDefault(); prefixLine('## '); }}
-          >
-            H
-          </button>
-          <button
-            className={styles.toolbarBtn}
-            title="Bullet point"
-            onMouseDown={e => { e.preventDefault(); prefixLine('• '); }}
-          >
-            •
-          </button>
-          <button
-            className={styles.toolbarBtn}
-            title="Numbered list item"
-            onMouseDown={e => { e.preventDefault(); prefixLine('1. '); }}
-          >
-            1.
-          </button>
-          <button
-            className={styles.toolbarBtn}
-            title="Checklist item"
-            onMouseDown={e => { e.preventDefault(); prefixLine('[ ] '); }}
-          >
-            ☐
-          </button>
-
-          <div className={styles.toolbarSep} />
-
-          <button
-            className={styles.stampBtn}
-            title="Insert timestamp at cursor"
-            onMouseDown={e => { e.preventDefault(); insertStamp(); }}
-          >
-            🕐 timestamp
-          </button>
-
-          <div className={styles.toolbarSep} />
-
-          <button
-            className={styles.toolbarBtn}
-            onClick={handleCopyAll}
-            title="Copy all text"
-            aria-label="Copy all text"
-          >
-            {copied ? '✓' : '⎘'}
-          </button>
-
-          <span className={styles.wordCount}>
-            {words === 0 ? '' : `${words}w · ${content.length}c`}
-          </span>
-        </div>
-
-        <div className={styles.rule} />
-
-        <textarea
-          ref={textareaRef}
-          className={styles.textArea}
-          value={content}
+        <RichTextEditor
+          content={content}
           onChange={handleChange}
-          onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          spellCheck
-          autoFocus
+          words={words}
+          chars={chars}
+          onCopy={handleCopyAll}
+          copied={copied}
+          stampText={`— ${formatStamp()} —`}
         />
       </div>
     </div>
