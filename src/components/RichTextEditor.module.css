@@ -180,7 +180,7 @@
 }
 
 .editor:empty::before {
-  content: attr(placeholder);
+  content: attr(data-placeholder);
   color: rgba(150, 100, 190, 0.3);
   font-style: italic;
   pointer-events: none;

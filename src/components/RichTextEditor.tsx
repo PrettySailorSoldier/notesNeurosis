@@ -174,7 +174,7 @@ export const RichTextEditor: React.FC<Props> = ({
         onKeyUp={updateActiveFormats}
         onMouseUp={updateActiveFormats}
         onKeyDown={handleKeyDown}
-        placeholder={placeholder}
+        data-placeholder={placeholder}
         spellCheck
       />
     </div>
