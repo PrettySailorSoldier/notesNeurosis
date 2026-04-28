@@ -60,7 +60,7 @@ export const TaskEditor: React.FC<Props> = ({
         name: 'List 1',
         tasks: legacyTasks && legacyTasks.length > 0
           ? legacyTasks
-          : [{ id: crypto.randomUUID(), content: '', type: 'plain', completed: false, createdAt: Date.now() }],
+          : [{ id: crypto.randomUUID(), content: '', type: pageType === 'todo' ? 'checkbox' : 'plain', completed: false, createdAt: Date.now() }],
         createdAt: Date.now(),
       };
       onBoardsChange([seed]);
@@ -77,6 +77,17 @@ export const TaskEditor: React.FC<Props> = ({
     }
   }, [boards, activeBoardId]);
 
+  // Auto-migrate plain tasks to checkbox on todo pages (fixes legacy seed bug)
+  useEffect(() => {
+    if (pageType === 'todo' && boards.some(b => b.tasks.some(t => t.type === 'plain'))) {
+      const nextBoards = boards.map(b => ({
+        ...b,
+        tasks: b.tasks.map(t => t.type === 'plain' ? { ...t, type: 'checkbox' as TaskType } : t)
+      }));
+      onBoardsChange(nextBoards);
+    }
+  }, [boards, pageType, onBoardsChange]);
+
   // Clear selection when switching boards
   useEffect(() => {
     setSelectedIds(new Set());
@@ -91,7 +102,7 @@ export const TaskEditor: React.FC<Props> = ({
     const b: TaskListBoard = {
       id: crypto.randomUUID(),
       name: `List ${n}`,
-      tasks: [{ id: crypto.randomUUID(), content: '', type: 'plain', completed: false, createdAt: Date.now() }],
+      tasks: [{ id: crypto.randomUUID(), content: '', type: pageType === 'todo' ? 'checkbox' : 'plain', completed: false, createdAt: Date.now() }],
       createdAt: Date.now(),
     };
     onBoardsChange([...boards, b]);
@@ -121,8 +132,8 @@ export const TaskEditor: React.FC<Props> = ({
   const handleDelete = useCallback((id: string) => {
     const next = tasks.filter(t => t.id !== id);
     setSelectedIds(prev => { const s = new Set(prev); s.delete(id); return s; });
-    updateActiveTasks(next.length > 0 ? next : [makeTask('plain')]);
-  }, [tasks, updateActiveTasks]);
+    updateActiveTasks(next.length > 0 ? next : [makeTask(pageType === 'todo' ? 'checkbox' : 'plain')]);
+  }, [tasks, updateActiveTasks, pageType]);
 
   const handleAddAfter = useCallback((afterId: string, type: TaskType, indent = 0, forceIndent = false) => {
     const idx = tasks.findIndex(t => t.id === afterId);
@@ -226,9 +237,9 @@ export const TaskEditor: React.FC<Props> = ({
 
   const handleDeleteSelected = useCallback(() => {
     const next = tasks.filter(t => !selectedIds.has(t.id));
-    updateActiveTasks(next.length > 0 ? next : [makeTask('plain')]);
+    updateActiveTasks(next.length > 0 ? next : [makeTask(pageType === 'todo' ? 'checkbox' : 'plain')]);
     setSelectedIds(new Set());
-  }, [tasks, selectedIds, updateActiveTasks]);
+  }, [tasks, selectedIds, updateActiveTasks, pageType]);
 
   const handleClearCompleted = useCallback(() => {
     const next = tasks.filter(t => !(t.type === 'checkbox' && t.completed));

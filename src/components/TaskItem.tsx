@@ -170,13 +170,21 @@ export const TaskItem: React.FC<Props> = ({
     if (e.key === 'Backspace') {
       const el = contentRef.current;
       const isEmpty = (el?.textContent ?? '').replace(/[​­﻿]/g, '').trim() === '';
-      if (!el || !isEmpty) return;
-      e.preventDefault();
-      if ((task.indent ?? 0) > 0) {
-        // Empty subtask → jump straight to main level
-        onUpdate({ ...task, indent: 0 });
-      } else {
-        onMergePrev(task.id);
+      const sel = window.getSelection();
+      const isAtStart = sel && sel.rangeCount > 0 && sel.getRangeAt(0).startOffset === 0 && sel.isCollapsed;
+
+      if (isEmpty) {
+        if (!el) return;
+        e.preventDefault();
+        if ((task.indent ?? 0) > 0) {
+          // Empty subtask → jump straight to main level
+          onUpdate({ ...task, indent: 0 });
+        } else {
+          onMergePrev(task.id);
+        }
+      } else if (isAtStart && (task.indent ?? 0) > 0) {
+        e.preventDefault();
+        onUpdate({ ...task, indent: Math.max(0, (task.indent ?? 0) - 1) });
       }
     }
 
