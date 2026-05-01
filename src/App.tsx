@@ -11,6 +11,7 @@ import { IntervalView } from './components/IntervalView';
 import { HabitsPage } from './components/HabitsPage';
 import { MultiTodoView } from './components/MultiTodoView';
 import { SequenceView } from './components/SequenceView';
+import { TimeblockView } from './components/TimeblockView';
 import { ContextMenu } from './components/ContextMenu';
 import { ClockDisplay } from './components/ClockDisplay';
 import type { Reminder, ReminderSound, PageType, PlannerSubtype, TodoSubtype } from './types';
@@ -31,6 +32,7 @@ const PAGE_TYPES: { type: PageType; icon: string; label: string }[] = [
   { type: 'interval', icon: '⏱', label: 'Interval'       },
   { type: 'planner',  icon: '📅', label: 'Planner'       },
   { type: 'habits',   icon: '◉',  label: 'Habit Tracker' },
+  { type: 'timeblock', icon: '⏲', label: 'Time Tracker'  },
 ];
 
 const PLANNER_SUBTYPES: { sub: PlannerSubtype; icon: string; label: string }[] = [
@@ -102,6 +104,7 @@ export default function App() {
     updateTaskListBoardsForPage,
     updateNoteBoardsForPage,
     updateSequenceBoardsForPage,
+    updateTimeblockDataForPage,
     reorderPages,
   } = usePages();
 
@@ -515,6 +518,15 @@ export default function App() {
 
     if (type === 'habits') {
       return <HabitsPage pageId={currentPage.id} />;
+    }
+
+    if (type === 'timeblock') {
+      return (
+        <TimeblockView
+          data={currentPage.timeblockData ?? {}}
+          onChange={d => updateTimeblockDataForPage(currentPage.id, d)}
+        />
+      );
     }
 
     // Unified todo: list OR board OR sequence subtype

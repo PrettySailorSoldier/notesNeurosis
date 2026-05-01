@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { load } from '@tauri-apps/plugin-store';
-import type { Page, Task, PageType, PlannerSubtype, TodoList, TodoBoard, TodoSubtype, SequenceTask, TaskListBoard, NoteBoard, SequenceBoard } from '../types';
+import type { Page, Task, PageType, PlannerSubtype, TodoList, TodoBoard, TodoSubtype, SequenceTask, TaskListBoard, NoteBoard, SequenceBoard, TimeblockTask } from '../types';
 
 const STORE_FILE = 'planner.json';
 const PAGES_KEY = 'pages';
@@ -372,6 +372,11 @@ export function usePages() {
     updatePages(nextPages);
   }, [pages, updatePages]);
 
+  const updateTimeblockDataForPage = useCallback((pageId: string, timeblockData: Record<string, TimeblockTask[]>) => {
+    const nextPages = pages.map(p => p.id === pageId ? { ...p, timeblockData } : p);
+    updatePages(nextPages);
+  }, [pages, updatePages]);
+
   const reorderPages = useCallback((fromId: string, toId: string) => {
     if (fromId === toId) return;
     const from = pages.findIndex(p => p.id === fromId);
@@ -407,5 +412,6 @@ export function usePages() {
     updateTaskListBoardsForPage,
     updateNoteBoardsForPage,
     updateSequenceBoardsForPage,
+    updateTimeblockDataForPage,
   };
 }

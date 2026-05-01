@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Time Tracker — notesNeurosis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Cormorant+Garamond:wght@300;400;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100vw; height: 100vh; overflow: hidden; background: #0a0612; user-select: none; -webkit-user-select: none; }
+#root { width: 100vw; height: 100vh; }
+
+:root {
+  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-body:  'Crimson Pro', Georgia, serif;
+  --font-mono:  'Space Mono', monospace;
+  --plum:   #661A4E;
+  --rose:   #B55F7C;
+  --peach:  #FD8D79;
+  --orange: #FCA324;
+  --yellow: #FCCD38;
+  --blue:   #5A8EFC;
+  --teal:   #2dd4bf;
+  --violet: #a78bfa;
+  --green:  #4ade80;
+  --red:    #f87171;
+  --ink0:   #0a0612;
+  --ink1:   #110820;
+  --ink2:   rgba(18,8,44,0.95);
+  --border: rgba(180,130,220,0.14);
+  --border-hi: rgba(180,130,220,0.28);
+  --text:   rgba(240,225,255,0.92);
+  --muted:  rgba(200,170,240,0.45);
+  --faint:  rgba(200,170,240,0.2);
+}
+
+.app-frame {
+  position: fixed; inset: 0; width: 100%; height: 100%;
+  object-fit: fill; pointer-events: none; z-index: 0;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(180,140,220,0.18); border-radius: 2px; }
+
+/* ── App shell — positioned inside frame ── */
+.app-shell {
+  position: absolute;
+  top: 11%; left: 10.5%;
+  width: 76%; height: 76%;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+}
+
+/* ════════════════════════════════
+   TOTALS BAR — top of the shell
+════════════════════════════════ */
+.totals-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: stretch;
+  background: var(--ink2);
+  border: 1px solid var(--border-hi);
+  border-radius: 10px 10px 0 0;
+  overflow: hidden;
+}
+
+/* Left: big elapsed / countdown */
+.totals-active {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  min-width: 160px;
+  border-right: 1px solid var(--border);
+  position: relative;
+}
+.totals-active-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 3px;
+}
+.totals-active-time {
+  font-family: var(--font-mono);
+  font-size: 28px; font-weight: 700;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.totals-active-time.counting-down { color: var(--teal); }
+.totals-active-time.counting-up   { color: var(--orange); }
+.totals-active-time.idle          { color: var(--faint); }
+.totals-active-name {
+  font-family: var(--font-serif);
+  font-size: 12px; font-style: italic;
+  color: var(--muted); margin-top: 3px;
+  max-width: 140px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.overtime-badge {
+  font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--orange); background: rgba(252,163,36,0.1);
+  border: 1px solid rgba(252,163,36,0.3); border-radius: 8px;
+  padding: 1px 7px; margin-top: 3px;
+  animation: pulse-warn 1.4s ease-in-out infinite;
+}
+@keyframes pulse-warn { 0%,100%{opacity:0.6} 50%{opacity:1} }
+.active-dot {
+  position: absolute; top: 10px; right: 12px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--teal); box-shadow: 0 0 8px rgba(45,212,191,0.8);
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+@keyframes pulse-dot { 0%,100%{opacity:0.6;transform:scale(1)} 50%{opacity:1;transform:scale(1.3)} }
+
+/* Center: accumulation bars */
+.totals-accum {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 10px 18px;
+  gap: 5px;
+}
+.accum-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.accum-label {
+  font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--muted); width: 60px; flex-shrink: 0; text-align: right;
+}
+.accum-bar-track {
+  flex: 1; height: 5px; background: rgba(180,130,220,0.1);
+  border-radius: 3px; overflow: hidden; position: relative;
+}
+.accum-bar-fill {
+  height: 100%; border-radius: 3px; transition: width 0.4s;
+  position: relative;
+}
+.accum-bar-fill.estimate { background: rgba(167,139,250,0.5); }
+.accum-bar-fill.actual   { background: linear-gradient(90deg, var(--teal), var(--blue)); }
+.accum-bar-fill.over     { background: linear-gradient(90deg, var(--orange), var(--red)); }
+.accum-value {
+  font-family: var(--font-mono); font-size: 11px;
+  font-variant-numeric: tabular-nums; color: var(--text);
+  width: 52px; flex-shrink: 0; text-align: left;
+}
+.accum-value.over { color: var(--orange); }
+.accum-divider {
+  font-size: 9px; color: var(--faint); flex-shrink: 0;
+}
+
+/* Right: counts */
+.totals-counts {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 18px;
+  border-left: 1px solid var(--border);
+  min-width: 110px;
+}
+.count-item {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+}
+.count-label { font-size: 10px; color: var(--muted); }
+.count-val   { font-family: var(--font-mono); font-size: 11px; color: var(--text); font-variant-numeric: tabular-nums; }
+.count-val.done { color: var(--green); }
+
+/* ════════════════════════════════
+   ADD TASK BAR
+════════════════════════════════ */
+.add-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: rgba(14,6,32,0.9);
+  border: 1px solid var(--border);
+  border-top: none;
+}
+.add-bar-input {
+  flex: 1;
+  background: none; border: none; outline: none;
+  font-family: var(--font-serif); font-size: 15px; font-style: italic;
+  color: var(--text); caret-color: var(--teal);
+  padding: 10px 14px;
+  min-width: 0;
+}
+.add-bar-input::placeholder { color: var(--faint); }
+.add-bar-input:focus { font-style: normal; }
+.add-bar-sep {
+  width: 1px; height: 28px; background: var(--border); flex-shrink: 0;
+}
+.add-bar-est {
+  display: flex; align-items: center; gap: 5px;
+  padding: 0 12px;
+  flex-shrink: 0;
+}
+.add-bar-est-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--muted); white-space: nowrap;
+}
+.est-input {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--violet);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 3px 7px;
+  outline: none;
+  width: 68px;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 0.12s;
+  text-align: center;
+}
+.est-input:focus { border-color: var(--violet); }
+.est-input::placeholder { color: var(--faint); }
+.add-bar-btn {
+  padding: 10px 16px;
+  background: rgba(45,212,191,0.1);
+  border: none; border-left: 1px solid var(--border);
+  color: var(--teal);
+  font-family: var(--font-body); font-size: 13px;
+  cursor: pointer; flex-shrink: 0;
+  transition: background 0.12s;
+  white-space: nowrap;
+}
+.add-bar-btn:hover { background: rgba(45,212,191,0.2); }
+
+/* ════════════════════════════════
+   TASK LIST
+════════════════════════════════ */
+.task-list {
+  flex: 1;
+  overflow-y: auto;
+  background: rgba(10,6,18,0.75);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(180,140,220,0.18) transparent;
+}
+
+.task-empty {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--faint);
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-style: italic;
+  line-height: 1.7;
+}
+
+/* Task row */
+.task-row {
+  display: grid;
+  grid-template-columns: 28px 1fr auto auto auto;
+  align-items: center;
+  gap: 0;
+  border-bottom: 1px solid rgba(180,130,220,0.06);
+  position: relative;
+  transition: background 0.12s;
+  min-height: 48px;
+}
+.task-row:last-child { border-bottom: none; }
+.task-row:hover { background: rgba(255,255,255,0.018); }
+.task-row.is-active {
+  background: rgba(45,212,191,0.04);
+  border-left: 2px solid var(--teal);
+}
+.task-row.is-active:hover { background: rgba(45,212,191,0.06); }
+.task-row.is-done {
+  opacity: 0.38;
+}
+
+/* Check column */
+.task-check-col {
+  display: flex; align-items: center; justify-content: center;
+  align-self: stretch;
+  cursor: pointer;
+  border-right: 1px solid rgba(180,130,220,0.06);
+}
+.task-check {
+  width: 15px; height: 15px; border-radius: 4px;
+  border: 1px solid rgba(181,95,124,0.4);
+  background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 9px; color: rgba(200,220,255,0.9);
+  transition: all 0.12s;
+}
+.task-check.done { background: rgba(90,142,252,0.22); border-color: var(--blue); }
+.task-check-col:hover .task-check:not(.done) { border-color: var(--rose); background: rgba(181,95,124,0.08); }
+
+/* Name column */
+.task-name-col {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 10px 14px;
+  min-width: 0;
+}
+.task-name-input {
+  background: none; border: none; outline: none;
+  font-family: var(--font-serif); font-size: 16px; font-weight: 600;
+  color: var(--text);
+  padding: 0; min-width: 0; width: 100%;
+  user-select: text; -webkit-user-select: text;
+}
+.task-name-input.done { text-decoration: line-through; opacity: 0.5; }
+.task-name-input::placeholder { font-style: italic; font-weight: 400; color: var(--faint); }
+.task-subtasks {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.subtask-row {
+  display: flex; align-items: center; gap: 6px;
+}
+.subtask-check {
+  width: 11px; height: 11px; border-radius: 2px;
+  border: 1px solid rgba(181,95,124,0.35); background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0; font-size: 8px;
+  color: rgba(200,220,255,0.8); transition: all 0.12s;
+}
+.subtask-check.done { background: rgba(90,142,252,0.2); border-color: var(--blue); }
+.subtask-input {
+  background: none; border: none; outline: none;
+  font-family: var(--font-body); font-size: 12px;
+  color: var(--muted); padding: 0;
+  user-select: text; -webkit-user-select: text;
+  flex: 1; min-width: 0;
+}
+.subtask-input.done { text-decoration: line-through; opacity: 0.4; }
+.subtask-input::placeholder { color: var(--faint); font-style: italic; }
+.subtask-del {
+  background: none; border: none; font-size: 11px; cursor: pointer;
+  color: var(--faint); padding: 0 2px; opacity: 0; transition: opacity 0.12s, color 0.12s;
+}
+.subtask-row:hover .subtask-del { opacity: 1; }
+.subtask-del:hover { color: var(--red); }
+.add-subtask-btn {
+  background: none; border: none; font-family: var(--font-body);
+  font-size: 11px; color: var(--faint); cursor: pointer;
+  padding: 1px 0; text-align: left; transition: color 0.12s; margin-top: 1px;
+}
+.add-subtask-btn:hover { color: var(--muted); }
+
+/* Timer column */
+.task-timer-col {
+  display: flex; flex-direction: column; align-items: flex-end;
+  padding: 10px 14px;
+  gap: 4px;
+  flex-shrink: 0;
+  min-width: 110px;
+}
+.task-elapsed {
+  font-family: var(--font-mono);
+  font-size: 18px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+.task-elapsed.running-up   { color: var(--teal); }
+.task-elapsed.running-over { color: var(--orange); }
+.task-elapsed.stopped      { color: var(--muted); }
+.task-elapsed.zero         { color: var(--faint); }
+.task-countdown {
+  font-family: var(--font-mono); font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  display: flex; align-items: center; gap: 4px;
+}
+.task-countdown .cd-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); }
+.task-countdown .cd-time  { color: var(--violet); }
+.task-countdown .cd-time.over { color: var(--orange); }
+.task-countdown .cd-over-label { font-size: 9px; color: var(--orange); letter-spacing: 0.04em; }
+
+/* Estimate column */
+.task-est-col {
+  display: flex; align-items: center;
+  padding: 0 10px;
+  flex-shrink: 0;
+  border-left: 1px solid rgba(180,130,220,0.06);
+  height: 100%;
+}
+.task-est-input {
+  background: none;
+  border: none;
+  border-bottom: 1px dashed rgba(167,139,250,0.3);
+  outline: none;
+  font-family: var(--font-mono); font-size: 12px;
+  color: var(--violet); padding: 2px 0;
+  width: 60px; text-align: center;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 0.12s;
+  user-select: text; -webkit-user-select: text;
+}
+.task-est-input:focus { border-bottom-color: var(--violet); }
+.task-est-input::placeholder { color: var(--faint); font-size: 10px; }
+
+/* Actions column */
+.task-actions-col {
+  display: flex; align-items: center;
+  padding: 0 10px 0 8px;
+  gap: 5px;
+  flex-shrink: 0;
+  border-left: 1px solid rgba(180,130,220,0.06);
+  height: 100%;
+}
+
+/* AI breakdown button */
+.breakdown-btn {
+  width: 26px; height: 26px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 11px;
+  border: 1px solid rgba(167,139,250,0.3);
+  background: rgba(167,139,250,0.07);
+  color: var(--violet);
+  transition: all 0.15s; flex-shrink: 0;
+}
+.breakdown-btn:hover:not(:disabled) {
+  background: rgba(167,139,250,0.18);
+  border-color: var(--violet);
+  box-shadow: 0 0 10px rgba(167,139,250,0.2);
+}
+.breakdown-btn:disabled {
+  opacity: 0.4; cursor: not-allowed;
+}
+.breakdown-btn.loading {
+  animation: spin-glow 1s linear infinite;
+}
+@keyframes spin-glow {
+  0%   { box-shadow: 0 0 4px rgba(167,139,250,0.2); opacity: 0.7; }
+  50%  { box-shadow: 0 0 12px rgba(167,139,250,0.5); opacity: 1; }
+  100% { box-shadow: 0 0 4px rgba(167,139,250,0.2); opacity: 0.7; }
+}
+.play-btn {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 11px;
+  border: 1px solid transparent;
+  transition: all 0.15s; flex-shrink: 0;
+}
+.play-btn.play {
+  background: rgba(74,222,128,0.1);
+  border-color: rgba(74,222,128,0.4);
+  color: var(--green);
+}
+.play-btn.play:hover { background: rgba(74,222,128,0.22); border-color: var(--green); box-shadow: 0 0 10px rgba(74,222,128,0.2); }
+.play-btn.stop {
+  background: rgba(248,113,113,0.1);
+  border-color: rgba(248,113,113,0.4);
+  color: var(--red);
+}
+.play-btn.stop:hover { background: rgba(248,113,113,0.22); border-color: var(--red); }
+.del-btn {
+  background: none; border: none; font-size: 14px; cursor: pointer;
+  color: var(--faint); padding: 0 2px; opacity: 0; transition: opacity 0.12s, color 0.12s;
+}
+.task-row:hover .del-btn { opacity: 1; }
+.del-btn:hover { color: var(--red); }
+
+/* Progress bar under task row */
+.task-progress-bar {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+  background: transparent; overflow: hidden;
+}
+.task-progress-fill {
+  height: 100%; transition: width 0.5s, background 0.4s;
+  border-radius: 0 2px 2px 0;
+}
+
+/* ════════════════════════════════
+   DATE + CLOCK header
+════════════════════════════════ */
+.date-header {
+  position: absolute; top: 5.5%; left: 10.5%;
+  z-index: 5; display: flex; align-items: baseline; gap: 12px;
+}
+.date-title {
+  font-family: var(--font-serif); font-size: 18px; font-weight: 600;
+  color: var(--text);
+}
+.now-badge {
+  font-size: 11px; font-variant-numeric: tabular-nums;
+  color: var(--blue); background: rgba(90,142,252,0.1);
+  border: 1px solid rgba(90,142,252,0.22);
+  padding: 1px 8px; border-radius: 9px;
+}
+
+/* Tab bar */
+.tab-bar {
+  position: absolute; bottom: 5%; left: 10.5%;
+  z-index: 20; display: flex; gap: 4px; align-items: center;
+}
+.tab-btn {
+  padding: 4px 14px; border-radius: 7px 7px 0 0;
+  border: 1px solid rgba(180,130,220,0.35); border-bottom: none;
+  background: rgba(40,20,60,0.82); color: rgba(240,230,255,0.88);
+  font-family: var(--font-serif); font-size: 13px; cursor: pointer; transition: all 0.13s;
+}
+.tab-btn.active {
+  background: rgba(70,30,100,0.95); color: #fff;
+  border-color: rgba(210,160,255,0.75);
+  box-shadow: 0 -2px 8px rgba(180,130,220,0.28);
+}
+.tab-btn:hover:not(.active) { background: rgba(60,25,80,0.9); color: #fff; }
+
+/* Tweaks panel */
+.tweaks-panel {
+  position: fixed; bottom: 80px; right: 20px; z-index: 100;
+  width: 230px;
+  background: rgba(18,8,40,0.97);
+  border: 1px solid rgba(180,130,220,0.22);
+  border-radius: 12px; padding: 14px;
+  font-family: var(--font-body);
+  display: flex; flex-direction: column; gap: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  backdrop-filter: blur(16px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+.tweaks-panel.hidden { opacity: 0; pointer-events: none; transform: translateY(8px); }
+.tweaks-title {
+  font-family: var(--font-serif); font-size: 12px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: rgba(240,225,255,0.9);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.tweaks-close { background: none; border: none; cursor: pointer; font-size: 16px; color: var(--muted); transition: color 0.12s; }
+.tweaks-close:hover { color: var(--text); }
+.tweak-group { display: flex; flex-direction: column; gap: 6px; }
+.tweak-label { font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.tweak-options { display: flex; gap: 4px; }
+.tweak-opt {
+  flex: 1; padding: 5px 0; border-radius: 5px;
+  font-family: var(--font-body); font-size: 11px; cursor: pointer;
+  text-align: center; transition: all 0.15s; border: 1px solid transparent;
+  color: var(--muted);
+}
+.tweak-opt.active { background: rgba(90,142,252,0.18); border-color: rgba(90,142,252,0.5); color: rgba(200,180,255,0.95); font-weight: 600; }
+.tweak-opt:not(.active) { background: rgba(255,255,255,0.04); border-color: rgba(180,130,220,0.15); }
+.tweak-opt:not(.active):hover { background: rgba(180,130,220,0.1); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+/* ── helpers ── */
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const pad = n => String(n).padStart(2, '0');
+const dateKey = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const todayKey = () => dateKey(new Date());
+const parseKey = k => { const [y,m,d] = k.split('-').map(Number); return new Date(y,m-1,d); };
+const fmtLongDate = k => parseKey(k).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+const nowStr = () => { const n = new Date(); return `${pad(n.getHours())}:${pad(n.getMinutes())}`; };
+
+/* Format ms as HH:MM:SS or MM:SS */
+const fmtMs = ms => {
+  if (ms < 0) ms = 0;
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  if (h > 0) return `${h}:${pad(m)}:${pad(sec)}`;
+  return `${pad(m)}:${pad(sec)}`;
+};
+
+/* Format ms as human "1h 4m" */
+const fmtDur = ms => {
+  if (!ms || ms <= 0) return '—';
+  const m = Math.floor(ms / 60000);
+  if (m === 0) return '<1m';
+  const h = Math.floor(m / 60), rem = m % 60;
+  if (h > 0 && rem > 0) return `${h}h ${rem}m`;
+  if (h > 0) return `${h}h`;
+  return `${rem}m`;
+};
+
+/* Parse estimate string like "30m", "1h", "1h30m", "90", "1:30" → ms */
+const parseEst = raw => {
+  if (!raw || !raw.trim()) return 0;
+  const s = raw.trim().toLowerCase();
+  // "1:30" or "01:30"
+  const colonMatch = s.match(/^(\d+):(\d{1,2})$/);
+  if (colonMatch) return (parseInt(colonMatch[1])*60 + parseInt(colonMatch[2])) * 60000;
+  // "1h30m", "1h", "30m"
+  const hm = s.match(/^(?:(\d+)h)?(?:(\d+)m)?$/);
+  if (hm && (hm[1] || hm[2])) return ((parseInt(hm[1]||0)*60) + parseInt(hm[2]||0)) * 60000;
+  // plain number = minutes
+  const n = parseFloat(s);
+  if (!isNaN(n) && n > 0) return n * 60000;
+  return 0;
+};
+
+/* Format ms back to estimate string for display */
+const fmtEst = ms => {
+  if (!ms || ms <= 0) return '';
+  const m = Math.round(ms / 60000);
+  const h = Math.floor(m / 60), rem = m % 60;
+  if (h > 0 && rem > 0) return `${h}h${rem}m`;
+  if (h > 0) return `${h}h`;
+  return `${rem}m`;
+};
+
+const LS_TASKS  = 'timetracker4_tasks_v1';
+const LS_DATE   = 'timetracker4_date_v1';
+const LS_TWEAKS = 'timetracker4_tweaks_v1';
+const loadTasks = () => { try { return JSON.parse(localStorage.getItem(LS_TASKS)||'{}'); } catch { return {}; }};
+const saveTasks = t => localStorage.setItem(LS_TASKS, JSON.stringify(t));
+
+const DEFAULT_TWEAKS = /*EDITMODE-BEGIN*/{
+  "showSubtasks": "yes",
+  "progressBar": "yes",
+  "countdownStyle": "remaining"
+}/*EDITMODE-END*/;
+
+/* ══════════════════════════════════════
+   APP
+══════════════════════════════════════ */
+function App() {
+  const [tweaks, setTweaksRaw] = useState(() => {
+    try { return {...DEFAULT_TWEAKS, ...JSON.parse(localStorage.getItem(LS_TWEAKS)||'{}')}; }
+    catch { return DEFAULT_TWEAKS; }
+  });
+  const [tweaksVisible, setTweaksVisible] = useState(false);
+  const setTweak = (k, v) => setTweaksRaw(prev => {
+    const next = {...prev, [k]: v};
+    localStorage.setItem(LS_TWEAKS, JSON.stringify(next));
+    window.parent?.postMessage({type:'__edit_mode_set_keys', edits: next}, '*');
+    return next;
+  });
+  useEffect(() => {
+    const h = e => {
+      if (e.data?.type === '__activate_edit_mode') setTweaksVisible(true);
+      if (e.data?.type === '__deactivate_edit_mode') setTweaksVisible(false);
+    };
+    window.addEventListener('message', h);
+    window.parent?.postMessage({type:'__edit_mode_available'}, '*');
+    return () => window.removeEventListener('message', h);
+  }, []);
+
+  /* ── state ── */
+  const [allTasks, setAllTasksRaw] = useState(() => loadTasks());
+  const [currentDate] = useState(() => localStorage.getItem(LS_DATE) || todayKey());
+  const [tick, setTick]   = useState(0);
+  const [newName, setNewName]   = useState('');
+  const [newEst, setNewEst]     = useState('');
+  const nameRef = useRef(null);
+
+  useEffect(() => { const iv = setInterval(() => setTick(t => t+1), 1000); return () => clearInterval(iv); }, []);
+  useEffect(() => { saveTasks(allTasks); }, [allTasks]);
+
+  const tasks = allTasks[currentDate] || [];
+  const setTasks = useCallback(fn => {
+    setAllTasksRaw(prev => {
+      const cur = prev[currentDate] || [];
+      const next = typeof fn === 'function' ? fn(cur) : fn;
+      return {...prev, [currentDate]: next};
+    });
+  }, [currentDate]);
+
+  /* Restore elapsed for tasks that were running when page was closed */
+  useEffect(() => {
+    // If any task has runningStartedAt but page just loaded, keep it running
+    // (startedAt is in ms — just use Date.now() - startedAt as elapsed offset)
+  }, []);
+
+  /* ── active task ── */
+  const activeTask = tasks.find(t => t.running);
+
+  /* ── per-task elapsed ── */
+  const getElapsed = t => {
+    const base = t.elapsedMs || 0;
+    if (t.running && t.runningStartedAt) {
+      return base + (Date.now() - t.runningStartedAt);
+    }
+    return base;
+  };
+
+  /* ── totals ── */
+  const totalEstMs  = tasks.reduce((s, t) => s + (t.estMs || 0), 0);
+  const totalActMs  = tasks.reduce((s, t) => s + getElapsed(t), 0);
+  const totalDone   = tasks.filter(t => t.completed).length;
+  const totalAll    = tasks.length;
+
+  /* ── task actions ── */
+  const addTask = () => {
+    const name = newName.trim();
+    if (!name) return;
+    const estMs = parseEst(newEst);
+    setTasks(prev => [...prev, {
+      id: uid(), name, estMs,
+      elapsedMs: 0, running: false, runningStartedAt: null,
+      completed: false, subtasks: [],
+    }]);
+    setNewName(''); setNewEst('');
+    nameRef.current?.focus();
+  };
+
+  const startTask = useCallback(id => {
+    setTasks(prev => prev.map(t => {
+      if (t.id === id) return {...t, running: true, runningStartedAt: Date.now()};
+      // stop any other running task, accumulate its elapsed
+      if (t.running && t.runningStartedAt) {
+        const added = Date.now() - t.runningStartedAt;
+        return {...t, running: false, runningStartedAt: null, elapsedMs: (t.elapsedMs||0) + added};
+      }
+      return t;
+    }));
+  }, [setTasks]);
+
+  const stopTask = useCallback(id => {
+    setTasks(prev => prev.map(t => {
+      if (t.id !== id || !t.running) return t;
+      const added = t.runningStartedAt ? Date.now() - t.runningStartedAt : 0;
+      return {...t, running: false, runningStartedAt: null, elapsedMs: (t.elapsedMs||0) + added};
+    }));
+  }, [setTasks]);
+
+  const updateTask = useCallback((id, changes) => {
+    setTasks(prev => prev.map(t => t.id === id ? {...t, ...changes} : t));
+  }, [setTasks]);
+
+  const deleteTask = useCallback(id => {
+    setTasks(prev => prev.filter(t => t.id !== id));
+  }, [setTasks]);
+
+  const addSubtask = useCallback((taskId, text) => {
+    if (!text.trim()) return;
+    setTasks(prev => prev.map(t => t.id !== taskId ? t : {
+      ...t, subtasks: [...(t.subtasks||[]), {id:uid(), content:text.trim(), completed:false}]
+    }));
+  }, [setTasks]);
+
+  const updateSubtask = useCallback((taskId, stId, changes) => {
+    setTasks(prev => prev.map(t => t.id !== taskId ? t : {
+      ...t, subtasks: (t.subtasks||[]).map(s => s.id === stId ? {...s,...changes} : s)
+    }));
+  }, [setTasks]);
+
+  const deleteSubtask = useCallback((taskId, stId) => {
+    setTasks(prev => prev.map(t => t.id !== taskId ? t : {
+      ...t, subtasks: (t.subtasks||[]).filter(s => s.id !== stId)
+    }));
+  }, [setTasks]);
+
+  /* ── active task data for banner ── */
+  const activeElapsed = activeTask ? getElapsed(activeTask) : 0;
+  const activeEst     = activeTask?.estMs || 0;
+  const activeRemain  = activeEst > 0 ? activeEst - activeElapsed : null;
+  const activeOver    = activeRemain !== null && activeRemain < 0;
+  const isToday = currentDate === todayKey();
+
+  /* ── accum bar widths ── */
+  const maxMs = Math.max(totalEstMs, totalActMs, 1);
+  const estBarW  = Math.min(100, (totalEstMs / maxMs) * 100);
+  const actBarW  = totalEstMs > 0
+    ? Math.min(100, (Math.min(totalActMs, totalEstMs) / totalEstMs) * 100)
+    : Math.min(100, (totalActMs / maxMs) * 100);
+  const overBarW = totalEstMs > 0 && totalActMs > totalEstMs
+    ? Math.min(100, ((totalActMs - totalEstMs) / totalEstMs) * 100)
+    : 0;
+  const isOver   = totalEstMs > 0 && totalActMs > totalEstMs;
+
+  return (
+    <div style={{position:'relative',width:'100vw',height:'100vh',overflow:'hidden'}}>
+      <img className="app-frame" src="assets/frame_blue_orchid.png" alt="" />
+
+      {/* Date header */}
+      <div className="date-header">
+        <span className="date-title">{fmtLongDate(currentDate)}</span>
+        {isToday && <span className="now-badge">now {nowStr()}</span>}
+      </div>
+
+      {/* Main shell */}
+      <div className="app-shell">
+
+        {/* ── Totals bar ── */}
+        <div className="totals-bar">
+
+          {/* Active task clock */}
+          <div className="totals-active">
+            {activeTask && <div className="active-dot" />}
+            <div className="totals-active-label">
+              {activeTask ? 'active task' : 'no active task'}
+            </div>
+            <div className={`totals-active-time ${
+              !activeTask ? 'idle' :
+              activeOver ? 'counting-up' : 'counting-down'
+            }`}>
+              {activeTask
+                ? (activeRemain !== null
+                    ? fmtMs(Math.abs(activeRemain))
+                    : fmtMs(activeElapsed))
+                : '--:--'}
+            </div>
+            {activeTask && activeRemain !== null && !activeOver && (
+              <div className="totals-active-name">{activeTask.name}</div>
+            )}
+            {activeTask && activeOver && (
+              <div className="overtime-badge">+{fmtMs(Math.abs(activeRemain))} over</div>
+            )}
+            {activeTask && activeRemain === null && (
+              <div className="totals-active-name">{activeTask.name}</div>
+            )}
+          </div>
+
+          {/* Accumulation bars */}
+          <div className="totals-accum">
+            {/* Estimated row */}
+            {totalEstMs > 0 && (
+              <div className="accum-row">
+                <span className="accum-label">estimated</span>
+                <div className="accum-bar-track">
+                  <div className="accum-bar-fill estimate" style={{width: estBarW+'%'}} />
+                </div>
+                <span className="accum-value">{fmtDur(totalEstMs)}</span>
+              </div>
+            )}
+            {/* Actual row */}
+            <div className="accum-row">
+              <span className="accum-label">actual</span>
+              <div className="accum-bar-track">
+                <div className={`accum-bar-fill actual ${isOver?'over':''}`}
+                  style={{width: actBarW+'%'}} />
+              </div>
+              <span className={`accum-value ${isOver?'over':''}`}>{fmtDur(totalActMs)}</span>
+            </div>
+            {/* Overtime row */}
+            {overBarW > 0 && (
+              <div className="accum-row">
+                <span className="accum-label" style={{color:'var(--orange)'}}>overtime</span>
+                <div className="accum-bar-track">
+                  <div className="accum-bar-fill over" style={{width: overBarW+'%'}} />
+                </div>
+                <span className="accum-value over">+{fmtDur(totalActMs - totalEstMs)}</span>
+              </div>
+            )}
+            {totalAll === 0 && (
+              <div style={{fontSize:12,color:'var(--faint)',fontStyle:'italic',fontFamily:'var(--font-body)'}}>
+                Add tasks below — estimated vs. actual time will appear here
+              </div>
+            )}
+          </div>
+
+          {/* Counts */}
+          <div className="totals-counts">
+            <div className="count-item">
+              <span className="count-label">tasks</span>
+              <span className={`count-val ${totalDone === totalAll && totalAll > 0 ? 'done' : ''}`}>
+                {totalDone}/{totalAll}
+              </span>
+            </div>
+            {tasks.some(t => (t.subtasks||[]).length > 0) && (() => {
+              const allSubs = tasks.flatMap(t => t.subtasks||[]);
+              const doneSubs = allSubs.filter(s => s.completed).length;
+              return (
+                <div className="count-item">
+                  <span className="count-label">subtasks</span>
+                  <span className={`count-val ${doneSubs===allSubs.length && allSubs.length>0?'done':''}`}>
+                    {doneSubs}/{allSubs.length}
+                  </span>
+                </div>
+              );
+            })()}
+            {totalAll > 0 && (
+              <div className="count-item">
+                <span className="count-label">progress</span>
+                <span className="count-val" style={{color:'var(--rose)'}}>
+                  {totalAll > 0 ? Math.round(totalDone/totalAll*100) : 0}%
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Add task bar ── */}
+        <form className="add-bar" onSubmit={e => { e.preventDefault(); addTask(); }}>
+          <input
+            ref={nameRef}
+            className="add-bar-input"
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            placeholder="Add a task…"
+          />
+          <div className="add-bar-sep" />
+          <div className="add-bar-est">
+            <span className="add-bar-est-label">estimate</span>
+            <input
+              className="est-input"
+              value={newEst}
+              onChange={e => setNewEst(e.target.value)}
+              placeholder="30m"
+              title="e.g. 30m · 1h · 1h30m · 1:30"
+            />
+          </div>
+          <button type="submit" className="add-bar-btn">+ Add</button>
+        </form>
+
+        {/* ── Task list ── */}
+        <div className="task-list">
+          {tasks.length === 0 && (
+            <div className="task-empty">
+              No tasks yet.<br />Type a task name above and press Enter.
+            </div>
+          )}
+          {tasks.map(task => (
+            <TaskRow
+              key={task.id}
+              task={task}
+              tick={tick}
+              tweaks={tweaks}
+              getElapsed={getElapsed}
+              onStart={() => startTask(task.id)}
+              onStop={() => stopTask(task.id)}
+              onUpdate={ch => updateTask(task.id, ch)}
+              onDelete={() => deleteTask(task.id)}
+              onAddSubtask={text => addSubtask(task.id, text)}
+              onUpdateSubtask={(sid, ch) => updateSubtask(task.id, sid, ch)}
+              onDeleteSubtask={sid => deleteSubtask(task.id, sid)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Tab bar */}
+      <div className="tab-bar">
+        {[{label:'to-do'},{label:'Notes'},{label:'Plans',active:true},{label:"Changin'"},{label:'progression'},{label:'Timer'}].map(t => (
+          <button key={t.label} className={`tab-btn ${t.active?'active':''}`}>{t.label}</button>
+        ))}
+        <a href="Brain Dump.html" className="tab-btn" style={{textDecoration:'none'}}>✦ Brain Dump</a>
+        <button className="tab-btn">+</button>
+      </div>
+
+      {/* Tweaks */}
+      <TweaksPanel tweaks={tweaks} setTweak={setTweak} visible={tweaksVisible}
+        onClose={() => { setTweaksVisible(false); window.parent?.postMessage({type:'__edit_mode_dismissed'},'*'); }} />
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════
+   TASK ROW
+══════════════════════════════════════ */
+function TaskRow({ task, tick, tweaks, getElapsed, onStart, onStop, onUpdate, onDelete, onAddSubtask, onUpdateSubtask, onDeleteSubtask }) {
+  const [newSub, setNewSub] = useState('');
+  const subRef = useRef(null);
+  const [breaking, setBreaking] = useState(false);
+
+  const handleBreakdown = async () => {
+    if (!task.name.trim() || breaking) return;
+    setBreaking(true);
+    try {
+      const raw = await window.claude.complete({
+        messages: [{
+          role: 'user',
+          content: `Break down this task into 3–6 concrete, actionable steps with realistic time estimates. Task: "${task.name}"
+
+Return ONLY valid JSON — no markdown, no explanation:
+{
+  "steps": [
+    { "content": "Specific action step", "est": "15m" }
+  ],
+  "totalEst": "1h30m"
+}
+
+Rules:
+- steps: 3 to 6 items, each a single clear action
+- est per step: realistic duration as "Xm" or "Xh" or "XhYm"
+- totalEst: sum of all step estimates
+- Keep language direct and verb-first ("Write…", "Review…", "Send…")`
+        }]
+      });
+      const cleaned = raw.replace(/\`\`\`json\n?/g,'').replace(/\`\`\`\n?/g,'').trim();
+      const parsed = JSON.parse(cleaned);
+      const steps = parsed.steps || [];
+      if (steps.length === 0) return;
+
+      // Replace existing subtasks with AI-generated ones
+      const newSubtasks = steps.map(s => ({
+        id: uid(),
+        content: s.content,
+        completed: false,
+        est: s.est || '',
+      }));
+      const totalMs = parseEst(parsed.totalEst || '');
+      onUpdate({
+        subtasks: newSubtasks,
+        estMs: totalMs || task.estMs,
+        _estDisplay: parsed.totalEst || fmtEst(task.estMs),
+      });
+    } catch(e) {
+      console.error('[breakdown]', e);
+    } finally {
+      setBreaking(false);
+    }
+  };
+
+  const elapsed = getElapsed(task);
+  const estMs   = task.estMs || 0;
+  const remain  = estMs > 0 ? estMs - elapsed : null;
+  const isOver  = remain !== null && remain < 0;
+  const isRunning = task.running;
+
+  /* Progress fill */
+  let progressPct = 0, progressColor = 'var(--teal)';
+  if (estMs > 0) {
+    progressPct = Math.min(100, (elapsed / estMs) * 100);
+    if (isOver) { progressPct = 100; progressColor = 'var(--orange)'; }
+    else if (progressPct > 80) progressColor = 'var(--yellow)';
+  } else if (elapsed > 0) {
+    progressPct = 0; // no estimate — no bar
+  }
+
+  /* Timer display */
+  let timerClass = 'zero', timerStr = '--:--';
+  if (elapsed > 0 || isRunning) {
+    timerStr  = fmtMs(elapsed);
+    timerClass = isRunning ? (isOver ? 'running-over' : 'running-up') : 'stopped';
+  }
+
+  const handleSubKey = e => {
+    if (e.key === 'Enter') {
+      onAddSubtask(newSub);
+      setNewSub('');
+    }
+  };
+
+  const handleEstBlur = e => {
+    const ms = parseEst(e.target.value);
+    onUpdate({estMs: ms, _estDisplay: e.target.value});
+    e.target.value = ms > 0 ? fmtEst(ms) : '';
+  };
+
+  const estDisplay = task._estDisplay || fmtEst(task.estMs);
+
+  return (
+    <div className={`task-row ${isRunning?'is-active':''} ${task.completed?'is-done':''}`}>
+
+      {/* Check */}
+      <div className="task-check-col" onClick={() => onUpdate({completed: !task.completed})}>
+        <div className={`task-check ${task.completed?'done':''}`}>
+          {task.completed && '✓'}
+        </div>
+      </div>
+
+      {/* Name + subtasks */}
+      <div className="task-name-col">
+        <input
+          className={`task-name-input ${task.completed?'done':''}`}
+          value={task.name}
+          placeholder="Task name…"
+          onChange={e => onUpdate({name: e.target.value})}
+          style={{userSelect:'text',WebkitUserSelect:'text'}}
+        />
+        {tweaks.showSubtasks === 'yes' && (
+          <div className="task-subtasks">
+            {(task.subtasks||[]).map(s => (
+              <div key={s.id} className="subtask-row">
+                <div className={`subtask-check ${s.completed?'done':''}`}
+                  onClick={() => onUpdateSubtask(s.id, {completed: !s.completed})}>
+                  {s.completed && '✓'}
+                </div>
+                <input
+                  className={`subtask-input ${s.completed?'done':''}`}
+                  value={s.content}
+                  placeholder="Subtask…"
+                  onChange={e => onUpdateSubtask(s.id, {content: e.target.value})}
+                  style={{userSelect:'text',WebkitUserSelect:'text'}}
+                />
+                {s.est && (
+                  <span style={{
+                    fontFamily:'var(--font-mono)', fontSize:'9px',
+                    color:'var(--violet)', opacity:0.7,
+                    flexShrink:0, paddingRight:'4px',
+                    letterSpacing:'0.04em'
+                  }}>{s.est}</span>
+                )}
+                <button className="subtask-del" onClick={() => onDeleteSubtask(s.id)}>×</button>
+              </div>
+            ))}
+            <input
+              ref={subRef}
+              className="subtask-input"
+              style={{marginLeft:17, userSelect:'text', WebkitUserSelect:'text', opacity: 0}}
+              value={newSub}
+              onChange={e => setNewSub(e.target.value)}
+              onFocus={e => e.target.style.opacity = 1}
+              onBlur={e => { e.target.style.opacity = 0; }}
+              onKeyDown={handleSubKey}
+              placeholder="+ subtask…"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Timer */}
+      <div className="task-timer-col">
+        <span className={`task-elapsed ${timerClass}`}>{timerStr}</span>
+        {estMs > 0 && (
+          <div className="task-countdown">
+            {remain !== null && !isOver && (
+              <>
+                <span className="cd-label">left</span>
+                <span className="cd-time">{fmtMs(remain)}</span>
+              </>
+            )}
+            {remain !== null && isOver && (
+              <>
+                <span className="cd-over-label">+{fmtMs(Math.abs(remain))} over</span>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Estimate */}
+      <div className="task-est-col" title="Estimated duration (e.g. 30m, 1h, 1h30m)">
+        <input
+          className="task-est-input"
+          defaultValue={estDisplay}
+          key={task.id + '_est'}
+          onBlur={handleEstBlur}
+          placeholder="est."
+          title="30m · 1h · 1h30m"
+          style={{userSelect:'text',WebkitUserSelect:'text'}}
+        />
+      </div>
+
+      {/* Play / del / breakdown */}
+      <div className="task-actions-col">
+        {!task.completed && (
+          isRunning
+            ? <button className="play-btn stop" onClick={onStop} title="Stop">■</button>
+            : <button className="play-btn play" onClick={onStart} title="Start">▶</button>
+        )}
+        <button
+          className={`breakdown-btn ${breaking ? 'loading' : ''}`}
+          onClick={handleBreakdown}
+          disabled={breaking || !task.name.trim()}
+          title="Break into steps with AI"
+        >{breaking ? '…' : '✦'}</button>
+        <button className="del-btn" onClick={onDelete} title="Delete">×</button>
+      </div>
+
+      {/* Progress bar underline */}
+      {tweaks.progressBar === 'yes' && estMs > 0 && (
+        <div className="task-progress-bar">
+          <div className="task-progress-fill"
+            style={{width: progressPct+'%', background: progressColor}} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════
+   TWEAKS
+══════════════════════════════════════ */
+function TweaksPanel({ tweaks, setTweak, visible, onClose }) {
+  const groups = [
+    { id:'showSubtasks', label:'Subtasks', options:[{val:'yes',label:'Show'},{val:'no',label:'Hide'}] },
+    { id:'progressBar',  label:'Progress bar', options:[{val:'yes',label:'Show'},{val:'no',label:'Hide'}] },
+    { id:'countdownStyle', label:'Timer style', options:[{val:'remaining',label:'Remaining'},{val:'elapsed',label:'Elapsed'}] },
+  ];
+  return (
+    <div className={`tweaks-panel ${visible?'':'hidden'}`}>
+      <div className="tweaks-title">
+        <span>Tweaks</span>
+        <button className="tweaks-close" onClick={onClose}>×</button>
+      </div>
+      {groups.map(g => (
+        <div key={g.id} className="tweak-group">
+          <div className="tweak-label">{g.label}</div>
+          <div className="tweak-options">
+            {g.options.map(o => (
+              <button key={o.val} className={`tweak-opt ${tweaks[g.id]===o.val?'active':''}`}
+                onClick={() => setTweak(g.id, o.val)}>{o.label}</button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

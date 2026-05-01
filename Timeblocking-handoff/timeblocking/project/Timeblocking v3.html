@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Time Tracker — notesNeurosis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Cormorant+Garamond:wght@300;400;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100vw; height: 100vh; overflow: hidden; background: #0d0818; user-select: none; -webkit-user-select: none; }
+#root { width: 100vw; height: 100vh; }
+
+:root {
+  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Crimson Pro', Georgia, serif;
+  --font-mono: 'Space Mono', monospace;
+  --plum: #661A4E;
+  --rose: #B55F7C;
+  --peach: #FD8D79;
+  --orange: #FCA324;
+  --yellow: #FCCD38;
+  --blue: #5A8EFC;
+  --teal: #2dd4bf;
+  --violet: #a78bfa;
+  --green: #4ade80;
+  --red: #f87171;
+}
+
+.app-frame {
+  position: fixed; inset: 0; width: 100%; height: 100%;
+  object-fit: fill; pointer-events: none; z-index: 0;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(180,140,220,0.22); border-radius: 2px; }
+
+/* ── Layout ── */
+.app-shell {
+  position: absolute;
+  top: 11%; left: 10.5%;
+  width: 76%; height: 76%;
+  z-index: 5;
+  display: flex;
+  gap: 12px;
+  font-family: var(--font-body);
+}
+
+/* ── Main panel ── */
+.main-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+}
+
+/* ── Active timer banner ── */
+.active-banner {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  background: rgba(18,8,40,0.90);
+  border: 1px solid rgba(45,212,191,0.3);
+  border-radius: 8px 8px 0 0;
+  border-bottom: none;
+}
+.active-banner.idle {
+  border-color: rgba(180,130,220,0.18);
+}
+.banner-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--teal);
+  box-shadow: 0 0 8px rgba(45,212,191,0.8);
+  animation: pulse-dot 1.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+.banner-dot.idle { background: rgba(180,130,220,0.3); box-shadow: none; animation: none; }
+@keyframes pulse-dot { 0%,100%{opacity:0.6;transform:scale(1)} 50%{opacity:1;transform:scale(1.25)} }
+.banner-label {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(240,225,255,0.9);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.banner-label.idle { color: rgba(200,170,240,0.4); font-style: italic; font-weight: 400; }
+.banner-elapsed {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--teal);
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.banner-elapsed.idle { color: rgba(200,170,240,0.25); font-size: 14px; }
+.banner-total {
+  font-size: 11px;
+  color: rgba(200,170,240,0.4);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Sessions list ── */
+.sessions-scroll {
+  flex: 1;
+  overflow-y: auto;
+  background: rgba(12,6,28,0.82);
+  border: 1px solid rgba(180,130,220,0.18);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  padding: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(180,140,220,0.2) transparent;
+}
+
+/* New session form */
+.new-session-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(180,130,220,0.1);
+  background: rgba(18,8,40,0.6);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.new-session-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-style: italic;
+  color: rgba(240,225,255,0.85);
+  caret-color: var(--teal);
+  min-width: 0;
+}
+.new-session-input::placeholder { color: rgba(200,170,240,0.3); }
+.new-session-input:focus { font-style: normal; }
+.new-session-btn {
+  padding: 4px 12px;
+  border-radius: 5px;
+  border: 1px solid rgba(45,212,191,0.4);
+  background: rgba(45,212,191,0.1);
+  color: var(--teal);
+  font-family: var(--font-body);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s;
+  flex-shrink: 0;
+}
+.new-session-btn:hover { background: rgba(45,212,191,0.2); border-color: var(--teal); }
+
+/* Session card */
+.session-card {
+  border-bottom: 1px solid rgba(180,130,220,0.08);
+  transition: background 0.12s;
+}
+.session-card:last-child { border-bottom: none; }
+.session-card:hover { background: rgba(255,255,255,0.015); }
+.session-card.is-running { background: rgba(45,212,191,0.03); }
+
+/* Session header row */
+.session-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 8px;
+  cursor: default;
+}
+.session-color-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.session-name-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(240,225,255,0.9);
+  cursor: text;
+  min-width: 0;
+  user-select: text;
+  -webkit-user-select: text;
+  padding: 0;
+}
+.session-name-input.done { text-decoration: line-through; opacity: 0.5; }
+.session-name-input::placeholder { font-style: italic; font-weight: 400; color: rgba(200,170,240,0.3); }
+
+/* Start / End buttons */
+.session-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 11px;
+  border-radius: 12px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+}
+.session-btn.start {
+  background: rgba(74,222,128,0.12);
+  border-color: rgba(74,222,128,0.4);
+  color: var(--green);
+}
+.session-btn.start:hover { background: rgba(74,222,128,0.22); border-color: var(--green); }
+.session-btn.end {
+  background: rgba(248,113,113,0.12);
+  border-color: rgba(248,113,113,0.4);
+  color: var(--red);
+  animation: pulse-end 2s ease-in-out infinite;
+}
+@keyframes pulse-end { 0%,100%{box-shadow:0 0 0 0 rgba(248,113,113,0)} 50%{box-shadow:0 0 0 3px rgba(248,113,113,0.12)} }
+.session-btn.end:hover { background: rgba(248,113,113,0.22); border-color: var(--red); }
+
+.session-btn-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+}
+.session-btn.start .session-btn-dot { background: var(--green); }
+.session-btn.end .session-btn-dot { background: var(--red); animation: pulse-dot 1s ease-in-out infinite; }
+
+/* Session timestamps row */
+.session-timestamps {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px 6px 28px;
+  font-size: 11px;
+  color: rgba(200,170,240,0.38);
+  font-variant-numeric: tabular-nums;
+  flex-wrap: wrap;
+}
+.ts-chip {
+  display: flex; align-items: center; gap: 4px;
+}
+.ts-icon { font-size: 9px; opacity: 0.7; }
+.ts-sep { opacity: 0.25; }
+.ts-total {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: rgba(200,170,240,0.5);
+  background: rgba(180,130,220,0.08);
+  border: 1px solid rgba(180,130,220,0.12);
+  border-radius: 8px;
+  padding: 1px 7px;
+}
+.ts-total.running {
+  color: var(--teal);
+  background: rgba(45,212,191,0.08);
+  border-color: rgba(45,212,191,0.25);
+}
+.ts-session-count {
+  font-size: 10px;
+  color: rgba(200,170,240,0.3);
+  background: rgba(180,130,220,0.06);
+  border-radius: 8px;
+  padding: 1px 6px;
+}
+
+/* Task rows inside session */
+.session-tasks {
+  padding: 0 12px 8px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 6px;
+  border-radius: 5px;
+  transition: background 0.1s;
+}
+.task-row:hover { background: rgba(255,255,255,0.03); }
+.task-check {
+  width: 14px; height: 14px; border-radius: 3px;
+  border: 1px solid rgba(181,95,124,0.45);
+  background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0;
+  font-size: 9px; color: rgba(200,220,255,0.9);
+  transition: all 0.12s;
+}
+.task-check.done { background: rgba(90,142,252,0.25); border-color: var(--blue); }
+.task-check:hover:not(.done) { border-color: var(--rose); background: rgba(181,95,124,0.08); }
+.task-input {
+  flex: 1;
+  background: none; border: none; outline: none;
+  font-family: var(--font-serif);
+  font-size: 13px;
+  color: rgba(240,225,255,0.82);
+  padding: 0;
+  user-select: text; -webkit-user-select: text;
+  min-width: 0;
+}
+.task-input.done { text-decoration: line-through; opacity: 0.42; color: rgba(200,170,240,0.5); }
+.task-input::placeholder { color: rgba(200,170,240,0.25); font-style: italic; }
+.task-del {
+  background: none; border: none; font-size: 13px; cursor: pointer;
+  color: rgba(200,170,240,0.2); padding: 0 2px; transition: color 0.12s;
+  opacity: 0; flex-shrink: 0;
+}
+.task-row:hover .task-del { opacity: 1; }
+.task-del:hover { color: rgba(248,113,113,0.8); }
+
+/* Add task row */
+.add-task-row {
+  display: flex; align-items: center; gap: 7px;
+  padding: 3px 6px;
+  border-radius: 5px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.session-card:hover .add-task-row,
+.session-card:focus-within .add-task-row { opacity: 1; }
+.add-task-input {
+  flex: 1;
+  background: none; border: none;
+  border-bottom: 1px dashed rgba(180,130,220,0.2);
+  outline: none;
+  font-family: var(--font-serif);
+  font-size: 12px;
+  color: rgba(200,170,240,0.55);
+  padding: 1px 0;
+  user-select: text; -webkit-user-select: text;
+}
+.add-task-input::placeholder { color: rgba(200,170,240,0.22); font-style: italic; }
+.add-task-input:focus { border-bottom-color: rgba(181,95,124,0.45); color: rgba(240,225,255,0.7); }
+.add-task-plus {
+  font-size: 14px; color: rgba(200,170,240,0.2); flex-shrink: 0;
+  user-select: none;
+}
+
+/* Session delete */
+.session-del {
+  background: none; border: none; font-size: 14px; cursor: pointer;
+  color: rgba(200,170,240,0.18); padding: 0 3px; transition: color 0.12s;
+  opacity: 0; flex-shrink: 0;
+}
+.session-card:hover .session-del { opacity: 1; }
+.session-del:hover { color: rgba(248,113,113,0.7); }
+
+/* Expand/collapse */
+.session-expand-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 10px; color: rgba(200,170,240,0.3);
+  padding: 0 2px; flex-shrink: 0;
+  transition: color 0.12s, transform 0.15s;
+  line-height: 1;
+}
+.session-expand-btn.open { transform: rotate(90deg); color: rgba(200,170,240,0.55); }
+.session-expand-btn:hover { color: rgba(200,170,240,0.8); }
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 32px 0;
+  color: rgba(200,170,240,0.25);
+  font-family: var(--font-serif);
+  font-size: 14px;
+  font-style: italic;
+  line-height: 1.6;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 160px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-family: var(--font-body);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.sidebar::-webkit-scrollbar { display: none; }
+
+.sidebar-card {
+  background: rgba(18,8,40,0.82);
+  border: 1px solid rgba(180,130,220,0.14);
+  border-radius: 7px;
+  padding: 8px;
+}
+
+/* Mini calendar */
+.cal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 5px;
+}
+.cal-month-title {
+  font-family: var(--font-serif);
+  font-size: 13px; font-weight: 600;
+  color: rgba(240,225,255,0.85);
+}
+.cal-nav { display: flex; align-items: center; gap: 2px; }
+.cal-nav-btn {
+  background: rgba(90,142,252,0.08); border: none; color: var(--blue);
+  font-size: 13px; cursor: pointer; padding: 0 4px; border-radius: 3px;
+  height: 20px; display: flex; align-items: center; transition: all 0.12s;
+}
+.cal-nav-btn:hover { background: rgba(90,142,252,0.2); }
+.cal-today-btn {
+  border-radius: 3px;
+  background: rgba(181,95,124,0.12); border: 1px solid rgba(181,95,124,0.28);
+  color: var(--rose); font-family: var(--font-serif); font-size: 11px;
+  cursor: pointer; padding: 0 6px; height: 20px; transition: all 0.12s;
+}
+.cal-today-btn:hover { background: rgba(181,95,124,0.25); }
+.cal-grid {
+  display: grid; grid-template-columns: repeat(7,1fr); gap: 1px;
+}
+.cal-dow {
+  font-size: 8px; text-transform: uppercase; text-align: center;
+  padding: 2px 0; letter-spacing: 0.04em; color: var(--rose);
+}
+.cal-day {
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; width: 19px; height: 19px; margin: auto;
+  font-size: 10px; cursor: pointer; transition: background 0.12s;
+  position: relative; color: rgba(240,225,255,0.75);
+}
+.cal-day:hover { background: rgba(180,130,220,0.15); }
+.cal-day.today { color: var(--blue); font-weight: 700; }
+.cal-day.selected { background: rgba(90,142,252,0.2); color: #fff; font-weight: 700; }
+.cal-day.other-month { color: rgba(200,170,240,0.2); }
+.cal-day.has-dot::after {
+  content: ''; position: absolute; bottom: 1px; left: 50%; transform: translateX(-50%);
+  width: 3px; height: 3px; border-radius: 50%; background: rgba(181,95,124,0.5);
+}
+
+/* Week strip */
+.week-strip {
+  display: grid; grid-template-columns: repeat(7,1fr); gap: 2px;
+}
+.wday-btn {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 3px 0; border-radius: 4px; cursor: pointer;
+  background: transparent; transition: background 0.12s;
+}
+.wday-btn.active { background: rgba(90,142,252,0.12); }
+.wday-btn:hover:not(.active) { background: rgba(180,130,220,0.08); }
+.wday-name { font-size: 8px; text-transform: uppercase; color: var(--rose); margin-bottom: 1px; }
+.wday-num { font-size: 11px; color: rgba(240,225,255,0.75); }
+.wday-num.today-num { color: var(--blue); font-weight: 700; }
+
+/* Arc bars */
+.arc-label {
+  font-family: var(--font-serif); font-size: 9px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: rgba(200,170,240,0.4); margin: 6px 0 3px;
+}
+.arc-bars {
+  display: grid; grid-template-columns: repeat(7,1fr);
+  gap: 2px; align-items: end; height: 40px;
+}
+.arc-col {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  background: none; border: none; padding: 0; cursor: pointer;
+  border-radius: 3px; height: 100%; justify-content: flex-end;
+  transition: background 0.12s;
+}
+.arc-col:hover { background: rgba(180,130,220,0.08); }
+.arc-col.active { background: rgba(90,142,252,0.08); }
+.arc-bar-track { width: 100%; flex: 1; display: flex; flex-direction: column; justify-content: flex-end; }
+.arc-bar-fill { width: 100%; border-radius: 2px 2px 0 0; transition: height 0.3s; }
+.arc-day-lbl { font-size: 7px; font-weight: 700; text-transform: uppercase; opacity: 0.45; color: rgba(240,225,255,0.75); }
+
+/* Stats card */
+.stat-row {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 5px;
+}
+.stat-lbl { font-size: 11px; color: var(--rose); }
+.stat-val { font-size: 11px; font-weight: 600; color: rgba(240,225,255,0.85); }
+.section-title {
+  font-family: var(--font-serif); font-size: 9px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: rgba(200,170,240,0.4); margin-bottom: 6px;
+}
+.progress-track { height: 3px; background: rgba(181,95,124,0.15); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 2px; background: var(--rose); transition: width 0.35s; }
+
+/* Date header */
+.date-header {
+  position: absolute; top: 5.5%; left: 10.5%;
+  z-index: 5; display: flex; align-items: baseline; gap: 12px;
+}
+.date-title {
+  font-family: var(--font-serif); font-size: 18px; font-weight: 600;
+  color: rgba(240,225,255,0.9);
+}
+.now-badge {
+  font-size: 11px; font-variant-numeric: tabular-nums;
+  color: var(--blue); background: rgba(90,142,252,0.1);
+  border: 1px solid rgba(90,142,252,0.22);
+  padding: 1px 8px; border-radius: 9px;
+}
+
+/* Tab bar */
+.tab-bar {
+  position: absolute; bottom: 5%; left: 10.5%;
+  z-index: 20; display: flex; gap: 4px; align-items: center;
+}
+.tab-btn {
+  padding: 4px 14px; border-radius: 7px 7px 0 0;
+  border: 1px solid rgba(180,130,220,0.35); border-bottom: none;
+  background: rgba(40,20,60,0.82); color: rgba(240,230,255,0.88);
+  font-family: var(--font-serif); font-size: 13px; cursor: pointer; transition: all 0.13s;
+}
+.tab-btn.active {
+  background: rgba(70,30,100,0.95); color: #fff;
+  border-color: rgba(210,160,255,0.75);
+  box-shadow: 0 -2px 8px rgba(180,130,220,0.28);
+}
+.tab-btn:hover:not(.active) { background: rgba(60,25,80,0.9); color: #fff; }
+
+/* Color picker swatch */
+.swatch-row { display: flex; gap: 3px; padding: 2px 0 0 28px; }
+.swatch {
+  width: 10px; height: 10px; border-radius: 50%; cursor: pointer;
+  border: 1px solid rgba(0,0,0,0.2); transition: transform 0.1s;
+  opacity: 0; transition: opacity 0.15s, transform 0.1s;
+}
+.session-card:hover .swatch,
+.session-card:focus-within .swatch { opacity: 1; }
+.swatch:hover { transform: scale(1.4); }
+.swatch.active { outline: 2px solid rgba(255,255,255,0.5); outline-offset: 1px; }
+
+/* Session count badge */
+.session-count-badge {
+  font-size: 9px; font-variant-numeric: tabular-nums;
+  background: rgba(180,130,220,0.1); border: 1px solid rgba(180,130,220,0.18);
+  color: rgba(200,170,240,0.55); border-radius: 8px; padding: 1px 6px;
+  flex-shrink: 0;
+}
+
+/* Tweaks panel */
+.tweaks-panel {
+  position: fixed; bottom: 80px; right: 20px; z-index: 100;
+  width: 230px;
+  background: rgba(18,8,40,0.97);
+  border: 1px solid rgba(180,130,220,0.22);
+  border-radius: 12px;
+  padding: 14px;
+  font-family: var(--font-body);
+  display: flex; flex-direction: column; gap: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  backdrop-filter: blur(16px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+.tweaks-panel.hidden { opacity: 0; pointer-events: none; transform: translateY(8px); }
+.tweaks-title {
+  font-family: var(--font-serif); font-size: 12px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: rgba(240,225,255,0.9);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.tweaks-close {
+  background: none; border: none; cursor: pointer;
+  font-size: 16px; color: rgba(200,170,240,0.45); transition: opacity 0.12s;
+}
+.tweaks-close:hover { color: rgba(240,225,255,0.9); }
+.tweak-group { display: flex; flex-direction: column; gap: 6px; }
+.tweak-label { font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(200,170,240,0.5); }
+.tweak-options { display: flex; gap: 4px; }
+.tweak-opt {
+  flex: 1; padding: 5px 0; border-radius: 5px;
+  font-family: var(--font-body); font-size: 11px; cursor: pointer;
+  text-align: center; transition: all 0.15s; border: 1px solid transparent;
+  color: rgba(200,170,240,0.5);
+}
+.tweak-opt.active {
+  background: rgba(90,142,252,0.18); border-color: rgba(90,142,252,0.5);
+  color: rgba(200,180,255,0.95); font-weight: 600;
+}
+.tweak-opt:not(.active) { background: rgba(255,255,255,0.04); border-color: rgba(180,130,220,0.15); }
+.tweak-opt:not(.active):hover { background: rgba(180,130,220,0.1); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+/* ── helpers ── */
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const pad = n => String(n).padStart(2, '0');
+const dateKey = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const todayKey = () => dateKey(new Date());
+const parseKey = k => { const [y,m,d] = k.split('-').map(Number); return new Date(y, m-1, d); };
+const fmtLongDate = k => parseKey(k).toLocaleDateString('en-US', {weekday:'long',month:'long',day:'numeric'});
+const fmtDOW = k => parseKey(k).toLocaleDateString('en-US', {weekday:'short'});
+const fmtTime = ts => {
+  const d = new Date(ts);
+  const h = d.getHours(), m = d.getMinutes();
+  return `${h%12||12}:${pad(m)} ${h<12?'AM':'PM'}`;
+};
+const fmtElapsed = ms => {
+  if (ms < 0) ms = 0;
+  const totalSecs = Math.floor(ms / 1000);
+  const h = Math.floor(totalSecs / 3600);
+  const m = Math.floor((totalSecs % 3600) / 60);
+  const s = totalSecs % 60;
+  if (h > 0) return `${h}:${pad(m)}:${pad(s)}`;
+  return `${pad(m)}:${pad(s)}`;
+};
+const fmtDuration = ms => {
+  if (ms <= 0) return '—';
+  const totalMins = Math.floor(ms / 60000);
+  const h = Math.floor(totalMins / 60), m = totalMins % 60;
+  if (h > 0 && m > 0) return `${h}h ${m}m`;
+  if (h > 0) return `${h}h`;
+  return `${m}m`;
+};
+const nowMins = () => { const n = new Date(); return n.getHours()*60 + n.getMinutes(); };
+const nowStr = () => { const n = new Date(); return `${pad(n.getHours())}:${pad(n.getMinutes())}`; };
+
+const DOW = ['S','M','T','W','T','F','S'];
+const COLORS = ['rose','blue','teal','violet','orange','peach','yellow'];
+const COLOR_HEX = { rose:'#B55F7C', blue:'#5A8EFC', teal:'#2dd4bf', violet:'#a78bfa', orange:'#FCA324', peach:'#FD8D79', yellow:'#FCCD38' };
+
+const LS_SESSIONS = 'timetracker_sessions_v1';
+const LS_DATE = 'timetracker_date_v1';
+const LS_TWEAKS = 'timetracker_tweaks_v1';
+
+const loadSessions = () => { try { return JSON.parse(localStorage.getItem(LS_SESSIONS)||'{}'); } catch { return {}; }};
+const saveSessions = s => localStorage.setItem(LS_SESSIONS, JSON.stringify(s));
+
+const DEFAULT_TWEAKS = /*EDITMODE-BEGIN*/{
+  "layout": "list",
+  "timestamps": "full",
+  "taskDisplay": "always"
+}/*EDITMODE-END*/;
+
+function getMonthDays(year, month) {
+  const first = new Date(year, month, 1), startDow = first.getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const daysInPrev = new Date(year, month, 0).getDate();
+  const cells = [];
+  for (let i = startDow-1; i >= 0; i--) cells.push({ day: daysInPrev-i, thisMonth: false, date: new Date(year, month-1, daysInPrev-i) });
+  for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d, thisMonth: true, date: new Date(year, month, d) });
+  while (cells.length < 42) cells.push({ day: cells.length-daysInMonth-startDow+1, thisMonth: false, date: new Date(year, month+1, cells.length-daysInMonth-startDow+1) });
+  return cells;
+}
+
+function getWeekDays(centerKey) {
+  const d = parseKey(centerKey); const dow = d.getDay();
+  return Array.from({length:7}, (_,i) => { const dd = new Date(d); dd.setDate(d.getDate()-dow+i); return dateKey(dd); });
+}
+
+/* ══════════════════════════════════
+   APP
+══════════════════════════════════ */
+function App() {
+  const [tweaks, setTweaksRaw] = useState(() => {
+    try { return {...DEFAULT_TWEAKS, ...JSON.parse(localStorage.getItem(LS_TWEAKS)||'{}')}; }
+    catch { return DEFAULT_TWEAKS; }
+  });
+  const [tweaksVisible, setTweaksVisible] = useState(false);
+  const setTweak = (k, v) => setTweaksRaw(prev => {
+    const next = {...prev, [k]: v};
+    localStorage.setItem(LS_TWEAKS, JSON.stringify(next));
+    window.parent?.postMessage({type:'__edit_mode_set_keys', edits: next}, '*');
+    return next;
+  });
+
+  useEffect(() => {
+    const h = e => {
+      if (e.data?.type === '__activate_edit_mode') setTweaksVisible(true);
+      if (e.data?.type === '__deactivate_edit_mode') setTweaksVisible(false);
+    };
+    window.addEventListener('message', h);
+    window.parent?.postMessage({type:'__edit_mode_available'}, '*');
+    return () => window.removeEventListener('message', h);
+  }, []);
+
+  /* ── Data state ── */
+  const [allSessions, setAllSessionsRaw] = useState(() => loadSessions());
+  const [currentDate, setCurrentDate] = useState(() => localStorage.getItem(LS_DATE) || todayKey());
+  const [tick, setTick] = useState(0);
+  const [calView, setCalView] = useState(() => { const n = new Date(); return {year: n.getFullYear(), month: n.getMonth()}; });
+  const [newSessionName, setNewSessionName] = useState('');
+  const newInputRef = useRef(null);
+
+  // Tick every second for live elapsed display
+  useEffect(() => {
+    const iv = setInterval(() => setTick(t => t+1), 1000);
+    return () => clearInterval(iv);
+  }, []);
+
+  useEffect(() => { saveSessions(allSessions); }, [allSessions]);
+  useEffect(() => { localStorage.setItem(LS_DATE, currentDate); }, [currentDate]);
+
+  const sessions = allSessions[currentDate] || [];
+  const setSessions = useCallback(fn => {
+    setAllSessionsRaw(prev => {
+      const cur = prev[currentDate] || [];
+      return {...prev, [currentDate]: typeof fn === 'function' ? fn(cur) : fn};
+    });
+  }, [currentDate]);
+
+  /* The currently running session (at most one) */
+  const runningSession = sessions.find(s => s.running);
+
+  /* ── Session actions ── */
+  const addSession = () => {
+    const name = newSessionName.trim();
+    if (!name) return;
+    setSessions(prev => [...prev, {
+      id: uid(), name, color: 'rose',
+      runs: [], // [{startedAt, endedAt}]
+      running: false,
+      tasks: [],
+      expanded: true,
+    }]);
+    setNewSessionName('');
+    newInputRef.current?.focus();
+  };
+
+  const startSession = useCallback(id => {
+    setSessions(prev => prev.map(s => {
+      if (s.id === id) {
+        // Start this session
+        return {...s, running: true, runs: [...(s.runs||[]), {startedAt: Date.now(), endedAt: null}]};
+      }
+      // Stop any other running session
+      if (s.running) {
+        const runs = s.runs.map((r, i) => i === s.runs.length-1 ? {...r, endedAt: Date.now()} : r);
+        return {...s, running: false, runs};
+      }
+      return s;
+    }));
+  }, [setSessions]);
+
+  const endSession = useCallback(id => {
+    setSessions(prev => prev.map(s => {
+      if (s.id !== id) return s;
+      const runs = (s.runs||[]).map((r, i) => i === s.runs.length-1 && !r.endedAt ? {...r, endedAt: Date.now()} : r);
+      return {...s, running: false, runs};
+    }));
+  }, [setSessions]);
+
+  const updateSession = useCallback((id, changes) => {
+    setSessions(prev => prev.map(s => s.id === id ? {...s, ...changes} : s));
+  }, [setSessions]);
+
+  const deleteSession = useCallback(id => {
+    setSessions(prev => prev.filter(s => s.id !== id));
+  }, [setSessions]);
+
+  const addTask = useCallback((sessionId, text) => {
+    if (!text.trim()) return;
+    setSessions(prev => prev.map(s => s.id !== sessionId ? s : {
+      ...s, tasks: [...(s.tasks||[]), {id: uid(), content: text.trim(), completed: false}]
+    }));
+  }, [setSessions]);
+
+  const updateTask = useCallback((sessionId, taskId, changes) => {
+    setSessions(prev => prev.map(s => s.id !== sessionId ? s : {
+      ...s, tasks: (s.tasks||[]).map(t => t.id === taskId ? {...t, ...changes} : t)
+    }));
+  }, [setSessions]);
+
+  const deleteTask = useCallback((sessionId, taskId) => {
+    setSessions(prev => prev.map(s => s.id !== sessionId ? s : {
+      ...s, tasks: (s.tasks||[]).filter(t => t.id !== taskId)
+    }));
+  }, [setSessions]);
+
+  /* ── Elapsed for running session ── */
+  const getElapsed = s => {
+    if (!s.runs || s.runs.length === 0) return 0;
+    return s.runs.reduce((sum, r) => {
+      const end = r.endedAt || Date.now();
+      return sum + Math.max(0, end - r.startedAt);
+    }, 0);
+  };
+
+  /* ── Calendar helpers ── */
+  const isToday = currentDate === todayKey();
+  const weekDays = getWeekDays(currentDate);
+  const monthCells = getMonthDays(calView.year, calView.month);
+  const calLabel = new Date(calView.year, calView.month, 1).toLocaleDateString('en-US', {month:'short', year:'numeric'});
+
+  // Stats per day
+  const weekStats = weekDays.map(d => {
+    const ss = allSessions[d] || [];
+    const total = ss.length;
+    const done = ss.filter(s => !s.running && s.runs && s.runs.length > 0 && s.runs[s.runs.length-1]?.endedAt).length;
+    return {day: d, total, done};
+  });
+  const weekMax = Math.max(1, ...weekStats.map(s => s.total));
+
+  // Today totals
+  const totalSessions = sessions.length;
+  const completedSessions = sessions.filter(s => !s.running && s.runs && s.runs.some(r => r.endedAt)).length;
+  const totalMs = sessions.reduce((sum, s) => sum + getElapsed(s), 0);
+
+  /* ── Running session banner data ── */
+  const runningElapsedMs = runningSession ? getElapsed(runningSession) : 0;
+  const allDayMs = sessions.reduce((sum, s) => sum + getElapsed(s), 0) + (runningSession ? 0 : 0);
+
+  return (
+    <div style={{position:'relative', width:'100vw', height:'100vh', overflow:'hidden'}}>
+      <img className="app-frame" src="assets/frame_blue_orchid.png" alt="" />
+
+      {/* Date header */}
+      <div className="date-header">
+        <span className="date-title">{fmtLongDate(currentDate)}</span>
+        {isToday && <span className="now-badge">now {nowStr()}</span>}
+      </div>
+
+      {/* Main shell */}
+      <div className="app-shell">
+
+        {/* ── Main panel ── */}
+        <div className="main-panel">
+
+          {/* Active session banner */}
+          <div className={`active-banner ${runningSession ? '' : 'idle'}`}>
+            <div className={`banner-dot ${runningSession ? '' : 'idle'}`} />
+            <span className={`banner-label ${runningSession ? '' : 'idle'}`}>
+              {runningSession ? runningSession.name : 'No session running'}
+            </span>
+            {runningSession ? (
+              <>
+                <span className="banner-total">{fmtDuration(totalMs)} today</span>
+                <span className="banner-elapsed">{fmtElapsed(runningElapsedMs)}</span>
+              </>
+            ) : (
+              <span className="banner-elapsed idle">{fmtDuration(totalMs) !== '—' ? fmtDuration(totalMs) + ' today' : 'Start a session'}</span>
+            )}
+          </div>
+
+          {/* Sessions list */}
+          <div className="sessions-scroll">
+
+            {/* New session bar */}
+            <div className="new-session-bar">
+              <form style={{flex:1,display:'flex',alignItems:'center',gap:8}} onSubmit={e=>{e.preventDefault();addSession();}}>
+                <input
+                  ref={newInputRef}
+                  className="new-session-input"
+                  value={newSessionName}
+                  onChange={e => setNewSessionName(e.target.value)}
+                  placeholder="New session name…"
+                />
+                <button type="submit" className="new-session-btn">+ New</button>
+              </form>
+            </div>
+
+            {/* Session cards */}
+            {sessions.length === 0 && (
+              <div className="empty-state">
+                No sessions yet.<br />Type a name above and press Enter.
+              </div>
+            )}
+
+            {sessions.map(session => (
+              <SessionCard
+                key={session.id}
+                session={session}
+                tick={tick}
+                tweaks={tweaks}
+                getElapsed={getElapsed}
+                onStart={() => startSession(session.id)}
+                onEnd={() => endSession(session.id)}
+                onUpdate={ch => updateSession(session.id, ch)}
+                onDelete={() => deleteSession(session.id)}
+                onAddTask={(text) => addTask(session.id, text)}
+                onUpdateTask={(tid, ch) => updateTask(session.id, tid, ch)}
+                onDeleteTask={tid => deleteTask(session.id, tid)}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* ── Sidebar ── */}
+        <div className="sidebar">
+
+          {/* Mini calendar */}
+          <div className="sidebar-card">
+            <div className="cal-header">
+              <span className="cal-month-title">{calLabel}</span>
+              <div className="cal-nav">
+                <button className="cal-nav-btn" onClick={() => setCalView(p => { let {year,month}=p; month--; if(month<0){month=11;year--;} return {year,month}; })}>‹</button>
+                <button className="cal-today-btn" onClick={() => { setCurrentDate(todayKey()); setCalView({year:new Date().getFullYear(),month:new Date().getMonth()}); }}>Today</button>
+                <button className="cal-nav-btn" onClick={() => setCalView(p => { let {year,month}=p; month++; if(month>11){month=0;year++;} return {year,month}; })}>›</button>
+              </div>
+            </div>
+            <div className="cal-grid">
+              {DOW.map((d,i) => <div key={i} className="cal-dow">{d}</div>)}
+              {monthCells.map((cell, i) => {
+                const k = dateKey(cell.date);
+                const isSel = k === currentDate, isT = k === todayKey();
+                const hasSessions = (allSessions[k]||[]).length > 0;
+                return (
+                  <div key={i}
+                    className={`cal-day ${isT?'today':''} ${isSel?'selected':''} ${!cell.thisMonth?'other-month':''} ${hasSessions?'has-dot':''}`}
+                    onClick={() => { setCurrentDate(k); setCalView({year:cell.date.getFullYear(),month:cell.date.getMonth()}); }}>
+                    {cell.day}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Week strip + arc */}
+          <div className="sidebar-card">
+            <div className="week-strip" style={{marginBottom:5}}>
+              {weekDays.map(d => {
+                const isActive = d === currentDate, isT = d === todayKey();
+                return (
+                  <div key={d} className={`wday-btn ${isActive?'active':''}`} onClick={() => setCurrentDate(d)}>
+                    <span className="wday-name">{fmtDOW(d).charAt(0)}</span>
+                    <span className={`wday-num ${isT?'today-num':''}`}>{parseKey(d).getDate()}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="arc-label">this week</div>
+            <div className="arc-bars">
+              {weekStats.map(({day,total,done}) => {
+                const isActive = day === currentDate, isT = day === todayKey();
+                const barH = total === 0 ? 0 : Math.max(10, Math.round((total/weekMax)*100));
+                const barColor = total===0?'rgba(102,26,78,0.1)':done>=total?'rgba(90,142,252,0.7)':'rgba(181,95,124,0.5)';
+                return (
+                  <button key={day} className={`arc-col ${isActive?'active':''}`} onClick={() => setCurrentDate(day)}>
+                    <div className="arc-bar-track">
+                      <div className="arc-bar-fill" style={{height:barH+'%',background:barColor}} />
+                    </div>
+                    <span className="arc-day-lbl" style={{color: isT?'var(--blue)':'rgba(240,225,255,0.75)'}}>{fmtDOW(day).charAt(0)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="sidebar-card">
+            <div className="section-title">today</div>
+            <div className="stat-row">
+              <span className="stat-lbl">sessions</span>
+              <span className="stat-val">{completedSessions}/{totalSessions}</span>
+            </div>
+            <div className="stat-row">
+              <span className="stat-lbl">total time</span>
+              <span className="stat-val" style={{fontVariantNumeric:'tabular-nums',fontFamily:'var(--font-mono)',fontSize:10}}>{fmtDuration(totalMs)}</span>
+            </div>
+            {runningSession && (
+              <div className="stat-row">
+                <span className="stat-lbl">active</span>
+                <span className="stat-val" style={{color:'var(--teal)',fontFamily:'var(--font-mono)',fontSize:10}}>{fmtElapsed(runningElapsedMs)}</span>
+              </div>
+            )}
+            {totalSessions > 0 && (
+              <>
+                <div className="progress-track">
+                  <div className="progress-fill" style={{width: Math.round(completedSessions/totalSessions*100)+'%'}} />
+                </div>
+                <div style={{fontSize:10,color:'var(--rose)',textAlign:'right',marginTop:3}}>{Math.round(completedSessions/totalSessions*100)}% done</div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Tab bar */}
+      <div className="tab-bar">
+        {[
+          {label:'to-do'},{label:'Notes'},{label:'Plans',active:true},
+          {label:"Changin'"},{label:'progression'},{label:'Timer'}
+        ].map(t => (
+          <button key={t.label} className={`tab-btn ${t.active?'active':''}`}>{t.label}</button>
+        ))}
+        <button className="tab-btn">+</button>
+      </div>
+
+      {/* Tweaks panel */}
+      <TweaksPanel tweaks={tweaks} setTweak={setTweak} visible={tweaksVisible}
+        onClose={() => { setTweaksVisible(false); window.parent?.postMessage({type:'__edit_mode_dismissed'},'*'); }} />
+    </div>
+  );
+}
+
+/* ══════════════════════════════════
+   SESSION CARD
+══════════════════════════════════ */
+function SessionCard({ session, tick, tweaks, getElapsed, onStart, onEnd, onUpdate, onDelete, onAddTask, onUpdateTask, onDeleteTask }) {
+  const [addingTask, setAddingTask] = useState('');
+  const [expanded, setExpanded] = useState(session.expanded !== false);
+  const addRef = useRef(null);
+
+  const elapsed = getElapsed(session);
+  const isRunning = session.running;
+  const runs = session.runs || [];
+  const lastRun = runs[runs.length-1];
+  const sessionCount = runs.filter(r => r.endedAt).length + (isRunning ? 1 : 0);
+  const colorHex = COLOR_HEX[session.color] || COLOR_HEX.rose;
+
+  const handleAddTask = e => {
+    if (e.key === 'Enter') {
+      onAddTask(addingTask);
+      setAddingTask('');
+    }
+  };
+
+  const toggleExpand = () => {
+    const next = !expanded;
+    setExpanded(next);
+    onUpdate({expanded: next});
+  };
+
+  return (
+    <div className={`session-card ${isRunning ? 'is-running' : ''}`}>
+      {/* Header */}
+      <div className="session-header">
+        <div className="session-color-dot" style={{background: colorHex, boxShadow: isRunning ? `0 0 6px ${colorHex}88` : 'none'}} />
+
+        <input
+          className={`session-name-input ${!isRunning && runs.length > 0 && lastRun?.endedAt ? 'done' : ''}`}
+          value={session.name}
+          placeholder="Session name…"
+          onChange={e => onUpdate({name: e.target.value})}
+          style={{userSelect:'text', WebkitUserSelect:'text'}}
+        />
+
+        {sessionCount > 1 && (
+          <span className="session-count-badge">×{sessionCount}</span>
+        )}
+
+        {/* Start / End buttons */}
+        {isRunning ? (
+          <button className="session-btn end" onClick={onEnd}>
+            <span className="session-btn-dot" />
+            End
+          </button>
+        ) : (
+          <button className="session-btn start" onClick={onStart}>
+            <span className="session-btn-dot" style={{background:'var(--green)'}} />
+            Start
+          </button>
+        )}
+
+        <button className="session-expand-btn" onClick={toggleExpand} title={expanded?'Collapse':'Expand'}>
+          ▶
+        </button>
+        <button className="session-del" onClick={onDelete}>×</button>
+      </div>
+
+      {/* Timestamps row */}
+      {tweaks.timestamps !== 'none' && runs.length > 0 && (() => {
+        const firstStart = runs[0]?.startedAt;
+        const lastEnd = isRunning ? null : lastRun?.endedAt;
+        return (
+          <div className="session-timestamps">
+            {firstStart && (
+              <span className="ts-chip">
+                <span className="ts-icon">▶</span>
+                {fmtTime(firstStart)}
+              </span>
+            )}
+            {lastEnd && (
+              <>
+                <span className="ts-sep">→</span>
+                <span className="ts-chip">
+                  <span className="ts-icon">■</span>
+                  {fmtTime(lastEnd)}
+                </span>
+              </>
+            )}
+            {isRunning && (
+              <>
+                <span className="ts-sep">→</span>
+                <span style={{color:'var(--teal)',fontSize:10}}>running…</span>
+              </>
+            )}
+            {sessionCount > 1 && tweaks.timestamps === 'full' && (
+              <span className="ts-session-count">{sessionCount} runs</span>
+            )}
+            <span className={`ts-total ${isRunning?'running':''}`}>
+              {elapsed > 0 ? fmtDuration(elapsed) : (isRunning ? fmtElapsed(elapsed) : '—')}
+            </span>
+          </div>
+        );
+      })()}
+
+      {/* Expanded: tasks + color picker */}
+      {expanded && (
+        <>
+          {/* Color swatches */}
+          <div className="swatch-row">
+            {COLORS.map(c => (
+              <div key={c}
+                className={`swatch ${session.color===c?'active':''}`}
+                style={{background: COLOR_HEX[c]}}
+                onClick={() => onUpdate({color: c})}
+                title={c}
+              />
+            ))}
+          </div>
+
+          {/* Tasks */}
+          {(tweaks.taskDisplay !== 'hidden') && (
+            <div className="session-tasks">
+              {(session.tasks||[]).map(task => (
+                <div key={task.id} className="task-row">
+                  <button
+                    className={`task-check ${task.completed?'done':''}`}
+                    onClick={() => onUpdateTask(task.id, {completed: !task.completed})}
+                  >
+                    {task.completed && '✓'}
+                  </button>
+                  <input
+                    className={`task-input ${task.completed?'done':''}`}
+                    value={task.content}
+                    placeholder="Subtask…"
+                    onChange={e => onUpdateTask(task.id, {content: e.target.value})}
+                    style={{userSelect:'text',WebkitUserSelect:'text'}}
+                  />
+                  <button className="task-del" onClick={() => onDeleteTask(task.id)}>×</button>
+                </div>
+              ))}
+
+              {/* Add task */}
+              <div className="add-task-row">
+                <span className="add-task-plus">+</span>
+                <input
+                  ref={addRef}
+                  className="add-task-input"
+                  value={addingTask}
+                  onChange={e => setAddingTask(e.target.value)}
+                  onKeyDown={handleAddTask}
+                  placeholder="add a subtask…"
+                  style={{userSelect:'text',WebkitUserSelect:'text'}}
+                />
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════
+   TWEAKS PANEL
+══════════════════════════════════ */
+function TweaksPanel({ tweaks, setTweak, visible, onClose }) {
+  const groups = [
+    {
+      id: 'timestamps',
+      label: 'Timestamps',
+      options: [
+        {val:'full',   label:'Full'},
+        {val:'compact',label:'Compact'},
+        {val:'none',   label:'None'},
+      ],
+    },
+    {
+      id: 'taskDisplay',
+      label: 'Tasks',
+      options: [
+        {val:'always', label:'Always'},
+        {val:'hidden', label:'Hidden'},
+      ],
+    },
+  ];
+
+  return (
+    <div className={`tweaks-panel ${visible?'':'hidden'}`}>
+      <div className="tweaks-title">
+        <span>Tweaks</span>
+        <button className="tweaks-close" onClick={onClose}>×</button>
+      </div>
+      {groups.map(g => (
+        <div key={g.id} className="tweak-group">
+          <div className="tweak-label">{g.label}</div>
+          <div className="tweak-options">
+            {g.options.map(opt => (
+              <button key={opt.val}
+                className={`tweak-opt ${tweaks[g.id]===opt.val?'active':''}`}
+                onClick={() => setTweak(g.id, opt.val)}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

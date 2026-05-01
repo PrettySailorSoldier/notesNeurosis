@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Brain Dump — notesNeurosis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Cormorant+Garamond:wght@300;400;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100vw; height: 100vh; overflow: hidden; background: #0a0612; user-select: none; -webkit-user-select: none; }
+#root { width: 100vw; height: 100vh; }
+
+:root {
+  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-body:  'Crimson Pro', Georgia, serif;
+  --font-mono:  'Space Mono', monospace;
+  --plum:   #661A4E;
+  --rose:   #B55F7C;
+  --peach:  #FD8D79;
+  --orange: #FCA324;
+  --yellow: #FCCD38;
+  --blue:   #5A8EFC;
+  --teal:   #2dd4bf;
+  --violet: #a78bfa;
+  --green:  #4ade80;
+  --red:    #f87171;
+  --ink0:   #0a0612;
+  --ink1:   #110820;
+  --ink2:   rgba(18,8,44,0.95);
+  --border: rgba(180,130,220,0.14);
+  --border-hi: rgba(180,130,220,0.28);
+  --text:   rgba(240,225,255,0.92);
+  --muted:  rgba(200,170,240,0.45);
+  --faint:  rgba(200,170,240,0.2);
+}
+
+.app-frame {
+  position: fixed; inset: 0; width: 100%; height: 100%;
+  object-fit: fill; pointer-events: none; z-index: 0;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(180,140,220,0.18); border-radius: 2px; }
+
+.app-shell {
+  position: absolute;
+  top: 11%; left: 10.5%;
+  width: 76%; height: 76%;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.date-header {
+  position: absolute; top: 5.5%; left: 10.5%;
+  z-index: 5; display: flex; align-items: baseline; gap: 12px;
+}
+.date-title {
+  font-family: var(--font-serif); font-size: 18px; font-weight: 600;
+  color: var(--text);
+}
+.now-badge {
+  font-size: 11px; font-variant-numeric: tabular-nums;
+  color: var(--blue); background: rgba(90,142,252,0.1);
+  border: 1px solid rgba(90,142,252,0.22);
+  padding: 1px 8px; border-radius: 9px;
+}
+
+.nav-bar {
+  position: absolute; bottom: 5%; left: 10.5%;
+  z-index: 20; display: flex; gap: 4px; align-items: center;
+}
+.nav-btn {
+  padding: 4px 14px; border-radius: 7px 7px 0 0;
+  border: 1px solid rgba(180,130,220,0.35); border-bottom: none;
+  background: rgba(40,20,60,0.82); color: rgba(240,230,255,0.88);
+  font-family: var(--font-serif); font-size: 13px; cursor: pointer; transition: all 0.13s;
+  text-decoration: none; display: inline-block;
+}
+.nav-btn.active {
+  background: rgba(70,30,100,0.95); color: #fff;
+  border-color: rgba(210,160,255,0.75);
+  box-shadow: 0 -2px 8px rgba(180,130,220,0.28);
+}
+.nav-btn:hover:not(.active) { background: rgba(60,25,80,0.9); color: #fff; }
+
+/* ── Main two-panel layout ── */
+.dump-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  height: 100%;
+  gap: 0;
+}
+
+/* ── LEFT: raw dump ── */
+.dump-left {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-hi);
+  border-radius: 10px 0 0 10px;
+  background: var(--ink2);
+  overflow: hidden;
+}
+
+.dump-left-header {
+  flex-shrink: 0;
+  padding: 14px 18px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dump-left-title {
+  font-family: var(--font-serif);
+  font-size: 20px; font-weight: 600;
+  color: var(--text);
+}
+
+.dump-char-count {
+  font-family: var(--font-mono);
+  font-size: 10px; color: var(--faint);
+  letter-spacing: 0.06em;
+}
+
+.dump-textarea {
+  flex: 1;
+  background: transparent;
+  border: none; outline: none; resize: none;
+  font-family: var(--font-body);
+  font-size: 15px; line-height: 1.75;
+  color: var(--text);
+  padding: 18px 20px;
+  caret-color: var(--rose);
+  user-select: text; -webkit-user-select: text;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(180,140,220,0.18) transparent;
+}
+.dump-textarea::placeholder {
+  color: var(--faint);
+  font-style: italic;
+  line-height: 1.9;
+}
+
+.dump-left-footer {
+  flex-shrink: 0;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dump-hint {
+  font-family: var(--font-body);
+  font-size: 11px; color: var(--faint);
+  font-style: italic;
+}
+
+.organize-btn {
+  padding: 8px 22px;
+  background: linear-gradient(135deg, rgba(102,26,78,0.6), rgba(181,95,124,0.4));
+  border: 1px solid rgba(181,95,124,0.5);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--font-serif); font-size: 14px;
+  cursor: pointer;
+  transition: all 0.18s;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.organize-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(102,26,78,0.85), rgba(181,95,124,0.6));
+  border-color: var(--rose);
+  box-shadow: 0 0 16px rgba(181,95,124,0.25);
+}
+.organize-btn:disabled {
+  opacity: 0.45; cursor: not-allowed;
+}
+.organize-btn.loading {
+  animation: pulse-btn 1.2s ease-in-out infinite;
+}
+@keyframes pulse-btn { 0%,100%{opacity:0.6} 50%{opacity:1} }
+
+.clear-btn {
+  background: none; border: none;
+  font-family: var(--font-body); font-size: 12px;
+  color: var(--faint); cursor: pointer;
+  padding: 4px 8px; border-radius: 5px;
+  transition: color 0.12s;
+}
+.clear-btn:hover { color: var(--red); }
+
+/* ── RIGHT: organized output ── */
+.dump-right {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-hi);
+  border-left: none;
+  border-radius: 0 10px 10px 0;
+  background: rgba(10,6,18,0.75);
+  overflow: hidden;
+}
+
+.dump-right-header {
+  flex-shrink: 0;
+  padding: 14px 18px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dump-right-title {
+  font-family: var(--font-serif);
+  font-size: 20px; font-weight: 600;
+  color: var(--text);
+}
+
+.send-all-btn {
+  padding: 6px 16px;
+  background: rgba(45,212,191,0.1);
+  border: 1px solid rgba(45,212,191,0.35);
+  border-radius: 7px;
+  color: var(--teal);
+  font-family: var(--font-body); font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.send-all-btn:hover {
+  background: rgba(45,212,191,0.2);
+  border-color: var(--teal);
+  box-shadow: 0 0 10px rgba(45,212,191,0.15);
+}
+
+.dump-right-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(180,140,220,0.18) transparent;
+}
+
+/* Empty / loading states */
+.dump-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 24px;
+  text-align: center;
+}
+.dump-empty-glyph {
+  font-family: var(--font-serif);
+  font-size: 42px; color: var(--faint);
+  font-style: italic;
+  line-height: 1;
+}
+.dump-empty-text {
+  font-family: var(--font-body);
+  font-size: 13px; color: var(--faint);
+  font-style: italic; line-height: 1.7;
+}
+
+/* Thinking state */
+.thinking-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 40px;
+}
+.thinking-dots {
+  display: flex; gap: 7px; align-items: center;
+}
+.thinking-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--rose);
+  animation: thinking-bounce 1.2s ease-in-out infinite;
+}
+.thinking-dot:nth-child(2) { animation-delay: 0.2s; background: var(--violet); }
+.thinking-dot:nth-child(3) { animation-delay: 0.4s; background: var(--blue); }
+@keyframes thinking-bounce {
+  0%,80%,100% { transform: translateY(0); opacity: 0.5; }
+  40% { transform: translateY(-8px); opacity: 1; }
+}
+.thinking-label {
+  font-family: var(--font-serif);
+  font-size: 14px; font-style: italic;
+  color: var(--muted);
+}
+.thinking-stream {
+  font-family: var(--font-body);
+  font-size: 12px; color: var(--faint);
+  max-width: 260px; text-align: center;
+  line-height: 1.6;
+  font-style: italic;
+  min-height: 40px;
+}
+
+/* ── Category sections ── */
+.category-section {
+  display: flex; flex-direction: column; gap: 6px;
+}
+
+.category-header {
+  display: flex; align-items: center; gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.category-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.category-label {
+  font-family: var(--font-mono);
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--muted);
+  flex: 1;
+}
+
+.category-count {
+  font-family: var(--font-mono);
+  font-size: 10px; color: var(--faint);
+}
+
+/* ── Item cards ── */
+.item-card {
+  display: flex; align-items: flex-start;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: rgba(255,255,255,0.025);
+  transition: border-color 0.15s, background 0.15s;
+  position: relative;
+}
+.item-card:hover { background: rgba(255,255,255,0.04); }
+
+.item-card.priority-card {
+  background: rgba(102,26,78,0.18);
+  border-color: rgba(181,95,124,0.2);
+}
+.item-card.priority-card:hover {
+  background: rgba(102,26,78,0.26);
+  border-color: rgba(181,95,124,0.35);
+}
+
+.item-rank {
+  font-family: var(--font-mono);
+  font-size: 11px; color: var(--rose);
+  font-weight: 700; flex-shrink: 0;
+  width: 18px; text-align: center;
+  padding-top: 1px;
+}
+
+.item-text-col {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 3px;
+}
+
+.item-text {
+  background: none; border: none; outline: none;
+  font-family: var(--font-body); font-size: 14px;
+  color: var(--text); padding: 0;
+  width: 100%; min-width: 0;
+  user-select: text; -webkit-user-select: text;
+  line-height: 1.5;
+  resize: none;
+  overflow: hidden;
+}
+.item-text::placeholder { color: var(--faint); font-style: italic; }
+
+.item-est-row {
+  display: flex; align-items: center; gap: 6px;
+}
+.item-est-label {
+  font-size: 9px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--faint);
+}
+.item-est-input {
+  background: rgba(167,139,250,0.08);
+  border: 1px solid rgba(167,139,250,0.2);
+  border-radius: 4px;
+  color: var(--violet);
+  font-family: var(--font-mono); font-size: 11px;
+  padding: 2px 7px; outline: none; width: 58px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 0.12s;
+  user-select: text; -webkit-user-select: text;
+}
+.item-est-input:focus { border-color: var(--violet); }
+.item-est-input::placeholder { color: var(--faint); }
+
+.item-actions {
+  display: flex; align-items: center; gap: 4px;
+  flex-shrink: 0;
+}
+
+.send-btn {
+  width: 26px; height: 26px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 12px;
+  border: 1px solid rgba(45,212,191,0.3);
+  background: rgba(45,212,191,0.08);
+  color: var(--teal);
+  transition: all 0.14s;
+  flex-shrink: 0;
+  position: relative;
+}
+.send-btn:hover {
+  background: rgba(45,212,191,0.2);
+  border-color: var(--teal);
+}
+.send-btn.sent {
+  background: rgba(45,212,191,0.2);
+  border-color: var(--teal);
+  color: var(--teal);
+  animation: sent-pop 0.3s ease;
+}
+@keyframes sent-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.del-btn {
+  width: 22px; height: 22px; border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 14px;
+  border: none; background: none;
+  color: var(--faint);
+  transition: color 0.12s;
+}
+.del-btn:hover { color: var(--red); }
+
+/* toast */
+.toast {
+  position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+  background: rgba(45,212,191,0.15);
+  border: 1px solid rgba(45,212,191,0.4);
+  color: var(--teal);
+  font-family: var(--font-body); font-size: 13px;
+  padding: 8px 20px; border-radius: 20px;
+  z-index: 200;
+  animation: toast-in 0.25s ease;
+  pointer-events: none;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+/* ── shared with Timeblocking v4 ── */
+const LS_TASKS_KEY = 'timetracker4_tasks_v1';
+const pad = n => String(n).padStart(2,'0');
+const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+const nowStr = () => { const n = new Date(); return `${pad(n.getHours())}:${pad(n.getMinutes())}`; };
+
+const fmtDate = () => new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+
+/* ── parse estimate string → ms (same as v4) ── */
+const parseEst = raw => {
+  if (!raw || !raw.trim()) return 0;
+  const s = raw.trim().toLowerCase();
+  const colonMatch = s.match(/^(\d+):(\d{1,2})$/);
+  if (colonMatch) return (parseInt(colonMatch[1])*60 + parseInt(colonMatch[2]))*60000;
+  const hm = s.match(/^(?:(\d+)h)?(?:(\d+)m)?$/);
+  if (hm && (hm[1] || hm[2])) return ((parseInt(hm[1]||0)*60)+parseInt(hm[2]||0))*60000;
+  const n = parseFloat(s);
+  if (!isNaN(n) && n > 0) return n*60000;
+  return 0;
+};
+
+/* ── push tasks into Timeblocking v4's localStorage ── */
+const sendToTimer = (items) => {
+  try {
+    const allTasks = JSON.parse(localStorage.getItem(LS_TASKS_KEY) || '{}');
+    const today = todayKey();
+    const existing = allTasks[today] || [];
+    const newTasks = items.map(item => ({
+      id: uid(),
+      name: item.text,
+      estMs: parseEst(item.est || ''),
+      elapsedMs: 0,
+      running: false,
+      runningStartedAt: null,
+      completed: false,
+      subtasks: [],
+    }));
+    allTasks[today] = [...existing, ...newTasks];
+    localStorage.setItem(LS_TASKS_KEY, JSON.stringify(allTasks));
+    return true;
+  } catch(e) {
+    console.error(e);
+    return false;
+  }
+};
+
+/* ── Claude prompt ── */
+const buildPrompt = (dump) => `You are a productivity assistant helping organize a brain dump into a structured daily plan.
+
+The user has written the following brain dump — messy, stream-of-consciousness, unstructured:
+
+---
+${dump}
+---
+
+Analyze this and return a JSON object with exactly these four arrays. Keep the user's words as close as possible — clean up minimally. Do NOT add items that aren't implied by the text.
+
+{
+  "priorities": [
+    { "text": "The single most important thing to do today", "est": "30m" }
+  ],
+  "tasks": [
+    { "text": "A clear actionable task", "est": "15m" }
+  ],
+  "notes": [
+    { "text": "Something to remember or context, not actionable" }
+  ],
+  "someday": [
+    { "text": "An idea or wish that isn't today's problem" }
+  ]
+}
+
+Rules:
+- "priorities": maximum 3 items — the truly urgent/important ones
+- "tasks": all other actionable to-dos not in priorities
+- "notes": context, reminders, things to be aware of — not actions
+- "someday": vague ideas, wishes, "eventually" items
+- "est": time estimate as a string like "30m", "1h", "2h" — only include if the text implies a duration; omit the key otherwise
+- Return ONLY valid JSON. No markdown. No explanation.`;
+
+/* ── Main App ── */
+function App() {
+  const [dump, setDump] = useState(() => localStorage.getItem('braindump_draft') || '');
+  const [result, setResult] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('braindump_result') || 'null'); } catch { return null; }
+  });
+  const [loading, setLoading] = useState(false);
+  const [streamText, setStreamText] = useState('');
+  const [sentIds, setSentIds] = useState(new Set());
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
+  const textareaRef = useRef(null);
+
+  /* Auto-save draft */
+  useEffect(() => {
+    localStorage.setItem('braindump_draft', dump);
+  }, [dump]);
+
+  /* Auto-save result */
+  useEffect(() => {
+    if (result) localStorage.setItem('braindump_result', JSON.stringify(result));
+  }, [result]);
+
+  /* Auto-resize textarea */
+  const autoResizeTextarea = useCallback(() => {
+    const el = textareaRef.current;
+    if (el) {
+      el.style.height = 'auto';
+    }
+  }, []);
+
+  const showToast = (msg) => {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2800);
+  };
+
+  const handleOrganize = async () => {
+    if (!dump.trim() || loading) return;
+    setLoading(true);
+    setStreamText('');
+    setResult(null);
+    setSentIds(new Set());
+
+    const thinkingPhrases = [
+      'reading your thoughts…',
+      'finding patterns…',
+      'separating signal from noise…',
+      'grouping what matters…',
+      'almost there…',
+    ];
+    let phraseIdx = 0;
+    const phraseInterval = setInterval(() => {
+      phraseIdx = (phraseIdx + 1) % thinkingPhrases.length;
+      setStreamText(thinkingPhrases[phraseIdx]);
+    }, 1400);
+    setStreamText(thinkingPhrases[0]);
+
+    try {
+      const raw = await window.claude.complete({
+        messages: [{ role: 'user', content: buildPrompt(dump) }],
+      });
+      clearInterval(phraseInterval);
+
+      // strip possible markdown code fences
+      const cleaned = raw.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+      const parsed = JSON.parse(cleaned);
+
+      // normalise — ensure all four arrays exist
+      const normalised = {
+        priorities: (parsed.priorities || []).slice(0,3),
+        tasks:      parsed.tasks      || [],
+        notes:      parsed.notes      || [],
+        someday:    parsed.someday    || [],
+      };
+      setResult(normalised);
+    } catch(e) {
+      clearInterval(phraseInterval);
+      setStreamText('');
+      showToast('Something went wrong — try again');
+      console.error(e);
+    } finally {
+      setLoading(false);
+      setStreamText('');
+    }
+  };
+
+  const updateItem = (category, index, changes) => {
+    setResult(prev => {
+      const arr = [...(prev[category] || [])];
+      arr[index] = { ...arr[index], ...changes };
+      return { ...prev, [category]: arr };
+    });
+  };
+
+  const deleteItem = (category, index) => {
+    setResult(prev => {
+      const arr = (prev[category] || []).filter((_,i) => i !== index);
+      return { ...prev, [category]: arr };
+    });
+  };
+
+  const handleSendOne = (item, id) => {
+    sendToTimer([item]);
+    setSentIds(prev => new Set([...prev, id]));
+    showToast(`"${item.text.slice(0,40)}${item.text.length>40?'…':''}" → timer`);
+  };
+
+  const handleSendAll = () => {
+    if (!result) return;
+    const allTaskItems = [
+      ...(result.priorities || []),
+      ...(result.tasks      || []),
+    ].filter(item => item.text && item.text.trim());
+
+    if (allTaskItems.length === 0) return;
+    sendToTimer(allTaskItems);
+    const allIds = allTaskItems.map((_,i) => `all-${i}`);
+    setSentIds(prev => new Set([...prev, ...allIds, 'ALL']));
+    showToast(`${allTaskItems.length} task${allTaskItems.length !== 1 ? 's' : ''} sent to timer`);
+  };
+
+  const hasResults = result && (
+    (result.priorities||[]).length > 0 ||
+    (result.tasks||[]).length > 0 ||
+    (result.notes||[]).length > 0 ||
+    (result.someday||[]).length > 0
+  );
+
+  const totalTaskCount = result
+    ? (result.priorities||[]).length + (result.tasks||[]).length
+    : 0;
+
+  const CATEGORIES = [
+    {
+      key: 'priorities',
+      label: 'Priorities',
+      dot: '#B55F7C',
+      isPriority: true,
+      hasEst: true,
+      canSend: true,
+      emptyMsg: null,
+    },
+    {
+      key: 'tasks',
+      label: 'Tasks',
+      dot: '#5A8EFC',
+      isPriority: false,
+      hasEst: true,
+      canSend: true,
+      emptyMsg: null,
+    },
+    {
+      key: 'notes',
+      label: 'Notes & Context',
+      dot: '#a78bfa',
+      isPriority: false,
+      hasEst: false,
+      canSend: false,
+      emptyMsg: null,
+    },
+    {
+      key: 'someday',
+      label: 'Someday / Maybe',
+      dot: 'rgba(200,170,240,0.35)',
+      isPriority: false,
+      hasEst: false,
+      canSend: false,
+      emptyMsg: null,
+    },
+  ];
+
+  return (
+    <div style={{position:'relative',width:'100vw',height:'100vh',overflow:'hidden'}}>
+      <img className="app-frame" src="assets/frame_blue_orchid.png" alt="" />
+
+      {/* Date header */}
+      <div className="date-header">
+        <span className="date-title">{fmtDate()}</span>
+        <span className="now-badge">now {nowStr()}</span>
+      </div>
+
+      {/* Main shell */}
+      <div className="app-shell">
+        <div className="dump-layout">
+
+          {/* ── LEFT: raw textarea ── */}
+          <div className="dump-left">
+            <div className="dump-left-header">
+              <span className="dump-left-title">brain dump</span>
+              <span className="dump-char-count">{dump.length} chars</span>
+            </div>
+
+            <textarea
+              ref={textareaRef}
+              className="dump-textarea"
+              value={dump}
+              onChange={e => { setDump(e.target.value); autoResizeTextarea(); }}
+              placeholder={"Just type. Don't organize.\n\nEverything on your mind, messy is fine.\n\nneed to call dentist… finish the report before 3, ugh i keep forgetting about the jones proposal, maybe look into that new software, mom's birthday is friday, groceries, the thing with the CI pipeline is still broken, should probably exercise at some point…"}
+              spellCheck={true}
+              style={{userSelect:'text',WebkitUserSelect:'text'}}
+            />
+
+            <div className="dump-left-footer">
+              <button
+                className="clear-btn"
+                onClick={() => { setDump(''); setResult(null); setSentIds(new Set()); localStorage.removeItem('braindump_result'); }}
+                disabled={!dump && !result}
+              >clear all</button>
+              <span className="dump-hint">type freely, then organize →</span>
+              <button
+                className={`organize-btn ${loading ? 'loading' : ''}`}
+                onClick={handleOrganize}
+                disabled={!dump.trim() || loading}
+              >
+                {loading ? 'organizing…' : 'Organize ✦'}
+              </button>
+            </div>
+          </div>
+
+          {/* ── RIGHT: organized output ── */}
+          <div className="dump-right">
+            <div className="dump-right-header">
+              <span className="dump-right-title">
+                {hasResults ? 'organized' : 'your plan'}
+              </span>
+              {hasResults && totalTaskCount > 0 && (
+                <button className="send-all-btn" onClick={handleSendAll}>
+                  → send all tasks to timer
+                </button>
+              )}
+            </div>
+
+            {/* Empty state */}
+            {!loading && !hasResults && (
+              <div className="dump-empty">
+                <span className="dump-empty-glyph">✦</span>
+                <span className="dump-empty-text">
+                  Write your brain dump on the left,<br />
+                  then hit <em>Organize</em> — Claude will<br />
+                  sort it into priorities, tasks, notes,<br />
+                  and someday items.
+                </span>
+              </div>
+            )}
+
+            {/* Thinking state */}
+            {loading && (
+              <div className="thinking-state">
+                <div className="thinking-dots">
+                  <div className="thinking-dot" />
+                  <div className="thinking-dot" />
+                  <div className="thinking-dot" />
+                </div>
+                <span className="thinking-label">organizing…</span>
+                <span className="thinking-stream">{streamText}</span>
+              </div>
+            )}
+
+            {/* Results */}
+            {!loading && hasResults && (
+              <div className="dump-right-scroll">
+                {CATEGORIES.map(cat => {
+                  const items = result[cat.key] || [];
+                  if (items.length === 0) return null;
+                  return (
+                    <div key={cat.key} className="category-section">
+                      <div className="category-header">
+                        <div className="category-dot" style={{background: cat.dot}} />
+                        <span className="category-label">{cat.label}</span>
+                        <span className="category-count">{items.length}</span>
+                      </div>
+                      {items.map((item, idx) => {
+                        const itemId = `${cat.key}-${idx}`;
+                        const isSent = sentIds.has(itemId) || sentIds.has('ALL');
+                        return (
+                          <div
+                            key={idx}
+                            className={`item-card ${cat.isPriority ? 'priority-card' : ''}`}
+                          >
+                            {cat.isPriority && (
+                              <span className="item-rank">{idx + 1}</span>
+                            )}
+                            <div className="item-text-col">
+                              <textarea
+                                className="item-text"
+                                value={item.text}
+                                rows={1}
+                                onChange={e => {
+                                  e.target.style.height = 'auto';
+                                  e.target.style.height = e.target.scrollHeight + 'px';
+                                  updateItem(cat.key, idx, {text: e.target.value});
+                                }}
+                                onFocus={e => {
+                                  e.target.style.height = 'auto';
+                                  e.target.style.height = e.target.scrollHeight + 'px';
+                                }}
+                                style={{userSelect:'text',WebkitUserSelect:'text'}}
+                              />
+                              {cat.hasEst && (
+                                <div className="item-est-row">
+                                  <span className="item-est-label">est.</span>
+                                  <input
+                                    className="item-est-input"
+                                    value={item.est || ''}
+                                    placeholder="30m"
+                                    onChange={e => updateItem(cat.key, idx, {est: e.target.value})}
+                                    style={{userSelect:'text',WebkitUserSelect:'text'}}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                            <div className="item-actions">
+                              {cat.canSend && (
+                                <button
+                                  className={`send-btn ${isSent ? 'sent' : ''}`}
+                                  onClick={() => handleSendOne(item, itemId)}
+                                  title={isSent ? 'Sent to timer' : 'Send to timer'}
+                                >
+                                  {isSent ? '✓' : '→'}
+                                </button>
+                              )}
+                              <button
+                                className="del-btn"
+                                onClick={() => deleteItem(cat.key, idx)}
+                                title="Remove"
+                              >×</button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+        </div>
+      </div>
+
+      {/* Nav */}
+      <div className="nav-bar">
+        <a href="Timeblocking v4.html" className="nav-btn">⏱ Timer</a>
+        <span className="nav-btn active">✦ Brain Dump</span>
+      </div>
+
+      {/* Toast */}
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
