@@ -583,6 +583,7 @@ export default function App() {
 
   const isBoardMode = (currentPage?.pageType === 'todo' && currentPage?.todoSubtype === 'board')
     || currentPage?.pageType === 'multitodo';
+  const isTimeblockMode = currentPage?.pageType === 'timeblock';
 
   return (
     <div className="frame-container">
@@ -699,7 +700,7 @@ export default function App() {
       )}
 
       {/* Writing zone */}
-      <div className={`writing-zone${isBoardMode ? ' writing-zone--board' : ''}`}>
+      <div className={`writing-zone${isBoardMode ? ' writing-zone--board' : ''}${isTimeblockMode ? ' writing-zone--timeblock' : ''}`}>
         {renderPageContent()}
       </div>
 
