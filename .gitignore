@@ -27,3 +27,7 @@ dist-ssr
 # Tauri signing keys — never commit these
 tauri.key
 tauri.key.pub
+
+# Local environment — contains API keys, never commit
+.env
+.env.local
