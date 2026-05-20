@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { load } from '@tauri-apps/plugin-store';
-import type { ReminderSound, SavedSequence } from '../types';
+import type { ReminderSound, SavedSequence, EnergyLevel } from '../types';
 
 const STORE_FILE = 'notes-neurosis-settings.json';
 const SETTINGS_BACKUP_KEY = 'settings_backup';
@@ -19,6 +19,8 @@ export interface Settings {
   defaultBlockDuration: number;
   savedSequences: SavedSequence[];
   accentColor: string;
+  claudeApiKey?: string;
+  dayEnergyLevel?: EnergyLevel;
 }
 
 const DEFAULT_SETTINGS: Settings = {

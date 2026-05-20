@@ -133,6 +133,45 @@ export interface SequenceBoard {
   createdAt: number;
 }
 
+export type BlockType =
+  | 'deep_focus'
+  | 'float'
+  | 'anchor'
+  | 'buffer'
+  | 'break'
+  | 'urgent'
+  | 'wind_down';
+
+export type EnergyLevel = 'high' | 'medium' | 'low' | 'zero';
+
+export type ProjectTaskStatus = 'not_started' | 'in_progress' | 'done' | 'skipped';
+
+export interface ProjectTask {
+  id: string;
+  content: string;
+  notes: string;
+  status: ProjectTaskStatus;
+  estimatedMinutes?: number;
+  energyRequired?: EnergyLevel;
+  createdAt: number;
+  completedAt?: number;
+  order: number;
+}
+
+export type ProjectStatus = 'active' | 'paused' | 'completed' | 'archived';
+
+export interface Project {
+  id: string;
+  name: string;
+  emoji?: string;
+  color: AccentColor;
+  status: ProjectStatus;
+  description: string;
+  tasks: ProjectTask[];
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface PlannerBlock {
   id: string;
   date: string;            // ISO date string e.g. "2026-03-07"
@@ -144,6 +183,9 @@ export interface PlannerBlock {
   completed: boolean;
   tasks?: Task[];
   reminder?: Reminder;     // optional timer attached to this block
+  blockType?: BlockType;
+  energyRequired?: EnergyLevel;
+  projectId?: string;
 }
 
 export type AccentColor = 
