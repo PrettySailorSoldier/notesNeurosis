@@ -470,6 +470,24 @@ export const OptionsModal: React.FC<Props> = ({
           {/* ── SETTINGS TAB ── */}
           {tab === 'settings' && (
             <>
+              <div className={styles.sectionTitle}>AI Integration</div>
+              <div className={styles.settingBlock}>
+                <div className={styles.settingRow}>
+                  <span className={styles.settingLabel}>Claude API Key</span>
+                  <input
+                    type="password"
+                    className={styles.accentCustomInput}
+                    placeholder="sk-ant-..."
+                    value={settings.claudeApiKey ?? ''}
+                    onChange={e => onUpdateSettings({ claudeApiKey: e.target.value })}
+                    style={{ flex: 1 }}
+                  />
+                </div>
+                <div className={styles.settingHint}>
+                  Used by the AI scheduler and project planner.
+                </div>
+              </div>
+
               <div className={styles.sectionTitle}>Accent Color</div>
               <div className={styles.accentSection}>
                 <div className={styles.accentSwatches}>

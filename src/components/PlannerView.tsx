@@ -5,6 +5,7 @@ import { usePlannerReminders, makeBlockReminder } from '../hooks/usePlannerRemin
 import { useSettings } from '../hooks/useSettings';
 import type { AccentColor, PlannerBlock, Task, GoalEntry, PlannerSubtype, ReminderSound, BlockType, EnergyLevel } from '../types';
 import { useProjects } from '../hooks/useProjects';
+import { useAIScheduler } from '../hooks/useAIScheduler';
 import { IntegratedSchedulePanel } from './IntegratedSchedulePanel';
 import { accentToHex } from '../utils/accentToHex';
 import '../styles/planner.css';
@@ -660,8 +661,13 @@ interface Props {
 export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsChange }: Props) {
   const { ready, blocks, addBlock, updateBlock, batchUpdateBlocks, deleteBlock, getBlocksForDate } = usePlanner(pageId);
   const { settings, updateSettings } = useSettings();
-  const { projects, getProjectForBlock } = useProjects();
+  const { projects, getProjectForBlock, getActiveProjects } = useProjects();
   const activeProjects = projects.filter(p => p.status === 'active');
+  const { loading: aiLoading, error: aiError, lastBlocks, generateSchedule, toPlannnerBlocks, clearBlocks } = useAIScheduler();
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [aiContext, setAiContext] = useState('');
+  const [aiDayStart, setAiDayStart] = useState('08:00');
+  const [aiDayEnd, setAiDayEnd] = useState('22:00');
   const { ringingIds: plannerRingingIds, stopRinging: stopPlannerRinging } = usePlannerReminders(
     blocks,
     updateBlock,
@@ -1417,6 +1423,110 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
               </div>
             );
           })}
+        </div>
+
+        {/* AI Schedule Panel */}
+        <div className="planner-ai-panel">
+          <button
+            className={`planner-ai-toggle${aiPanelOpen ? ' planner-ai-toggle--open' : ''}`}
+            onClick={() => setAiPanelOpen(o => !o)}
+          >
+            ✦ {aiPanelOpen ? 'hide ai' : 'ai schedule'}
+          </button>
+
+          {aiPanelOpen && (
+            <div className="planner-ai-panel-body">
+              <textarea
+                className="planner-ai-context-input"
+                rows={3}
+                value={aiContext}
+                onChange={e => setAiContext(e.target.value)}
+                placeholder="Any extra context for today (optional — projects are included automatically)…"
+              />
+              <div className="planner-ai-time-row">
+                <span className="planner-ai-time-label">day start</span>
+                <input type="time" value={aiDayStart} onChange={e => setAiDayStart(e.target.value)} />
+                <span className="planner-ai-time-label" style={{ marginLeft: 8 }}>end</span>
+                <input type="time" value={aiDayEnd} onChange={e => setAiDayEnd(e.target.value)} />
+              </div>
+
+              {aiLoading ? (
+                <div className="planner-ai-thinking">✦ thinking…</div>
+              ) : (
+                <button
+                  className="planner-ai-generate-btn"
+                  disabled={!settings.claudeApiKey}
+                  onClick={async () => {
+                    await generateSchedule({
+                      projects: getActiveProjects(),
+                      freeformContext: aiContext,
+                      targetDate: currentDate,
+                      energyLevel: settings.dayEnergyLevel,
+                      dayStart: aiDayStart,
+                      dayEnd: aiDayEnd,
+                      apiKey: settings.claudeApiKey ?? '',
+                    });
+                  }}
+                >
+                  {settings.claudeApiKey ? 'Generate schedule' : 'Add API key in Settings first'}
+                </button>
+              )}
+
+              {aiError && <div className="planner-ai-error">{aiError}</div>}
+
+              {lastBlocks && lastBlocks.length > 0 && (
+                <>
+                  <div className="planner-ai-preview">
+                    {lastBlocks.map((b, i) => (
+                      <div key={i} className="planner-ai-preview-item">
+                        {b.startTime}–{b.endTime} · {b.label}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="planner-ai-preview-actions">
+                    <button
+                      className="planner-ai-add-btn"
+                      onClick={async () => {
+                        if (!lastBlocks) return;
+                        const planned = toPlannnerBlocks(lastBlocks, currentDate);
+                        for (const b of planned) {
+                          addBlock(currentDate, b.startTime, 60);
+                        }
+                        setTimeout(() => {
+                          const today  = getBlocksForDate(currentDate);
+                          const sorted = [...today].sort((a, b_) => a.startTime.localeCompare(b_.startTime));
+                          const added  = sorted.slice(-planned.length);
+                          batchUpdateBlocks(added.map((b, i) => ({
+                            id: b.id,
+                            changes: {
+                              label:          planned[i].label,
+                              notes:          planned[i].notes,
+                              color:          planned[i].color,
+                              blockType:      planned[i].blockType,
+                              energyRequired: planned[i].energyRequired,
+                              projectId:      planned[i].projectId,
+                              endTime:        planned[i].endTime,
+                            },
+                          })));
+                        }, 100);
+                        clearBlocks();
+                        setAiPanelOpen(false);
+                        setAiContext('');
+                      }}
+                    >
+                      Add to schedule
+                    </button>
+                    <button
+                      className="planner-ai-discard-btn"
+                      onClick={clearBlocks}
+                    >
+                      Discard
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="planner-day-summary">

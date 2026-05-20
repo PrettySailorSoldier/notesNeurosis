@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useProjects } from '../hooks/useProjects';
+import { useAIProjectAssistant } from '../hooks/useAIProjectAssistant';
+import { useSettings } from '../hooks/useSettings';
 import { accentToHex } from '../utils/accentToHex';
 import type { AccentColor, ProjectStatus, ProjectTask, ProjectTaskStatus, EnergyLevel } from '../types';
 import '../styles/projects.css';
@@ -55,11 +57,16 @@ export function ProjectDetailPanel({ projectId, onClose }: Props) {
     setTaskStatus,
   } = useProjects();
 
+  const { settings } = useSettings();
+  const { loading: aiLoading, error: aiError, breakdownTask, generateProjectPlan, toProjectTasks } =
+    useAIProjectAssistant(settings.claudeApiKey ?? '');
+
   const project = getProject(projectId);
   const [taskFilter, setTaskFilter] = useState<TaskFilter>('all');
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [editingEst, setEditingEst] = useState<string | null>(null);
   const [estInput, setEstInput] = useState('');
+  const [aiInput, setAiInput] = useState('');
 
   const nameRef = useRef<HTMLHeadingElement>(null);
   const descRef = useRef<HTMLTextAreaElement>(null);
@@ -246,6 +253,56 @@ export function ProjectDetailPanel({ projectId, onClose }: Props) {
             + add task
           </button>
         </div>
+
+        {/* AI task bar */}
+        <div className="project-ai-bar">
+          <input
+            type="text"
+            className="project-ai-input"
+            placeholder="Describe a task to break down, or leave blank to plan whole project…"
+            value={aiInput}
+            onChange={e => setAiInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+          />
+          <button
+            className="project-ai-btn"
+            disabled={aiLoading || !settings.claudeApiKey}
+            title={!settings.claudeApiKey ? 'Add Claude API key in Settings first' : 'Break this task into subtasks'}
+            onClick={async () => {
+              if (!aiInput.trim()) return;
+              const result = await breakdownTask(aiInput.trim(), project.description);
+              if (!result) return;
+              const tasks = toProjectTasks(result);
+              for (const t of tasks) {
+                addProjectTask(project.id, t.content);
+              }
+              setAiInput('');
+            }}
+          >
+            {aiLoading ? 'thinking…' : '⚡ break down'}
+          </button>
+          <button
+            className="project-ai-btn"
+            disabled={aiLoading || !settings.claudeApiKey}
+            title={!settings.claudeApiKey ? 'Add Claude API key in Settings first' : 'Generate a full project plan'}
+            onClick={async () => {
+              const result = await generateProjectPlan(project.name, project.description);
+              if (!result) return;
+              const tasks = toProjectTasks(result);
+              for (const t of tasks) {
+                addProjectTask(project.id, t.content);
+              }
+              setAiInput('');
+            }}
+          >
+            {aiLoading ? 'thinking…' : '✦ plan project'}
+          </button>
+        </div>
+        {aiError && (
+          <div style={{ fontSize: 10, color: '#C0604A', fontFamily: 'system-ui, sans-serif', padding: '2px 0' }}>
+            {aiError}
+          </div>
+        )}
 
         {/* Task rows */}
         {filteredTasks.map(task => (

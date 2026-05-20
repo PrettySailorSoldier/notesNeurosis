@@ -343,3 +343,46 @@
   border-top: 1px dashed var(--border);
   text-align: center;
 }
+
+/* ── AI task bar ── */
+.project-ai-bar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 0;
+  border-top: 1px dashed var(--border);
+  border-bottom: 1px dashed var(--border);
+  margin: 4px 0;
+}
+
+.project-ai-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed var(--border);
+  color: var(--text-muted);
+  font-family: system-ui, sans-serif;
+  font-size: 11px;
+  padding: 3px 0;
+  outline: none;
+  transition: border-bottom-color 0.15s;
+}
+.project-ai-input:focus { border-bottom-color: var(--plum); }
+.project-ai-input::placeholder { color: var(--text-faint); font-style: italic; }
+
+.project-ai-btn {
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--plum) 35%, transparent);
+  border-radius: 5px;
+  color: var(--plum);
+  font-size: 10px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+  white-space: nowrap;
+  transition: background 0.12s;
+}
+.project-ai-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--plum) 15%, transparent);
+}
+.project-ai-btn:disabled { opacity: 0.4; cursor: default; }
