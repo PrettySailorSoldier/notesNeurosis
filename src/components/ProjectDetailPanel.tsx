@@ -1,440 +1,194 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
+import type { Project, ProjectTask, ProjectTaskStatus, EnergyLevel } from '../types';
 import { useAIProjectAssistant } from '../hooks/useAIProjectAssistant';
 import { useSettings } from '../hooks/useSettings';
-import { accentToHex } from '../utils/accentToHex';
-import type {
-  AccentColor, Project, ProjectStatus, ProjectTask,
-  ProjectTaskStatus, EnergyLevel,
-} from '../types';
-import '../styles/projects.css';
-
-const COLORS: AccentColor[] = ['plum', 'rose', 'peach', 'orange', 'yellow', 'blue', 'ghost'];
-
-const STATUS_CYCLE: ProjectTaskStatus[] = ['not_started', 'in_progress', 'done', 'skipped'];
-
-const STATUS_ICON: Record<ProjectTaskStatus, string> = {
-  not_started: '○',
-  in_progress: '◐',
-  done:        '✓',
-  skipped:     '⊘',
-};
-
-const PROJECT_STATUS_VALUES: ProjectStatus[] = ['active', 'paused', 'completed', 'archived'];
-
-const STATUS_ORDER: Record<ProjectTaskStatus, number> = {
-  not_started: 0,
-  in_progress: 1,
-  done:        2,
-  skipped:     3,
-};
-
-const ENERGY_COLORS: Record<EnergyLevel, string> = {
-  high:   '#7C4FD9',
-  medium: '#5A8EFC',
-  low:    '#6BA5A0',
-  zero:   '#4A4A5A',
-};
-
-type TaskFilter = 'all' | ProjectTaskStatus;
-
-const TASK_FILTER_TABS: { key: TaskFilter; label: string }[] = [
-  { key: 'all',         label: 'all'         },
-  { key: 'not_started', label: 'not started' },
-  { key: 'in_progress', label: 'in progress' },
-  { key: 'done',        label: 'done'        },
-];
 
 interface Props {
   project: Project;
   onClose: () => void;
-  onUpdateProject: (id: string, changes: Partial<Omit<Project, 'id' | 'createdAt'>>) => void;
-  onAddTask: (projectId: string, content?: string) => ProjectTask;
-  onUpdateTask: (
-    projectId: string,
-    taskId: string,
-    changes: Partial<Omit<ProjectTask, 'id' | 'createdAt'>>
-  ) => void;
+  onUpdateProject: (id: string, changes: Partial<Project>) => void;
+  onAddTask: (projectId: string, task: Omit<ProjectTask, 'id' | 'createdAt'>) => void;
+  onUpdateTask: (projectId: string, taskId: string, changes: Partial<ProjectTask>) => void;
   onDeleteTask: (projectId: string, taskId: string) => void;
   onSetTaskStatus: (projectId: string, taskId: string, status: ProjectTaskStatus) => void;
 }
 
+const STATUS_LABELS: Record<ProjectTaskStatus, string> = {
+  not_started: '○',
+  in_progress: '◑',
+  done: '✓',
+  skipped: '–',
+};
+
+const ENERGY_COLORS: Record<EnergyLevel, string> = {
+  high: '#7C4FD9', medium: '#5A8EFC', low: '#6BA5A0', zero: '#4A4A5A',
+};
+
 export function ProjectDetailPanel({
-  project,
-  onClose,
-  onUpdateProject,
-  onAddTask,
-  onUpdateTask,
-  onDeleteTask,
-  onSetTaskStatus,
+  project, onClose, onAddTask, onDeleteTask, onSetTaskStatus,
 }: Props) {
   const { settings } = useSettings();
-  const { loading: aiLoading, error: aiError, breakdownTask, generateProjectPlan, toProjectTasks } =
+  const { loading, error, breakdownTask, generateProjectPlan, toProjectTasks } =
     useAIProjectAssistant(settings.claudeApiKey ?? '');
 
-  const [taskFilter, setTaskFilter]     = useState<TaskFilter>('all');
-  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
-  const [editingEst, setEditingEst]     = useState<string | null>(null);
-  const [estInput, setEstInput]         = useState('');
-  const [aiInput, setAiInput]           = useState('');
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [newTaskInput, setNewTaskInput] = useState('');
 
-  const nameRef = useRef<HTMLHeadingElement>(null);
-  const descRef = useRef<HTMLTextAreaElement>(null);
+  const tasks = [...project.tasks].sort((a, b) => a.order - b.order);
+  const done = tasks.filter(t => t.status === 'done').length;
 
-  // Initialise DOM-managed fields when a new project is loaded (component remounts via key)
-  useEffect(() => {
-    if (nameRef.current) nameRef.current.textContent = project.name;
-    if (descRef.current) {
-      descRef.current.value = project.description;
-      autoResize(descRef.current);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const autoResize = (el: HTMLTextAreaElement | null) => {
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = el.scrollHeight + 'px';
+  const handleAddTask = () => {
+    const content = newTaskInput.trim();
+    if (!content) return;
+    onAddTask(project.id, {
+      content, notes: '', status: 'not_started', order: tasks.length,
+    });
+    setNewTaskInput('');
   };
 
-  const filteredTasks = [...project.tasks]
-    .filter(t => taskFilter === 'all' || t.status === taskFilter)
-    .sort((a, b) => {
-      const so = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
-      return so !== 0 ? so : a.order - b.order;
-    });
-
   const cycleStatus = (task: ProjectTask) => {
-    const idx  = STATUS_CYCLE.indexOf(task.status);
-    const next = STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length];
+    const cycle: ProjectTaskStatus[] = ['not_started', 'in_progress', 'done', 'skipped'];
+    const next = cycle[(cycle.indexOf(task.status) + 1) % cycle.length];
     onSetTaskStatus(project.id, task.id, next);
   };
 
-  const formatEst = (mins?: number): string => {
-    if (!mins) return '';
-    if (mins < 60) return `~${mins}m`;
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    return m === 0 ? `~${h}h` : `~${h}h${m}m`;
+  const handleGeneratePlan = async () => {
+    const result = await generateProjectPlan(project.name, project.description);
+    if (!result) return;
+    toProjectTasks(result).forEach((t, i) => {
+      onAddTask(project.id, { ...t, order: tasks.length + i });
+    });
   };
 
-  const parseEst = (raw: string): number | null => {
-    const s = raw.trim().toLowerCase();
-    const mMatch = s.match(/^(\d+)\s*m(in)?$/);
-    if (mMatch) return parseInt(mMatch[1], 10);
-    const hMatch = s.match(/^(\d+(?:\.\d+)?)\s*h(r|ours?)?$/);
-    if (hMatch) return Math.round(parseFloat(hMatch[1]) * 60);
-    const hmMatch = s.match(/^(\d+)\s*h\s*(\d+)\s*m/);
-    if (hmMatch) return parseInt(hmMatch[1], 10) * 60 + parseInt(hmMatch[2], 10);
-    const n = parseInt(s, 10);
-    if (!isNaN(n) && n > 0) return n;
-    return null;
-  };
-
-  const totalTasks = project.tasks.length;
-  const doneTasks  = project.tasks.filter(t => t.status === 'done').length;
-  const remaining  = project.tasks
-    .filter(t => t.status === 'not_started' || t.status === 'in_progress')
-    .reduce((sum, t) => sum + (t.estimatedMinutes ?? 0), 0);
-
-  const formatRemaining = (mins: number): string => {
-    if (mins < 60) return `~${mins}m`;
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    return m === 0 ? `~${h}h` : `~${h}h${m}m`;
-  };
-
-  // Add AI-generated tasks with full metadata
-  const applyAITasks = async (aiTasks: Awaited<ReturnType<typeof breakdownTask>>) => {
-    if (!aiTasks) return;
-    const planned = toProjectTasks(aiTasks);
-    for (const t of planned) {
-      const task = onAddTask(project.id, t.content);
-      const extra: Partial<Omit<ProjectTask, 'id' | 'createdAt'>> = {};
-      if (t.notes)             extra.notes             = t.notes;
-      if (t.estimatedMinutes)  extra.estimatedMinutes  = t.estimatedMinutes;
-      if (t.energyRequired)    extra.energyRequired    = t.energyRequired;
-      if (Object.keys(extra).length) onUpdateTask(project.id, task.id, extra);
-    }
-    setAiInput('');
+  const handleBreakdownTask = async () => {
+    const task = tasks.find(t => t.id === selectedTaskId);
+    if (!task) return;
+    const result = await breakdownTask(task.content, project.description);
+    if (!result) return;
+    toProjectTasks(result).forEach((t, i) => {
+      onAddTask(project.id, { ...t, order: tasks.length + i });
+    });
   };
 
   return (
-    <div className="project-detail-panel" onClick={e => e.stopPropagation()}>
-      {/* ── Header ── */}
+    <div className="project-detail-panel">
+      {/* Header */}
       <div className="project-detail-header">
-        <div className="project-detail-header-row">
-          {/* Emoji */}
-          <input
-            type="text"
-            maxLength={2}
-            defaultValue={project.emoji ?? ''}
-            onBlur={e => onUpdateProject(project.id, { emoji: e.target.value.trim() || undefined })}
-            placeholder="✦"
-            style={{
-              width: 28, background: 'transparent', border: '1px dashed var(--border)',
-              borderRadius: 4, color: 'rgba(240, 230, 255, 0.9)', fontSize: 16, textAlign: 'center',
-              padding: '1px 2px', outline: 'none', flexShrink: 0,
-            }}
-            title="Set emoji"
-          />
-          {/* Project name — contentEditable, saved on blur */}
-          <h2
-            ref={nameRef}
-            className="project-detail-name"
-            contentEditable
-            suppressContentEditableWarning
-            data-placeholder="Project name…"
-            onBlur={() =>
-              onUpdateProject(project.id, {
-                name: nameRef.current?.textContent?.trim() || project.name,
-              })
-            }
-            onKeyDown={e => {
-              if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLElement).blur(); }
-            }}
-          />
-          <button className="project-detail-close" onClick={onClose}>×</button>
+        <span className="project-detail-emoji">{project.emoji ?? '📁'}</span>
+        <div className="project-detail-title-block">
+          <div className="project-detail-name">{project.name}</div>
+          {project.description && (
+            <div className="project-detail-desc">{project.description}</div>
+          )}
         </div>
-
-        {/* Status pills */}
-        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-          {PROJECT_STATUS_VALUES.map(s => (
-            <button
-              key={s}
-              onClick={() => onUpdateProject(project.id, { status: s })}
-              style={{
-                background: project.status === s ? accentToHex(project.color) + '22' : 'transparent',
-                border: `1px solid ${project.status === s ? accentToHex(project.color) : 'var(--border)'}`,
-                borderRadius: 10,
-                color: project.status === s ? accentToHex(project.color) : 'rgba(180, 160, 210, 0.6)',
-                fontSize: 10, padding: '2px 8px', cursor: 'pointer',
-                fontFamily: 'system-ui, sans-serif', textTransform: 'capitalize',
-                transition: 'all 0.12s',
-              }}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-
-        {/* Color picker */}
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          {COLORS.map(c => (
-            <button
-              key={c}
-              onClick={() => onUpdateProject(project.id, { color: c })}
-              style={{
-                width: 13, height: 13, borderRadius: '50%',
-                background: accentToHex(c),
-                border: project.color === c ? `2px solid ${accentToHex(c)}` : '2px solid transparent',
-                outline: project.color === c ? '1px solid rgba(255,255,255,0.6)' : 'none',
-                cursor: 'pointer', padding: 0, flexShrink: 0,
-              }}
-              title={c}
-            />
-          ))}
-        </div>
+        <button className="project-detail-close" onClick={onClose}>×</button>
       </div>
 
-      {/* ── Body ── */}
-      <div className="project-detail-body">
-        {/* Description */}
-        <textarea
-          ref={descRef}
-          className="project-detail-desc"
-          rows={2}
-          placeholder="Context for this project — what is it, what's the goal, any constraints…"
-          defaultValue={project.description}
-          onInput={e => autoResize(e.currentTarget)}
-          onBlur={e => onUpdateProject(project.id, { description: e.currentTarget.value })}
-        />
-
-        {/* Task list header */}
-        <div className="project-tasks-header">
-          <span className="project-tasks-label">tasks</span>
-          <div style={{ display: 'flex', gap: 3 }}>
-            {TASK_FILTER_TABS.map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setTaskFilter(key)}
-                style={{
-                  background: taskFilter === key
-                    ? 'color-mix(in srgb, var(--plum) 15%, transparent)'
-                    : 'transparent',
-                  border: `1px solid ${taskFilter === key ? 'var(--plum)' : 'var(--border)'}`,
-                  borderRadius: 8,
-                  color: taskFilter === key ? 'var(--plum)' : 'rgba(180, 160, 210, 0.6)',
-                  fontSize: 9, padding: '1px 6px', cursor: 'pointer',
-                  fontFamily: 'system-ui, sans-serif',
-                }}
-              >
-                {label}
-              </button>
-            ))}
+      {/* Progress bar */}
+      {tasks.length > 0 && (
+        <div className="project-detail-progress">
+          <div className="project-detail-progress-label">{done} / {tasks.length} done</div>
+          <div className="project-detail-progress-track">
+            <div
+              className="project-detail-progress-fill"
+              style={{ width: `${Math.round(done / tasks.length * 100)}%` }}
+            />
           </div>
-          <button
-            className="project-add-task-btn"
-            onClick={() => {
-              const t = onAddTask(project.id);
-              setExpandedTaskId(t.id);
-            }}
-          >
-            + add task
-          </button>
         </div>
+      )}
 
-        {/* AI task bar */}
-        <div className="project-ai-bar">
-          <input
-            type="text"
-            className="project-ai-input"
-            placeholder="Describe a task to break down, or leave blank to plan whole project…"
-            value={aiInput}
-            onChange={e => setAiInput(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter') e.preventDefault();
-            }}
-          />
+      {/* AI bar */}
+      <div className="project-detail-ai-bar">
+        <button
+          className="project-detail-ai-btn"
+          onClick={handleGeneratePlan}
+          disabled={loading || !settings.claudeApiKey}
+          title={!settings.claudeApiKey ? 'Add API key in Settings' : 'Generate a full task plan for this project'}
+        >
+          {loading ? 'thinking…' : '✦ generate plan'}
+        </button>
+        {selectedTaskId && (
           <button
-            className="project-ai-btn"
-            disabled={aiLoading || !settings.claudeApiKey || !aiInput.trim()}
-            title={!settings.claudeApiKey ? 'Add Claude API key in Settings first' : 'Break this task into subtasks'}
-            onClick={async () => {
-              const result = await breakdownTask(aiInput.trim(), project.description);
-              await applyAITasks(result);
-            }}
+            className="project-detail-ai-btn project-detail-ai-btn--secondary"
+            onClick={handleBreakdownTask}
+            disabled={loading || !settings.claudeApiKey}
           >
-            {aiLoading ? 'thinking…' : '⚡ break down'}
+            ✦ break down selected
           </button>
-          <button
-            className="project-ai-btn"
-            disabled={aiLoading || !settings.claudeApiKey}
-            title={!settings.claudeApiKey ? 'Add Claude API key in Settings first' : 'Generate a full project plan'}
-            onClick={async () => {
-              const result = await generateProjectPlan(project.name, project.description);
-              await applyAITasks(result);
-            }}
-          >
-            {aiLoading ? 'thinking…' : '✦ plan project'}
-          </button>
-        </div>
-        {aiError && (
-          <div style={{ fontSize: 10, color: '#C0604A', fontFamily: 'system-ui, sans-serif', padding: '2px 0' }}>
-            {aiError}
+        )}
+      </div>
+
+      {error && (
+        <div className="project-detail-error">{error}</div>
+      )}
+
+      {/* Task list */}
+      <div className="project-detail-tasks">
+        {tasks.length === 0 && (
+          <div className="project-detail-empty">
+            No tasks yet. Add one below or generate a plan.
           </div>
         )}
-
-        {/* Task rows */}
-        {filteredTasks.map(task => {
-          const isExpanded = expandedTaskId === task.id;
-          return (
-            <div key={task.id} className="project-task-row">
-              <div className="project-task-main">
-                {/* Status toggle */}
-                <button
-                  className="project-task-status-btn"
-                  onClick={() => cycleStatus(task)}
-                  title={`Status: ${task.status} — click to advance`}
-                >
-                  {STATUS_ICON[task.status]}
-                </button>
-
-                {/* Task content — uncontrolled, saves on blur */}
-                <input
-                  className={`project-task-content${task.status === 'done' ? ' project-task-content--done' : ''}`}
-                  type="text"
-                  defaultValue={task.content}
-                  placeholder="Task…"
-                  onBlur={e => onUpdateTask(project.id, task.id, { content: e.target.value })}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                  }}
-                />
-
-                {/* Expand / collapse notes */}
-                <button
-                  className="project-task-est"
-                  onClick={() => setExpandedTaskId(isExpanded ? null : task.id)}
-                  title={isExpanded ? 'Collapse notes' : 'Expand notes'}
-                  style={{ cursor: 'pointer', userSelect: 'none' }}
-                >
-                  {isExpanded ? '▾' : '▸'}
-                </button>
-
-                {/* Estimated minutes */}
-                {editingEst === task.id ? (
-                  <input
-                    autoFocus
-                    type="text"
-                    placeholder="30m, 2h…"
-                    value={estInput}
-                    onChange={e => setEstInput(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') {
-                        const mins = parseEst(estInput);
-                        if (mins) onUpdateTask(project.id, task.id, { estimatedMinutes: mins });
-                        setEditingEst(null); setEstInput('');
-                      }
-                      if (e.key === 'Escape') { setEditingEst(null); setEstInput(''); }
-                    }}
-                    onBlur={() => { setEditingEst(null); setEstInput(''); }}
-                    style={{
-                      width: 60, background: 'transparent',
-                      border: '1px solid var(--border)', borderRadius: 4,
-                      color: 'rgba(200, 185, 220, 0.8)', fontSize: 10, padding: '1px 4px',
-                      outline: 'none', fontFamily: 'system-ui, sans-serif',
-                    }}
-                  />
-                ) : (
-                  <span
-                    className="project-task-est"
-                    onClick={() => { setEditingEst(task.id); setEstInput(task.estimatedMinutes ? String(task.estimatedMinutes) : ''); }}
-                    title="Click to set estimated time"
-                  >
-                    {formatEst(task.estimatedMinutes) || '~?'}
-                  </span>
+        {tasks.map(task => (
+          <div
+            key={task.id}
+            className={`project-task-row${selectedTaskId === task.id ? ' project-task-row--selected' : ''}${task.status === 'done' || task.status === 'skipped' ? ' project-task-row--done' : ''}`}
+            onClick={() => setSelectedTaskId(selectedTaskId === task.id ? null : task.id)}
+          >
+            <button
+              className="project-task-status-btn"
+              onClick={e => { e.stopPropagation(); cycleStatus(task); }}
+              title="Cycle status"
+            >
+              {STATUS_LABELS[task.status]}
+            </button>
+            <div className="project-task-body">
+              <div className="project-task-content"
+                style={{ textDecoration: task.status === 'done' ? 'line-through' : 'none' }}
+              >
+                {task.content}
+              </div>
+              {task.notes && (
+                <div className="project-task-notes">{task.notes}</div>
+              )}
+              <div className="project-task-meta">
+                {task.estimatedMinutes && (
+                  <span className="project-task-est">~{task.estimatedMinutes}m</span>
                 )}
-
-                {/* Energy dot */}
                 {task.energyRequired && (
                   <span
-                    style={{
-                      width: 7, height: 7, borderRadius: '50%',
-                      background: ENERGY_COLORS[task.energyRequired],
-                      flexShrink: 0, display: 'inline-block',
-                    }}
+                    className="project-task-energy-dot"
+                    style={{ background: ENERGY_COLORS[task.energyRequired] }}
                     title={`Energy: ${task.energyRequired}`}
                   />
                 )}
-
-                <button
-                  className="project-task-delete"
-                  onClick={() => onDeleteTask(project.id, task.id)}
-                  title="Delete task"
-                >×</button>
               </div>
-
-              {/* Notes — collapsible, saved on blur */}
-              {isExpanded && (
-                <textarea
-                  key={`notes-${task.id}`}
-                  className="project-task-notes"
-                  rows={2}
-                  placeholder="Notes, steps, details…"
-                  defaultValue={task.notes}
-                  autoFocus
-                  onBlur={e => onUpdateTask(project.id, task.id, { notes: e.target.value })}
-                />
-              )}
             </div>
-          );
-        })}
+            <button
+              className="project-task-delete"
+              onClick={e => { e.stopPropagation(); onDeleteTask(project.id, task.id); }}
+            >×</button>
+          </div>
+        ))}
+      </div>
 
-        {/* Progress summary */}
-        <div className="project-detail-summary">
-          {totalTasks} tasks · {doneTasks} done
-          {remaining > 0 && ` · ${formatRemaining(remaining)} remaining`}
-        </div>
+      {/* Add task input */}
+      <div className="project-detail-add-row">
+        <input
+          type="text"
+          className="project-detail-add-input"
+          value={newTaskInput}
+          onChange={e => setNewTaskInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleAddTask(); }}
+          placeholder="add a task…"
+        />
+        <button
+          className="project-detail-add-btn"
+          onClick={handleAddTask}
+          disabled={!newTaskInput.trim()}
+        >
+          Add
+        </button>
       </div>
     </div>
   );

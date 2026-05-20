@@ -570,6 +570,21 @@ export const OptionsModal: React.FC<Props> = ({
                 </div>
               </div>
 
+              <div className={styles.sectionTitle}>Claude API Key</div>
+              <div className={styles.settingBlock}>
+                <input
+                  type="password"
+                  className={styles.editInput}
+                  placeholder="sk-ant-api03-…"
+                  value={settings.claudeApiKey ?? ''}
+                  onChange={e => onUpdateSettings({ claudeApiKey: e.target.value })}
+                  style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.78rem' }}
+                />
+                <div className={styles.settingHint}>
+                  Used for AI scheduling, brain dump, and task breakdown.
+                </div>
+              </div>
+
               <div className={styles.sectionTitle}>Planner Defaults</div>
               <div className={styles.settingBlock}>
                 <div className={styles.settingRow}>
