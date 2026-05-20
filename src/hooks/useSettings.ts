@@ -31,6 +31,8 @@ const DEFAULT_SETTINGS: Settings = {
   defaultBlockDuration: 60,
   savedSequences: [],
   accentColor: '#9b6fa6',
+  claudeApiKey: '',
+  dayEnergyLevel: undefined,
 };
 
 export function useSettings() {
@@ -47,6 +49,8 @@ export function useSettings() {
         const defBlock = await store.get<number>('defaultBlockDuration');
         const seqs = await store.get<SavedSequence[]>('savedSequences');
         const accent = await store.get<string>('accentColor');
+        const claudeApiKey = await store.get<string>('claudeApiKey');
+        const dayEnergyLevel = await store.get<EnergyLevel>('dayEnergyLevel');
 
         const hasData = tones || vol != null || defMin != null || defSound || defBlock != null;
 
