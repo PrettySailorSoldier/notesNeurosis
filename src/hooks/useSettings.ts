@@ -31,6 +31,8 @@ const DEFAULT_SETTINGS: Settings = {
   defaultBlockDuration: 60,
   savedSequences: [],
   accentColor: '#9b6fa6',
+  claudeApiKey: '',
+  dayEnergyLevel: undefined,
 };
 
 export function useSettings() {
@@ -47,6 +49,8 @@ export function useSettings() {
         const defBlock = await store.get<number>('defaultBlockDuration');
         const seqs = await store.get<SavedSequence[]>('savedSequences');
         const accent = await store.get<string>('accentColor');
+        const claudeApiKey = await store.get<string>('claudeApiKey');
+        const dayEnergyLevel = await store.get<EnergyLevel>('dayEnergyLevel');
 
         const hasData = tones || vol != null || defMin != null || defSound || defBlock != null;
 
@@ -76,6 +80,8 @@ export function useSettings() {
           defaultBlockDuration: defBlock ?? prev.defaultBlockDuration,
           savedSequences: seqs ?? prev.savedSequences,
           accentColor: accent ?? prev.accentColor,
+          claudeApiKey: claudeApiKey ?? prev.claudeApiKey,
+          dayEnergyLevel: dayEnergyLevel ?? prev.dayEnergyLevel,
         }));
       } catch (err) {
         console.warn("[useSettings] load error:", err);
@@ -94,6 +100,8 @@ export function useSettings() {
       await store.set('defaultBlockDuration', newSettings.defaultBlockDuration);
       await store.set('savedSequences', newSettings.savedSequences);
       await store.set('accentColor', newSettings.accentColor);
+      await store.set('claudeApiKey', newSettings.claudeApiKey);
+      await store.set('dayEnergyLevel', newSettings.dayEnergyLevel);
       await store.set(SETTINGS_BACKUP_KEY, newSettings);
       await store.save();
     } catch (e) {

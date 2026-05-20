@@ -172,7 +172,7 @@ export function ProjectDetailPanel({
             placeholder="✦"
             style={{
               width: 28, background: 'transparent', border: '1px dashed var(--border)',
-              borderRadius: 4, color: 'var(--text)', fontSize: 16, textAlign: 'center',
+              borderRadius: 4, color: 'rgba(240, 230, 255, 0.9)', fontSize: 16, textAlign: 'center',
               padding: '1px 2px', outline: 'none', flexShrink: 0,
             }}
             title="Set emoji"
@@ -206,7 +206,7 @@ export function ProjectDetailPanel({
                 background: project.status === s ? accentToHex(project.color) + '22' : 'transparent',
                 border: `1px solid ${project.status === s ? accentToHex(project.color) : 'var(--border)'}`,
                 borderRadius: 10,
-                color: project.status === s ? accentToHex(project.color) : 'var(--text-faint)',
+                color: project.status === s ? accentToHex(project.color) : 'rgba(180, 160, 210, 0.6)',
                 fontSize: 10, padding: '2px 8px', cursor: 'pointer',
                 fontFamily: 'system-ui, sans-serif', textTransform: 'capitalize',
                 transition: 'all 0.12s',
@@ -263,7 +263,7 @@ export function ProjectDetailPanel({
                     : 'transparent',
                   border: `1px solid ${taskFilter === key ? 'var(--plum)' : 'var(--border)'}`,
                   borderRadius: 8,
-                  color: taskFilter === key ? 'var(--plum)' : 'var(--text-faint)',
+                  color: taskFilter === key ? 'var(--plum)' : 'rgba(180, 160, 210, 0.6)',
                   fontSize: 9, padding: '1px 6px', cursor: 'pointer',
                   fontFamily: 'system-ui, sans-serif',
                 }}
@@ -381,7 +381,7 @@ export function ProjectDetailPanel({
                     style={{
                       width: 60, background: 'transparent',
                       border: '1px solid var(--border)', borderRadius: 4,
-                      color: 'var(--text-faint)', fontSize: 10, padding: '1px 4px',
+                      color: 'rgba(200, 185, 220, 0.8)', fontSize: 10, padding: '1px 4px',
                       outline: 'none', fontFamily: 'system-ui, sans-serif',
                     }}
                   />
