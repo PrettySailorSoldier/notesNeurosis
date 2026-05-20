@@ -80,6 +80,8 @@ export function useSettings() {
           defaultBlockDuration: defBlock ?? prev.defaultBlockDuration,
           savedSequences: seqs ?? prev.savedSequences,
           accentColor: accent ?? prev.accentColor,
+          claudeApiKey: claudeApiKey ?? prev.claudeApiKey,
+          dayEnergyLevel: dayEnergyLevel ?? prev.dayEnergyLevel,
         }));
       } catch (err) {
         console.warn("[useSettings] load error:", err);
@@ -98,6 +100,8 @@ export function useSettings() {
       await store.set('defaultBlockDuration', newSettings.defaultBlockDuration);
       await store.set('savedSequences', newSettings.savedSequences);
       await store.set('accentColor', newSettings.accentColor);
+      await store.set('claudeApiKey', newSettings.claudeApiKey);
+      await store.set('dayEnergyLevel', newSettings.dayEnergyLevel);
       await store.set(SETTINGS_BACKUP_KEY, newSettings);
       await store.save();
     } catch (e) {
