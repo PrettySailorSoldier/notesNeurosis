@@ -71,15 +71,32 @@ Fields per element: label, startTime (HH:MM 24h), endTime (HH:MM 24h),
 blockType, energyRequired, notes (1 sentence or empty string), projectId (string or omit).`;
 }
 
+export interface BrainDumpTask {
+  content: string;
+  projectId?: string;
+  estimatedMinutes: number;
+  energyRequired: EnergyLevel;
+  isObligation: boolean;
+  notes: string;
+}
+
+export interface BrainDumpResult {
+  summary: string;
+  parsedTasks: BrainDumpTask[];
+}
+
 export function useAIScheduler() {
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState<string | null>(null);
   const [lastBlocks, setLastBlocks] = useState<AIScheduleBlock[] | null>(null);
 
-  const generateSchedule = useCallback(async (req: AIScheduleRequest): Promise<AIScheduleBlock[] | null> => {
+  const generateSchedule = useCallback(async (req: AIScheduleRequest & { tasks?: BrainDumpTask[] }): Promise<AIScheduleBlock[] | null> => {
     if (!req.apiKey.trim()) { setError('No API key — add it in Settings.'); return null; }
     setLoading(true); setError(null);
     try {
+      const prompt = req.tasks 
+        ? `You are a scheduling assistant. Build a schedule from these tasks:\n${JSON.stringify(req.tasks)}\nConstraints:\n- Day runs ${req.dayStart ?? '08:00'} to ${req.dayEnd ?? '22:00'}\n- Return JSON array of AIScheduleBlock.` 
+        : buildSchedulePrompt(req);
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -88,9 +105,9 @@ export function useAIScheduler() {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5-20251001',
+          model: 'claude-3-5-sonnet-20241022',
           max_tokens: 2000,
-          messages: [{ role: 'user', content: buildSchedulePrompt(req) }],
+          messages: [{ role: 'user', content: prompt }],
         }),
       });
       if (!res.ok) {
@@ -104,6 +121,60 @@ export function useAIScheduler() {
       if (!Array.isArray(parsed)) throw new Error('Expected array');
       setLastBlocks(parsed);
       return parsed;
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+      return null;
+    } finally { setLoading(false); }
+  }, []);
+
+  const parseBrainDump = useCallback(async (dumpText: string, activeProjects: Pick<Project, 'id' | 'name' | 'emoji' | 'description' | 'tasks'>[], apiKey: string): Promise<BrainDumpResult | null> => {
+    if (!apiKey.trim()) { setError('No API key — add it in Settings.'); return null; }
+    setLoading(true); setError(null);
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 2000,
+          messages: [{ role: 'user', content: `Extract tasks from this brain dump:\n${dumpText}\nProjects available:\n${JSON.stringify(activeProjects.map(p => ({ id: p.id, name: p.name })))}\nReturn JSON with { summary: string, parsedTasks: BrainDumpTask[] }` }],
+        }),
+      });
+      if (!res.ok) throw new Error(`API error ${res.status}`);
+      const data = await res.json();
+      const cleaned = (data?.content?.[0]?.text ?? '').replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+      return JSON.parse(cleaned) as BrainDumpResult;
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+      return null;
+    } finally { setLoading(false); }
+  }, []);
+
+  const breakdownBlock = useCallback(async (label: string, notes: string, projDesc: string, durationMins: number, apiKey: string): Promise<string[] | null> => {
+    if (!apiKey.trim()) { setError('No API key — add it in Settings.'); return null; }
+    setLoading(true); setError(null);
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 1000,
+          messages: [{ role: 'user', content: `Break this task into subtasks:\nTask: ${label}\nNotes: ${notes}\nProject: ${projDesc}\nDuration: ${durationMins}m\nReturn ONLY a JSON array of strings.` }],
+        }),
+      });
+      if (!res.ok) throw new Error(`API error ${res.status}`);
+      const data = await res.json();
+      const cleaned = (data?.content?.[0]?.text ?? '').replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+      return JSON.parse(cleaned) as string[];
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
       return null;
@@ -129,6 +200,7 @@ export function useAIScheduler() {
   []);
 
   const clearBlocks = useCallback(() => setLastBlocks(null), []);
+  const clearDump = useCallback(() => setLastBlocks(null), []);
 
-  return { loading, error, lastBlocks, generateSchedule, toPlannnerBlocks, clearBlocks };
+  return { loading, error, lastBlocks, generateSchedule, toPlannnerBlocks, clearBlocks, parseBrainDump, breakdownBlock, clearDump };
 }

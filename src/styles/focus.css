@@ -1,0 +1,431 @@
+.focus-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(8, 4, 18, 0.88);
+  backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.focus-card {
+  width: 520px;
+  max-width: 92vw;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.4);
+  position: relative;
+}
+
+/* Blocktype color tint on card border */
+.focus-card--deep_focus  { border-color: rgba(124, 79, 217, 0.5); box-shadow: 0 24px 80px rgba(124,79,217,0.15); }
+.focus-card--break       { border-color: rgba(181, 95, 124, 0.5); }
+.focus-card--urgent      { border-color: rgba(192, 96, 74,  0.5); box-shadow: 0 24px 80px rgba(192,96,74,0.15); }
+.focus-card--wind_down   { border-color: rgba(74, 90, 138,  0.5); }
+
+.focus-block-type {
+  font-size: 11px;
+  font-family: system-ui, sans-serif;
+  color: var(--text-faint);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.focus-block-label {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.2;
+  margin: 0;
+}
+
+.focus-project-name {
+  font-size: 11px;
+  color: var(--text-faint);
+  font-family: system-ui, sans-serif;
+}
+
+.focus-timer {
+  text-align: center;
+  font-family: system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-size: 72px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: color-mix(in srgb, var(--plum) 90%, white);
+  line-height: 1;
+}
+
+.focus-timer--overtime {
+  color: color-mix(in srgb, var(--rose) 90%, white);
+}
+
+.focus-progress-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+  margin-top: -10px;
+}
+
+.focus-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--plum) 70%, transparent);
+  transition: width 1s linear;
+}
+
+.focus-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.focus-btn-primary {
+  background: color-mix(in srgb, var(--plum) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--plum) 50%, transparent);
+  border-radius: 8px;
+  color: var(--plum);
+  font-size: 13px;
+  padding: 8px 20px;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+  transition: background 0.15s;
+  min-width: 80px;
+}
+.focus-btn-primary:hover {
+  background: color-mix(in srgb, var(--plum) 32%, transparent);
+}
+
+.focus-btn-add {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-faint);
+  font-size: 11px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+  transition: border-color 0.12s, color 0.12s;
+}
+.focus-btn-add:hover { border-color: var(--plum); color: var(--plum); }
+
+.focus-btn-done {
+  background: color-mix(in srgb, #5A8EFC 18%, transparent);
+  border: 1px solid color-mix(in srgb, #5A8EFC 40%, transparent);
+  border-radius: 8px;
+  color: #5A8EFC;
+  font-size: 13px;
+  padding: 8px 20px;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+  transition: background 0.15s;
+}
+.focus-btn-done:hover { background: color-mix(in srgb, #5A8EFC 28%, transparent); }
+
+.focus-btn-end {
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
+  font-size: 11px;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 4px 0;
+}
+.focus-btn-end:hover { color: var(--text-muted); }
+
+.focus-subtasks {
+  border-top: 1px dashed var(--border);
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.focus-subtasks-header {
+  font-size: 10px;
+  font-family: system-ui, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.focus-subtask-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  padding: 3px 0;
+}
+
+.focus-subtask-check {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: var(--plum);
+  background: transparent;
+  margin-top: 1px;
+  transition: border-color 0.12s, background 0.12s;
+}
+.focus-subtask-row:hover .focus-subtask-check { border-color: var(--plum); }
+.focus-subtask-check--done {
+  background: color-mix(in srgb, var(--plum) 15%, transparent);
+  border-color: var(--plum);
+}
+
+.focus-subtask-text {
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+  flex: 1;
+}
+.focus-subtask-text--done {
+  text-decoration: line-through;
+  opacity: 0.4;
+}
+
+.focus-breakdown-btn {
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--text-faint);
+  font-size: 11px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+  text-align: center;
+  transition: border-color 0.12s, color 0.12s;
+}
+.focus-breakdown-btn:hover { border-color: var(--plum); color: var(--plum); }
+
+/* ── Brain dump panel (sidebar) ── */
+.brain-dump-toggle {
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: color 0.12s;
+}
+.brain-dump-toggle:hover, .brain-dump-toggle--open { color: var(--plum); }
+
+.brain-dump-panel-body {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.brain-dump-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+  padding: 8px 10px;
+  outline: none;
+  resize: vertical;
+  line-height: 1.6;
+  transition: border-color 0.15s;
+}
+.brain-dump-textarea:focus { border-color: var(--plum); }
+.brain-dump-textarea::placeholder { color: var(--text-faint); font-style: italic; }
+
+.brain-dump-extract-btn {
+  width: 100%;
+  background: color-mix(in srgb, var(--plum) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--plum) 35%, transparent);
+  border-radius: 6px;
+  color: var(--plum);
+  font-size: 11px;
+  padding: 6px 0;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+  transition: background 0.12s;
+}
+.brain-dump-extract-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--plum) 22%, transparent);
+}
+.brain-dump-extract-btn:disabled { opacity: 0.4; cursor: default; }
+
+.brain-dump-parsed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 220px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(180,140,220,0.2) transparent;
+}
+
+.brain-dump-task-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.02);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.brain-dump-task-row:hover { background: rgba(255,255,255,0.05); }
+.brain-dump-task-row--excluded { opacity: 0.4; }
+
+.brain-dump-task-check {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  color: var(--plum);
+  background: transparent;
+  transition: border-color 0.12s;
+}
+.brain-dump-task-row--included .brain-dump-task-check {
+  border-color: var(--plum);
+  background: color-mix(in srgb, var(--plum) 12%, transparent);
+}
+
+.brain-dump-task-body { flex: 1; min-width: 0; }
+
+.brain-dump-task-label {
+  font-size: 12px;
+  color: var(--text);
+  font-family: system-ui, sans-serif;
+  line-height: 1.3;
+}
+
+.brain-dump-task-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.brain-dump-task-est {
+  font-size: 9px;
+  color: var(--text-faint);
+  font-family: system-ui, sans-serif;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 5px;
+}
+
+.brain-dump-obligation-flag {
+  font-size: 9px;
+  color: var(--orange);
+  font-family: system-ui, sans-serif;
+}
+
+.brain-dump-task-notes {
+  font-size: 10px;
+  color: var(--text-faint);
+  font-family: system-ui, sans-serif;
+  font-style: italic;
+  margin-top: 1px;
+}
+
+.brain-dump-build-btn {
+  width: 100%;
+  background: color-mix(in srgb, #5A8EFC 12%, transparent);
+  border: 1px solid color-mix(in srgb, #5A8EFC 35%, transparent);
+  border-radius: 6px;
+  color: #5A8EFC;
+  font-size: 11px;
+  padding: 6px 0;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+  transition: background 0.12s;
+}
+.brain-dump-build-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, #5A8EFC 22%, transparent);
+}
+.brain-dump-build-btn:disabled { opacity: 0.4; cursor: default; }
+
+.brain-dump-summary {
+  font-size: 10px;
+  color: var(--text-faint);
+  font-family: system-ui, sans-serif;
+  font-style: italic;
+  padding: 2px 0;
+}
+
+.brain-dump-thinking {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--plum) 70%, white);
+  text-align: center;
+  padding: 5px 0;
+  font-family: system-ui, sans-serif;
+  letter-spacing: 0.06em;
+  animation: aiPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes aiPulse {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1; }
+}
+
+.brain-dump-error {
+  font-size: 11px;
+  color: #C0604A;
+  background: rgba(192,96,74,0.08);
+  border: 1px solid rgba(192,96,74,0.25);
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-family: system-ui, sans-serif;
+}
+
+.planner-block-focus-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-faint);
+  font-size: 9px;
+  padding: 1px 6px;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+  transition: border-color 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+.planner-block-focus-btn:hover {
+  border-color: var(--plum);
+  color: var(--plum);
+}

@@ -5,10 +5,14 @@ import { usePlannerReminders, makeBlockReminder } from '../hooks/usePlannerRemin
 import { useSettings } from '../hooks/useSettings';
 import type { AccentColor, PlannerBlock, Task, GoalEntry, PlannerSubtype, ReminderSound, BlockType, EnergyLevel } from '../types';
 import { useProjects } from '../hooks/useProjects';
-import { useAIScheduler } from '../hooks/useAIScheduler';
+import { useFocusMode } from '../hooks/useFocusMode';
+import { useAIScheduler, type AIScheduleBlock } from '../hooks/useAIScheduler';
 import { IntegratedSchedulePanel } from './IntegratedSchedulePanel';
+import { BrainDumpPanel } from './BrainDumpPanel';
+import { FocusModeOverlay } from './FocusModeOverlay';
 import { accentToHex } from '../utils/accentToHex';
 import '../styles/planner.css';
+import '../styles/focus.css';
 
 const COLORS: AccentColor[] = ['plum', 'rose', 'peach', 'orange', 'yellow', 'blue', 'ghost'];
 
@@ -663,7 +667,8 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
   const { settings, updateSettings } = useSettings();
   const { projects, getProjectForBlock, getActiveProjects } = useProjects();
   const activeProjects = projects.filter(p => p.status === 'active');
-  const { loading: aiLoading, error: aiError, lastBlocks, generateSchedule, toPlannnerBlocks, clearBlocks } = useAIScheduler();
+  const { loading: aiLoading, error: aiError, lastBlocks, generateSchedule, toPlannnerBlocks, clearBlocks, breakdownBlock } = useAIScheduler();
+  const focusMode = useFocusMode();
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [aiContext, setAiContext] = useState('');
   const [aiDayStart, setAiDayStart] = useState('08:00');
@@ -806,6 +811,47 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
       await store.save();
     } catch (err) {
       console.error('[PlannerView] energy save error:', err);
+    }
+  };
+
+  const handleScheduleReady = (aiBlocks: AIScheduleBlock[]) => {
+    const planned = toPlannnerBlocks(aiBlocks, currentDate);
+    for (const b of planned) {
+      const dur = timeToMinutes(b.endTime) - timeToMinutes(b.startTime);
+      addBlock(b.date, b.startTime, Math.max(15, dur));
+    }
+    setTimeout(() => {
+      const today = getBlocksForDate(currentDate);
+      const sorted = [...today].sort((a, b_) => a.startTime.localeCompare(b_.startTime));
+      const added = sorted.slice(-planned.length);
+      batchUpdateBlocks(added.map((blk, i) => ({
+        id: blk.id,
+        changes: {
+          label: planned[i].label,
+          notes: planned[i].notes,
+          color: planned[i].color,
+          blockType: planned[i].blockType,
+          energyRequired: planned[i].energyRequired,
+          projectId: planned[i].projectId,
+          endTime: planned[i].endTime,
+          tasks: planned[i].tasks,
+        },
+      })));
+    }, 120);
+  };
+
+  const handleFocusBreakdown = async () => {
+    if (!focusMode.session) return;
+    const b = focusMode.session.block;
+    const proj = getProjectForBlock(b.projectId);
+    const durMins = Math.max(15, timeToMinutes(b.endTime) - timeToMinutes(b.startTime));
+    const sub = await breakdownBlock(b.label, b.notes, proj?.description || '', durMins, settings.claudeApiKey || '');
+    if (sub) {
+      const newTasks = sub.map(s => ({
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        content: s, type: 'checkbox' as const, completed: false, createdAt: Date.now(),
+      }));
+      updateBlock(b.id, { tasks: [...(b.tasks || []), ...newTasks] });
     }
   };
 
@@ -1329,6 +1375,13 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
 
                     {/* Action buttons (hover) */}
                     <div className="planner-block-card__actions">
+                      {subtype === 'schedule' && !block.completed && (
+                        <button
+                          className="planner-block-focus-btn"
+                          onClick={e => { e.stopPropagation(); focusMode.startSession(block); }}
+                          title="Start focus session"
+                        >▶ focus</button>
+                      )}
                       <button
                         className="planner-block-btn--check"
                         onClick={e => { e.stopPropagation(); updateBlock(block.id, { completed: !block.completed }); }}
@@ -1391,6 +1444,9 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
 
       {/* SIDEBAR */}
       <div className="planner-sidebar">
+        {subtype === 'schedule' && (
+          <BrainDumpPanel currentDate={currentDate} onScheduleReady={handleScheduleReady} />
+        )}
         <div className="planner-date-header">
           <h2 className="planner-month-title">{getDisplayMonth(currentDate)}</h2>
           <div className="planner-week-nav">
@@ -1634,6 +1690,26 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
           )}
         </div>
       </div>
+      {focusMode.session && (
+        <FocusModeOverlay
+          session={focusMode.session}
+          onPause={focusMode.pause}
+          onResume={focusMode.resume}
+          onAddTime={focusMode.addTime}
+          onEnd={() => {
+            updateBlock(focusMode.session!.block.id, { completed: true });
+            focusMode.endSession();
+          }}
+          onCompleteSubtask={(taskId) => {
+            const b = focusMode.session!.block;
+            const updated = (b.tasks || []).map(t =>
+              t.id === taskId ? { ...t, completed: !t.completed } : t
+            );
+            updateBlock(b.id, { tasks: updated });
+          }}
+          onBreakdownRequest={handleFocusBreakdown}
+        />
+      )}
     </div>
   );
 }
