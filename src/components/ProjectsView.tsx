@@ -21,14 +21,28 @@ interface Props {
 }
 
 export function ProjectsView({ onSelectProject }: Props) {
-  const { projects, createProject } = useProjects();
+  // Single source of truth — all mutations go through this instance
+  const {
+    projects,
+    createProject,
+    updateProject,
+    deleteProject: _deleteProject,
+    addProjectTask,
+    updateProjectTask,
+    deleteProjectTask,
+    setTaskStatus,
+  } = useProjects();
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<FilterTab>('all');
+  const [filter, setFilter]         = useState<FilterTab>('all');
   const [showCreate, setShowCreate] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newColor, setNewColor] = useState<AccentColor>('plum');
+  const [newName, setNewName]       = useState('');
+  const [newColor, setNewColor]     = useState<AccentColor>('plum');
 
   const filtered = filter === 'all' ? projects : projects.filter(p => p.status === filter);
+
+  // Find selected project from live state — panel stays in sync automatically
+  const selectedProject = selectedId ? (projects.find(p => p.id === selectedId) ?? null) : null;
 
   const handleCreate = () => {
     const name = newName.trim();
@@ -37,7 +51,7 @@ export function ProjectsView({ onSelectProject }: Props) {
     setNewName('');
     setNewColor('plum');
     setShowCreate(false);
-    setSelectedId(p.id);
+    setSelectedId(p.id); // p is already in state — no store round-trip needed
   };
 
   const handleCardClick = (id: string) => {
@@ -117,7 +131,7 @@ export function ProjectsView({ onSelectProject }: Props) {
         </div>
       )}
 
-      {/* Grid */}
+      {/* Project grid */}
       <div className="projects-grid">
         {filtered.length === 0 && (
           <div style={{ gridColumn: '1/-1', color: 'var(--text-faint)', fontFamily: 'system-ui, sans-serif', fontSize: 12, padding: '16px 4px' }}>
@@ -167,14 +181,19 @@ export function ProjectsView({ onSelectProject }: Props) {
         })}
       </div>
 
-      {/* Detail drawer */}
-      {selectedId && (
+      {/* Detail drawer — panel receives live project from THIS component's state */}
+      {selectedId && selectedProject && (
         <>
           <div className="project-detail-overlay" onClick={() => setSelectedId(null)} />
           <ProjectDetailPanel
             key={selectedId}
-            projectId={selectedId}
+            project={selectedProject}
             onClose={() => setSelectedId(null)}
+            onUpdateProject={updateProject}
+            onAddTask={addProjectTask}
+            onUpdateTask={updateProjectTask}
+            onDeleteTask={deleteProjectTask}
+            onSetTaskStatus={setTaskStatus}
           />
         </>
       )}

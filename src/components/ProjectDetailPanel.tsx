@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { useProjects } from '../hooks/useProjects';
 import { useAIProjectAssistant } from '../hooks/useAIProjectAssistant';
 import { useSettings } from '../hooks/useSettings';
 import { accentToHex } from '../utils/accentToHex';
-import type { AccentColor, ProjectStatus, ProjectTask, ProjectTaskStatus, EnergyLevel } from '../types';
+import type {
+  AccentColor, Project, ProjectStatus, ProjectTask,
+  ProjectTaskStatus, EnergyLevel,
+} from '../types';
 import '../styles/projects.css';
 
 const COLORS: AccentColor[] = ['plum', 'rose', 'peach', 'orange', 'yellow', 'blue', 'ghost'];
@@ -43,52 +45,56 @@ const TASK_FILTER_TABS: { key: TaskFilter; label: string }[] = [
 ];
 
 interface Props {
-  projectId: string;
+  project: Project;
   onClose: () => void;
+  onUpdateProject: (id: string, changes: Partial<Omit<Project, 'id' | 'createdAt'>>) => void;
+  onAddTask: (projectId: string, content?: string) => ProjectTask;
+  onUpdateTask: (
+    projectId: string,
+    taskId: string,
+    changes: Partial<Omit<ProjectTask, 'id' | 'createdAt'>>
+  ) => void;
+  onDeleteTask: (projectId: string, taskId: string) => void;
+  onSetTaskStatus: (projectId: string, taskId: string, status: ProjectTaskStatus) => void;
 }
 
-export function ProjectDetailPanel({ projectId, onClose }: Props) {
-  const {
-    getProject,
-    updateProject,
-    addProjectTask,
-    updateProjectTask,
-    deleteProjectTask,
-    setTaskStatus,
-  } = useProjects();
-
+export function ProjectDetailPanel({
+  project,
+  onClose,
+  onUpdateProject,
+  onAddTask,
+  onUpdateTask,
+  onDeleteTask,
+  onSetTaskStatus,
+}: Props) {
   const { settings } = useSettings();
   const { loading: aiLoading, error: aiError, breakdownTask, generateProjectPlan, toProjectTasks } =
     useAIProjectAssistant(settings.claudeApiKey ?? '');
 
-  const project = getProject(projectId);
-  const [taskFilter, setTaskFilter] = useState<TaskFilter>('all');
+  const [taskFilter, setTaskFilter]     = useState<TaskFilter>('all');
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
-  const [editingEst, setEditingEst] = useState<string | null>(null);
-  const [estInput, setEstInput] = useState('');
-  const [aiInput, setAiInput] = useState('');
+  const [editingEst, setEditingEst]     = useState<string | null>(null);
+  const [estInput, setEstInput]         = useState('');
+  const [aiInput, setAiInput]           = useState('');
 
   const nameRef = useRef<HTMLHeadingElement>(null);
   const descRef = useRef<HTMLTextAreaElement>(null);
 
+  // Initialise DOM-managed fields when a new project is loaded (component remounts via key)
   useEffect(() => {
-    if (nameRef.current && project) {
-      nameRef.current.textContent = project.name;
-    }
-    if (descRef.current && project) {
+    if (nameRef.current) nameRef.current.textContent = project.name;
+    if (descRef.current) {
       descRef.current.value = project.description;
       autoResize(descRef.current);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
+  }, []);
 
   const autoResize = (el: HTMLTextAreaElement | null) => {
     if (!el) return;
     el.style.height = 'auto';
     el.style.height = el.scrollHeight + 'px';
   };
-
-  if (!project) return null;
 
   const filteredTasks = [...project.tasks]
     .filter(t => taskFilter === 'all' || t.status === taskFilter)
@@ -98,9 +104,9 @@ export function ProjectDetailPanel({ projectId, onClose }: Props) {
     });
 
   const cycleStatus = (task: ProjectTask) => {
-    const idx = STATUS_CYCLE.indexOf(task.status);
+    const idx  = STATUS_CYCLE.indexOf(task.status);
     const next = STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length];
-    setTaskStatus(project.id, task.id, next);
+    onSetTaskStatus(project.id, task.id, next);
   };
 
   const formatEst = (mins?: number): string => {
@@ -137,17 +143,32 @@ export function ProjectDetailPanel({ projectId, onClose }: Props) {
     return m === 0 ? `~${h}h` : `~${h}h${m}m`;
   };
 
+  // Add AI-generated tasks with full metadata
+  const applyAITasks = async (aiTasks: Awaited<ReturnType<typeof breakdownTask>>) => {
+    if (!aiTasks) return;
+    const planned = toProjectTasks(aiTasks);
+    for (const t of planned) {
+      const task = onAddTask(project.id, t.content);
+      const extra: Partial<Omit<ProjectTask, 'id' | 'createdAt'>> = {};
+      if (t.notes)             extra.notes             = t.notes;
+      if (t.estimatedMinutes)  extra.estimatedMinutes  = t.estimatedMinutes;
+      if (t.energyRequired)    extra.energyRequired    = t.energyRequired;
+      if (Object.keys(extra).length) onUpdateTask(project.id, task.id, extra);
+    }
+    setAiInput('');
+  };
+
   return (
     <div className="project-detail-panel" onClick={e => e.stopPropagation()}>
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="project-detail-header">
         <div className="project-detail-header-row">
-          {/* Emoji picker */}
+          {/* Emoji */}
           <input
             type="text"
             maxLength={2}
             defaultValue={project.emoji ?? ''}
-            onBlur={e => updateProject(project.id, { emoji: e.target.value.trim() || undefined })}
+            onBlur={e => onUpdateProject(project.id, { emoji: e.target.value.trim() || undefined })}
             placeholder="✦"
             style={{
               width: 28, background: 'transparent', border: '1px dashed var(--border)',
@@ -156,15 +177,21 @@ export function ProjectDetailPanel({ projectId, onClose }: Props) {
             }}
             title="Set emoji"
           />
-          {/* Editable name */}
+          {/* Project name — contentEditable, saved on blur */}
           <h2
             ref={nameRef}
             className="project-detail-name"
             contentEditable
             suppressContentEditableWarning
             data-placeholder="Project name…"
-            onBlur={() => updateProject(project.id, { name: nameRef.current?.textContent?.trim() || project.name })}
-            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLElement).blur(); } }}
+            onBlur={() =>
+              onUpdateProject(project.id, {
+                name: nameRef.current?.textContent?.trim() || project.name,
+              })
+            }
+            onKeyDown={e => {
+              if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLElement).blur(); }
+            }}
           />
           <button className="project-detail-close" onClick={onClose}>×</button>
         </div>
@@ -174,7 +201,7 @@ export function ProjectDetailPanel({ projectId, onClose }: Props) {
           {PROJECT_STATUS_VALUES.map(s => (
             <button
               key={s}
-              onClick={() => updateProject(project.id, { status: s })}
+              onClick={() => onUpdateProject(project.id, { status: s })}
               style={{
                 background: project.status === s ? accentToHex(project.color) + '22' : 'transparent',
                 border: `1px solid ${project.status === s ? accentToHex(project.color) : 'var(--border)'}`,
@@ -195,7 +222,7 @@ export function ProjectDetailPanel({ projectId, onClose }: Props) {
           {COLORS.map(c => (
             <button
               key={c}
-              onClick={() => updateProject(project.id, { color: c })}
+              onClick={() => onUpdateProject(project.id, { color: c })}
               style={{
                 width: 13, height: 13, borderRadius: '50%',
                 background: accentToHex(c),
@@ -209,7 +236,7 @@ export function ProjectDetailPanel({ projectId, onClose }: Props) {
         </div>
       </div>
 
-      {/* Body */}
+      {/* ── Body ── */}
       <div className="project-detail-body">
         {/* Description */}
         <textarea
@@ -219,7 +246,7 @@ export function ProjectDetailPanel({ projectId, onClose }: Props) {
           placeholder="Context for this project — what is it, what's the goal, any constraints…"
           defaultValue={project.description}
           onInput={e => autoResize(e.currentTarget)}
-          onBlur={e => updateProject(project.id, { description: e.currentTarget.value })}
+          onBlur={e => onUpdateProject(project.id, { description: e.currentTarget.value })}
         />
 
         {/* Task list header */}
@@ -231,7 +258,9 @@ export function ProjectDetailPanel({ projectId, onClose }: Props) {
                 key={key}
                 onClick={() => setTaskFilter(key)}
                 style={{
-                  background: taskFilter === key ? 'color-mix(in srgb, var(--plum) 15%, transparent)' : 'transparent',
+                  background: taskFilter === key
+                    ? 'color-mix(in srgb, var(--plum) 15%, transparent)'
+                    : 'transparent',
                   border: `1px solid ${taskFilter === key ? 'var(--plum)' : 'var(--border)'}`,
                   borderRadius: 8,
                   color: taskFilter === key ? 'var(--plum)' : 'var(--text-faint)',
@@ -246,7 +275,7 @@ export function ProjectDetailPanel({ projectId, onClose }: Props) {
           <button
             className="project-add-task-btn"
             onClick={() => {
-              const t = addProjectTask(project.id);
+              const t = onAddTask(project.id);
               setExpandedTaskId(t.id);
             }}
           >
@@ -262,21 +291,17 @@ export function ProjectDetailPanel({ projectId, onClose }: Props) {
             placeholder="Describe a task to break down, or leave blank to plan whole project…"
             value={aiInput}
             onChange={e => setAiInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+            onKeyDown={e => {
+              if (e.key === 'Enter') e.preventDefault();
+            }}
           />
           <button
             className="project-ai-btn"
-            disabled={aiLoading || !settings.claudeApiKey}
+            disabled={aiLoading || !settings.claudeApiKey || !aiInput.trim()}
             title={!settings.claudeApiKey ? 'Add Claude API key in Settings first' : 'Break this task into subtasks'}
             onClick={async () => {
-              if (!aiInput.trim()) return;
               const result = await breakdownTask(aiInput.trim(), project.description);
-              if (!result) return;
-              const tasks = toProjectTasks(result);
-              for (const t of tasks) {
-                addProjectTask(project.id, t.content);
-              }
-              setAiInput('');
+              await applyAITasks(result);
             }}
           >
             {aiLoading ? 'thinking…' : '⚡ break down'}
@@ -287,12 +312,7 @@ export function ProjectDetailPanel({ projectId, onClose }: Props) {
             title={!settings.claudeApiKey ? 'Add Claude API key in Settings first' : 'Generate a full project plan'}
             onClick={async () => {
               const result = await generateProjectPlan(project.name, project.description);
-              if (!result) return;
-              const tasks = toProjectTasks(result);
-              for (const t of tasks) {
-                addProjectTask(project.id, t.content);
-              }
-              setAiInput('');
+              await applyAITasks(result);
             }}
           >
             {aiLoading ? 'thinking…' : '✦ plan project'}
@@ -305,97 +325,110 @@ export function ProjectDetailPanel({ projectId, onClose }: Props) {
         )}
 
         {/* Task rows */}
-        {filteredTasks.map(task => (
-          <div key={task.id} className="project-task-row">
-            <div
-              className="project-task-main"
-              onClick={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
-            >
-              <button
-                className="project-task-status-btn"
-                onClick={e => { e.stopPropagation(); cycleStatus(task); }}
-                title={`Status: ${task.status} — click to advance`}
-              >
-                {STATUS_ICON[task.status]}
-              </button>
-
-              <input
-                className={`project-task-content${task.status === 'done' ? ' project-task-content--done' : ''}`}
-                type="text"
-                defaultValue={task.content}
-                placeholder="Task…"
-                onClick={e => e.stopPropagation()}
-                onBlur={e => updateProjectTask(project.id, task.id, { content: e.target.value })}
-                onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-              />
-
-              {/* Estimated minutes */}
-              {editingEst === task.id ? (
-                <input
-                  autoFocus
-                  type="text"
-                  placeholder="30m, 2h…"
-                  value={estInput}
-                  onChange={e => setEstInput(e.target.value)}
-                  onClick={e => e.stopPropagation()}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      const mins = parseEst(estInput);
-                      if (mins) updateProjectTask(project.id, task.id, { estimatedMinutes: mins });
-                      setEditingEst(null); setEstInput('');
-                    }
-                    if (e.key === 'Escape') { setEditingEst(null); setEstInput(''); }
-                  }}
-                  onBlur={() => { setEditingEst(null); setEstInput(''); }}
-                  style={{ width: 60, background: 'transparent', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text-faint)', fontSize: 10, padding: '1px 4px', outline: 'none', fontFamily: 'system-ui, sans-serif' }}
-                />
-              ) : (
-                <span
-                  className="project-task-est"
-                  onClick={e => {
-                    e.stopPropagation();
-                    setEditingEst(task.id);
-                    setEstInput(task.estimatedMinutes ? String(task.estimatedMinutes) : '');
-                  }}
-                  title="Click to set estimated time"
+        {filteredTasks.map(task => {
+          const isExpanded = expandedTaskId === task.id;
+          return (
+            <div key={task.id} className="project-task-row">
+              <div className="project-task-main">
+                {/* Status toggle */}
+                <button
+                  className="project-task-status-btn"
+                  onClick={() => cycleStatus(task)}
+                  title={`Status: ${task.status} — click to advance`}
                 >
-                  {formatEst(task.estimatedMinutes) || '~?'}
-                </span>
-              )}
+                  {STATUS_ICON[task.status]}
+                </button>
 
-              {/* Energy dot */}
-              {task.energyRequired && (
-                <span
-                  style={{
-                    width: 7, height: 7, borderRadius: '50%',
-                    background: ENERGY_COLORS[task.energyRequired],
-                    flexShrink: 0, display: 'inline-block',
+                {/* Task content — uncontrolled, saves on blur */}
+                <input
+                  className={`project-task-content${task.status === 'done' ? ' project-task-content--done' : ''}`}
+                  type="text"
+                  defaultValue={task.content}
+                  placeholder="Task…"
+                  onBlur={e => onUpdateTask(project.id, task.id, { content: e.target.value })}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
                   }}
-                  title={`Energy: ${task.energyRequired}`}
+                />
+
+                {/* Expand / collapse notes */}
+                <button
+                  className="project-task-est"
+                  onClick={() => setExpandedTaskId(isExpanded ? null : task.id)}
+                  title={isExpanded ? 'Collapse notes' : 'Expand notes'}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  {isExpanded ? '▾' : '▸'}
+                </button>
+
+                {/* Estimated minutes */}
+                {editingEst === task.id ? (
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="30m, 2h…"
+                    value={estInput}
+                    onChange={e => setEstInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        const mins = parseEst(estInput);
+                        if (mins) onUpdateTask(project.id, task.id, { estimatedMinutes: mins });
+                        setEditingEst(null); setEstInput('');
+                      }
+                      if (e.key === 'Escape') { setEditingEst(null); setEstInput(''); }
+                    }}
+                    onBlur={() => { setEditingEst(null); setEstInput(''); }}
+                    style={{
+                      width: 60, background: 'transparent',
+                      border: '1px solid var(--border)', borderRadius: 4,
+                      color: 'var(--text-faint)', fontSize: 10, padding: '1px 4px',
+                      outline: 'none', fontFamily: 'system-ui, sans-serif',
+                    }}
+                  />
+                ) : (
+                  <span
+                    className="project-task-est"
+                    onClick={() => { setEditingEst(task.id); setEstInput(task.estimatedMinutes ? String(task.estimatedMinutes) : ''); }}
+                    title="Click to set estimated time"
+                  >
+                    {formatEst(task.estimatedMinutes) || '~?'}
+                  </span>
+                )}
+
+                {/* Energy dot */}
+                {task.energyRequired && (
+                  <span
+                    style={{
+                      width: 7, height: 7, borderRadius: '50%',
+                      background: ENERGY_COLORS[task.energyRequired],
+                      flexShrink: 0, display: 'inline-block',
+                    }}
+                    title={`Energy: ${task.energyRequired}`}
+                  />
+                )}
+
+                <button
+                  className="project-task-delete"
+                  onClick={() => onDeleteTask(project.id, task.id)}
+                  title="Delete task"
+                >×</button>
+              </div>
+
+              {/* Notes — collapsible, saved on blur */}
+              {isExpanded && (
+                <textarea
+                  key={`notes-${task.id}`}
+                  className="project-task-notes"
+                  rows={2}
+                  placeholder="Notes, steps, details…"
+                  defaultValue={task.notes}
+                  autoFocus
+                  onBlur={e => onUpdateTask(project.id, task.id, { notes: e.target.value })}
                 />
               )}
-
-              <button
-                className="project-task-delete"
-                onClick={e => { e.stopPropagation(); deleteProjectTask(project.id, task.id); }}
-                title="Delete task"
-              >×</button>
             </div>
-
-            {/* Notes — collapsible */}
-            {expandedTaskId === task.id && (
-              <textarea
-                className="project-task-notes"
-                rows={2}
-                placeholder="Notes, steps, details…"
-                defaultValue={task.notes}
-                autoFocus
-                onBlur={e => updateProjectTask(project.id, task.id, { notes: e.target.value })}
-                onClick={e => e.stopPropagation()}
-              />
-            )}
-          </div>
-        ))}
+          );
+        })}
 
         {/* Progress summary */}
         <div className="project-detail-summary">
