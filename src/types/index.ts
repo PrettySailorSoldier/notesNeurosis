@@ -1,6 +1,6 @@
 export type TaskType = 'bullet' | 'checkbox' | 'heading' | 'plain';
 
-export type PageType = 'notes' | 'todo' | 'interval' | 'planner' | 'habits' | 'multitodo' | 'timeblock';
+export type PageType = 'notes' | 'todo' | 'interval' | 'planner' | 'habits' | 'multitodo' | 'timeblock' | 'projects';
 export type TodoSubtype = 'list' | 'board' | 'sequence';
 export type PlannerSubtype = 'schedule' | 'caregiving' | 'goals';
 

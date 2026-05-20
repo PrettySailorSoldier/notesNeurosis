@@ -1240,3 +1240,99 @@
   flex-shrink: 0;
   white-space: nowrap;
 }
+
+/* ── Block type badge ── */
+.planner-block-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  font-family: system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--badge-color, #9b6fa6) 60%, transparent);
+  background: color-mix(in srgb, var(--badge-color, #9b6fa6) 12%, transparent);
+  color: color-mix(in srgb, var(--badge-color, #9b6fa6) 90%, white);
+  margin-top: 3px;
+}
+
+/* ── Project chip on block card ── */
+.planner-block-project-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  font-family: system-ui, sans-serif;
+  padding: 1px 6px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--chip-color, #9b6fa6) 50%, transparent);
+  background: color-mix(in srgb, var(--chip-color, #9b6fa6) 08%, transparent);
+  color: color-mix(in srgb, var(--chip-color, #9b6fa6) 80%, white);
+  margin-top: 3px;
+  cursor: pointer;
+}
+
+/* ── BlockEditor: type/energy/project pill rows ── */
+.planner-type-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.planner-type-row-label {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 11px;
+  color: var(--text-faint);
+  width: 46px;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.planner-type-pills {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.planner-type-pill {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  font-family: system-ui, sans-serif;
+}
+
+.planner-type-pill--active {
+  background: color-mix(in srgb, var(--pill-color, var(--plum)) 20%, transparent);
+  border-color: color-mix(in srgb, var(--pill-color, var(--plum)) 60%, transparent);
+  color: color-mix(in srgb, var(--pill-color, var(--plum)) 90%, white);
+}
+
+/* ── Day energy pill ── */
+.planner-energy-day-pill {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(180,130,220,0.3);
+  background: rgba(180,130,220,0.08);
+  color: rgba(200,160,240,0.85);
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+  transition: background 0.12s;
+}
+.planner-energy-day-pill:hover { background: rgba(180,130,220,0.16); }
+
+/* ── Block card chips container ── */
+.planner-block-card__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 2px;
+}

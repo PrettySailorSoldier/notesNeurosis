@@ -3,12 +3,39 @@ import { load } from '@tauri-apps/plugin-store';
 import { usePlanner } from '../hooks/usePlanner';
 import { usePlannerReminders, makeBlockReminder } from '../hooks/usePlannerReminders';
 import { useSettings } from '../hooks/useSettings';
-import type { AccentColor, PlannerBlock, Task, GoalEntry, PlannerSubtype, ReminderSound } from '../types';
+import type { AccentColor, PlannerBlock, Task, GoalEntry, PlannerSubtype, ReminderSound, BlockType, EnergyLevel } from '../types';
+import { useProjects } from '../hooks/useProjects';
 import { IntegratedSchedulePanel } from './IntegratedSchedulePanel';
 import { accentToHex } from '../utils/accentToHex';
 import '../styles/planner.css';
 
 const COLORS: AccentColor[] = ['plum', 'rose', 'peach', 'orange', 'yellow', 'blue', 'ghost'];
+
+const BLOCK_TYPE_META: Record<BlockType, { emoji: string; label: string; color: string }> = {
+  deep_focus: { emoji: '🎯', label: 'Deep Focus', color: '#7C4FD9' },
+  float:      { emoji: '🌊', label: 'Float',      color: '#5A8EFC' },
+  anchor:     { emoji: '🌅', label: 'Anchor',     color: '#9B6FA6' },
+  buffer:     { emoji: '🧘', label: 'Buffer',     color: '#6BA5A0' },
+  break:      { emoji: '🍽', label: 'Break',      color: '#B55F7C' },
+  urgent:     { emoji: '🚨', label: 'Urgent',     color: '#C0604A' },
+  wind_down:  { emoji: '🌙', label: 'Wind Down',  color: '#4A5A8A' },
+};
+
+const ENERGY_META: { level: EnergyLevel; label: string; color: string }[] = [
+  { level: 'high',   label: 'High',   color: '#7C4FD9' },
+  { level: 'medium', label: 'Medium', color: '#5A8EFC' },
+  { level: 'low',    label: 'Low',    color: '#6BA5A0' },
+  { level: 'zero',   label: 'Zero',   color: '#4A4A5A' },
+];
+
+const ENERGY_CYCLE: (EnergyLevel | undefined)[] = [undefined, 'high', 'medium', 'low', 'zero'];
+
+const DAY_ENERGY_LABEL: Record<EnergyLevel, string> = {
+  high:   '⚡ High',
+  medium: '〜 Medium',
+  low:    '🌿 Low',
+  zero:   '💤 Zero',
+};
 
 // Hours 6–26 (26 = 2am next day) for the timeline grid
 const TIMELINE_START = 6;
@@ -243,9 +270,10 @@ interface BlockEditorProps {
   isRinging?: boolean;
   onStopRinging?: (reminderId: string) => void;
   defaultSound?: ReminderSound;
+  projects: { id: string; name: string; emoji?: string; color: import('../types').AccentColor }[];
 }
 
-function BlockEditor({ block, onUpdate, onClose, allBlocks, onTimeChange, isRinging, onStopRinging, defaultSound = 'chime' }: BlockEditorProps) {
+function BlockEditor({ block, onUpdate, onClose, allBlocks, onTimeChange, isRinging, onStopRinging, defaultSound = 'chime', projects }: BlockEditorProps) {
   const labelRef = useRef<HTMLDivElement>(null);
   const labelTextRef = useRef(block.label);
   const onUpdateRef = useRef(onUpdate);
@@ -447,7 +475,60 @@ function BlockEditor({ block, onUpdate, onClose, allBlocks, onTimeChange, isRing
         }}
       />
 
-      {/* Row 4: Subtasks */}
+      {/* Row 4: Project link */}
+      {projects.length > 0 && (
+        <div className="planner-type-row">
+          <span className="planner-type-row-label">project</span>
+          <div className="planner-type-pills">
+            {projects.map(p => (
+              <button
+                key={p.id}
+                className={`planner-type-pill${block.projectId === p.id ? ' planner-type-pill--active' : ''}`}
+                style={{ '--pill-color': accentToHex(p.color) } as React.CSSProperties}
+                onClick={() => onUpdate({ projectId: block.projectId === p.id ? undefined : p.id })}
+              >
+                {p.emoji ? `${p.emoji} ` : ''}{p.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Row 5: Block type */}
+      <div className="planner-type-row">
+        <span className="planner-type-row-label">type</span>
+        <div className="planner-type-pills">
+          {(Object.entries(BLOCK_TYPE_META) as [BlockType, typeof BLOCK_TYPE_META[BlockType]][]).map(([bt, meta]) => (
+            <button
+              key={bt}
+              className={`planner-type-pill${block.blockType === bt ? ' planner-type-pill--active' : ''}`}
+              style={{ '--pill-color': meta.color } as React.CSSProperties}
+              onClick={() => onUpdate({ blockType: block.blockType === bt ? undefined : bt })}
+            >
+              {meta.emoji} {meta.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Row 6: Energy */}
+      <div className="planner-type-row">
+        <span className="planner-type-row-label">energy</span>
+        <div className="planner-type-pills">
+          {ENERGY_META.map(({ level, label, color }) => (
+            <button
+              key={level}
+              className={`planner-type-pill${block.energyRequired === level ? ' planner-type-pill--active' : ''}`}
+              style={{ '--pill-color': color } as React.CSSProperties}
+              onClick={() => onUpdate({ energyRequired: block.energyRequired === level ? undefined : level })}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Row 7: Subtasks */}
       <div className="planner-subtasks">
         {subtasks.map(task => (
           <div key={task.id} className="planner-subtask-row">
@@ -578,7 +659,9 @@ interface Props {
 
 export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsChange }: Props) {
   const { ready, blocks, addBlock, updateBlock, batchUpdateBlocks, deleteBlock, getBlocksForDate } = usePlanner(pageId);
-  const { settings } = useSettings();
+  const { settings, updateSettings } = useSettings();
+  const { projects, getProjectForBlock } = useProjects();
+  const activeProjects = projects.filter(p => p.status === 'active');
   const { ringingIds: plannerRingingIds, stopRinging: stopPlannerRinging } = usePlannerReminders(
     blocks,
     updateBlock,
@@ -986,6 +1069,23 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
           {isToday && (
             <span className="planner-now-badge">now {nowStr}</span>
           )}
+          {(() => {
+            const dayEnergy = settings.dayEnergyLevel;
+            const cycleEnergy = () => {
+              const idx = ENERGY_CYCLE.indexOf(dayEnergy);
+              const next = ENERGY_CYCLE[(idx + 1) % ENERGY_CYCLE.length];
+              updateSettings({ dayEnergyLevel: next });
+            };
+            return dayEnergy ? (
+              <button className="planner-energy-day-pill" onClick={cycleEnergy} title="Click to change day energy level">
+                {DAY_ENERGY_LABEL[dayEnergy]}
+              </button>
+            ) : (
+              <button className="planner-energy-day-pill" onClick={cycleEnergy} title="Set day energy level" style={{ opacity: 0.4 }}>
+                ⚡ energy
+              </button>
+            );
+          })()}
         </div>
 
         {/* All-day / reminders strip */}
@@ -1195,6 +1295,32 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
                       </div>
                     )}
 
+                    {/* Project chip + type badge */}
+                    {!isExpanded && (block.projectId || block.blockType) && (
+                      <div className="planner-block-card__chips">
+                        {block.projectId && (() => {
+                          const proj = getProjectForBlock(block.projectId);
+                          if (!proj) return null;
+                          return (
+                            <span
+                              className="planner-block-project-chip"
+                              style={{ '--chip-color': accentToHex(proj.color) } as React.CSSProperties}
+                            >
+                              {proj.emoji ? `${proj.emoji} ` : ''}{proj.name}
+                            </span>
+                          );
+                        })()}
+                        {block.blockType && BLOCK_TYPE_META[block.blockType] && (
+                          <span
+                            className="planner-block-type-badge"
+                            style={{ '--badge-color': BLOCK_TYPE_META[block.blockType].color } as React.CSSProperties}
+                          >
+                            {BLOCK_TYPE_META[block.blockType].emoji} {BLOCK_TYPE_META[block.blockType].label}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
                     {/* Action buttons (hover) */}
                     <div className="planner-block-card__actions">
                       <button
@@ -1226,6 +1352,7 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
                         isRinging={!!(block.reminder && plannerRingingIds.includes(block.reminder.id))}
                         onStopRinging={stopPlannerRinging}
                         defaultSound={settings.defaultReminderSound}
+                        projects={activeProjects}
                       />
                     )}
                   </div>

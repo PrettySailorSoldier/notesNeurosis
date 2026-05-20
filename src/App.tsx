@@ -12,6 +12,7 @@ import { HabitsPage } from './components/HabitsPage';
 import { MultiTodoView } from './components/MultiTodoView';
 import { SequenceView } from './components/SequenceView';
 import { TimeblockView } from './components/TimeblockView';
+import { ProjectsView } from './components/ProjectsView';
 import { ContextMenu } from './components/ContextMenu';
 import { ClockDisplay } from './components/ClockDisplay';
 import type { Reminder, ReminderSound, PageType, PlannerSubtype, TodoSubtype } from './types';
@@ -33,6 +34,7 @@ const PAGE_TYPES: { type: PageType; icon: string; label: string }[] = [
   { type: 'planner',  icon: '📅', label: 'Planner'       },
   { type: 'habits',   icon: '◉',  label: 'Habit Tracker' },
   { type: 'timeblock', icon: '⏲', label: 'Time Tracker'  },
+  { type: 'projects',  icon: '🗂', label: 'Projects'      },
 ];
 
 const PLANNER_SUBTYPES: { sub: PlannerSubtype; icon: string; label: string }[] = [
@@ -527,6 +529,10 @@ export default function App() {
           onChange={d => updateTimeblockDataForPage(currentPage.id, d)}
         />
       );
+    }
+
+    if (type === 'projects') {
+      return <ProjectsView />;
     }
 
     // Unified todo: list OR board OR sequence subtype
