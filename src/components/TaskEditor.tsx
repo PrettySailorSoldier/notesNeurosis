@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { Task, TaskType, ReminderSound, PageType, TaskListBoard } from '../types';
 import { TaskItem } from './TaskItem';
 import { BoardTabStrip } from './BoardTabStrip';
+import { useSettings } from '../hooks/useSettings';
+import { useAITaskBreakdown, suggestionsToTasks } from '../hooks/useAITaskBreakdown';
 import styles from './TaskEditor.module.css';
 
 interface Props {
@@ -49,6 +51,11 @@ export const TaskEditor: React.FC<Props> = ({
   const [pendingFocusId, setPendingFocusId] = useState<string | null>(null);
   // Whether the completed tasks drawer is expanded
   const [showCompleted, setShowCompleted] = useState(true);
+
+  // AI task breakdown
+  const { settings } = useSettings();
+  const { breakdownTask: aiBreakdownTask } = useAITaskBreakdown(settings.claudeApiKey ?? '');
+  const [breakdownLoadingId, setBreakdownLoadingId] = useState<string | null>(null);
 
   // One-time migration from flat tasks to taskListBoards
   useEffect(() => {
@@ -257,6 +264,24 @@ export const TaskEditor: React.FC<Props> = ({
 
   if (!activeBoard) return null;
 
+  const handleAIBreakdown = async (task: Task) => {
+    if (breakdownLoadingId) return;
+    setBreakdownLoadingId(task.id);
+    try {
+      const suggestions = await aiBreakdownTask(task.content);
+      if (!suggestions || suggestions.length === 0) return;
+      const newTasks = suggestionsToTasks(suggestions);
+      // Insert subtasks immediately after the source task
+      const idx = tasks.findIndex(t => t.id === task.id);
+      if (idx === -1) return;
+      const next = [...tasks];
+      next.splice(idx + 1, 0, ...newTasks);
+      updateActiveTasks(next);
+    } finally {
+      setBreakdownLoadingId(null);
+    }
+  };
+
   // Status strip derived values (todo pages only)
   const checkboxTasks = tasks.filter(t => t.type === 'checkbox');
   const completedCount = checkboxTasks.filter(t => t.completed).length;
@@ -344,6 +369,7 @@ export const TaskEditor: React.FC<Props> = ({
               opacity: draggedId === task.id ? 0.3 : 1,
               borderTop: '2px solid transparent',
               transition: 'border-color 0.1s',
+              position: 'relative',
             }}
             onDragEnter={(e) => {
               e.preventDefault();
@@ -370,6 +396,17 @@ export const TaskEditor: React.FC<Props> = ({
               selected={selectedIds.has(task.id)}
               onSelect={toggleSelect}
             />
+          {/* AI breakdown button — visible on hover, non-empty active tasks only */}
+          {task.content.trim() !== '' && (
+            <button
+              className={styles.aiBreakdownBtn}
+              onClick={(e) => { e.stopPropagation(); handleAIBreakdown(task); }}
+              disabled={breakdownLoadingId === task.id}
+              title="Break down with AI"
+            >
+              {breakdownLoadingId === task.id ? '…' : '↓ AI'}
+            </button>
+          )}
           </div>
         ))}
 

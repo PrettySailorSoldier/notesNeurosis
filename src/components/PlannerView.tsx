@@ -12,6 +12,7 @@ import { IntegratedSchedulePanel } from './IntegratedSchedulePanel';
 import { BrainDumpPanel } from './BrainDumpPanel';
 import { FocusModeOverlay } from './FocusModeOverlay';
 import { FocusOverlay } from './FocusOverlay';
+import { AIPlannerPanel } from './AIPlannerPanel';
 import { accentToHex } from '../utils/accentToHex';
 import '../styles/planner.css';
 import '../styles/focus.css';
@@ -692,6 +693,7 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
   const { loading: aiLoading, error: aiError, lastBlocks, generateSchedule, toPlannnerBlocks, clearBlocks, breakdownBlock } = useAIScheduler();
   const focusMode = useFocusMode();
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [aiChatOpen, setAiChatOpen] = useState(false);
   const [aiContext, setAiContext] = useState('');
   const [aiDayStart, setAiDayStart] = useState('08:00');
   const [aiDayEnd, setAiDayEnd] = useState('22:00');
@@ -748,6 +750,7 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
     notes: string;
     tasks: Task[];
   } | null>(null);
+  const pendingBlockExtras = useRef<Partial<PlannerBlock> | null>(null);
 
   // Energy rating state (per date, loaded from planner-meta.json)
   const [energyRatings, setEnergyRatings] = useState<Record<string, number>>({});
@@ -895,6 +898,11 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
         }
         updateBlock(latest.id, changes);
         pendingLabel.current = null;
+        // Apply AI-originated extras (notes, color, blockType, etc.) to the just-labeled block
+        if (pendingBlockExtras.current !== null) {
+          updateBlock(latest.id, pendingBlockExtras.current);
+          pendingBlockExtras.current = null;
+        }
       }
     }
     if (pendingExpand.current) {
@@ -1137,6 +1145,8 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
 
   return (
     <div className="planner-container">
+     <div className="planner-chat-layout">
+      <div className="planner-main-area">
       {/* MAIN PANEL */}
       <div className="planner-main">
         <div className="planner-main-header">
@@ -1227,6 +1237,11 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
               onClick={addBlockAtNow}
               title="Use current time"
             >now</button>
+            <button
+              className={`planner-ai-toggle-btn${aiChatOpen ? ' planner-ai-toggle-btn--active' : ''}`}
+              onClick={() => setAiChatOpen(o => !o)}
+              title="Toggle AI chat assistant"
+            >✦ AI</button>
           </div>
 
           {/* Duration pills — always visible, not focus-gated */}
@@ -1734,6 +1749,22 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
           onBreakdownRequest={handleFocusBreakdown}
         />
       )}
+      </div>
+      {aiChatOpen && (
+        <AIPlannerPanel
+          pageId={pageId}
+          apiKey={settings.claudeApiKey ?? ''}
+          currentDate={currentDate}
+          blocks={dailyBlocks}
+          onAddBlock={addBlock}
+          onUpdateBlock={updateBlock}
+          onDeleteBlock={deleteBlock}
+          onLabelPending={(label) => { pendingLabel.current = label; }}
+          onPendingBlockExtras={(extras) => { pendingBlockExtras.current = extras; }}
+          onClose={() => setAiChatOpen(false)}
+        />
+      )}
+     </div>
     </div>
   );
 }
