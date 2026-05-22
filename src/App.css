@@ -1693,6 +1693,10 @@ html, body {
   height: 100%;
   overflow: hidden;
   font-family: var(--font-primary);
+  border: 1px solid rgba(180, 130, 220, 0.22);
+  border-radius: 8px;
+  background: rgba(248, 244, 255, 0.72);
+  backdrop-filter: blur(6px);
 }
 
 /* ── Totals bar ── */
@@ -1700,11 +1704,9 @@ html, body {
   flex-shrink: 0;
   display: flex;
   align-items: stretch;
-  background: rgba(180, 130, 220, 0.12);
-  border: 1px solid rgba(180, 130, 220, 0.22);
-  border-radius: 8px 8px 0 0;
+  background: rgba(180, 130, 220, 0.14);
+  border-bottom: 1px solid rgba(180, 130, 220, 0.22);
   overflow: hidden;
-  backdrop-filter: blur(4px);
 }
 
 .tb-active {
@@ -1836,8 +1838,7 @@ html, body {
   flex-shrink: 0;
   display: flex; align-items: center;
   background: rgba(180, 130, 220, 0.07);
-  border: 1px solid rgba(180, 130, 220, 0.18);
-  border-top: none;
+  border-top: 1px solid rgba(180, 130, 220, 0.18);
 }
 
 .tb-add-input {
