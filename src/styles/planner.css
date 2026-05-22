@@ -1063,6 +1063,23 @@
   flex-shrink: 0;
 }
 
+/* ── Focus mode button ── */
+.planner-block-btn--focus {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 10px;
+  padding: 1px 5px;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+}
+
+.planner-block-btn--focus:hover {
+  border-color: var(--plum);
+  color: var(--plum);
+}
+
 /* ── Duplicate button ── */
 .planner-block-btn--dupe {
   background: transparent;

@@ -10,6 +10,7 @@ import { useAIScheduler, type AIScheduleBlock } from '../hooks/useAIScheduler';
 import { IntegratedSchedulePanel } from './IntegratedSchedulePanel';
 import { BrainDumpPanel } from './BrainDumpPanel';
 import { FocusModeOverlay } from './FocusModeOverlay';
+import { FocusOverlay } from './FocusOverlay';
 import { accentToHex } from '../utils/accentToHex';
 import '../styles/planner.css';
 import '../styles/focus.css';
@@ -663,7 +664,7 @@ interface Props {
 }
 
 export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsChange }: Props) {
-  const { ready, blocks, addBlock, updateBlock, batchUpdateBlocks, deleteBlock, getBlocksForDate } = usePlanner(pageId);
+  const { ready, blocks, addBlock, addBlockFull, updateBlock, batchUpdateBlocks, deleteBlock, getBlocksForDate } = usePlanner(pageId);
   const { settings, updateSettings } = useSettings();
   const { projects, getProjectForBlock, getActiveProjects } = useProjects();
   const activeProjects = projects.filter(p => p.status === 'active');
@@ -673,6 +674,7 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
   const [aiContext, setAiContext] = useState('');
   const [aiDayStart, setAiDayStart] = useState('08:00');
   const [aiDayEnd, setAiDayEnd] = useState('22:00');
+  const [focusBlockId, setFocusBlockId] = useState<string | null>(null);
   const { ringingIds: plannerRingingIds, stopRinging: stopPlannerRinging } = usePlannerReminders(
     blocks,
     updateBlock,
@@ -1375,6 +1377,11 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
 
                     {/* Action buttons (hover) */}
                     <div className="planner-block-card__actions">
+                      <button
+                        className="planner-block-btn--focus"
+                        onClick={e => { e.stopPropagation(); setFocusBlockId(block.id); }}
+                        title="Enter focus mode"
+                      >▶</button>
                       {subtype === 'schedule' && !block.completed && (
                         <button
                           className="planner-block-focus-btn"
@@ -1542,29 +1549,12 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
                   <div className="planner-ai-preview-actions">
                     <button
                       className="planner-ai-add-btn"
-                      onClick={async () => {
+                      onClick={() => {
                         if (!lastBlocks) return;
                         const planned = toPlannnerBlocks(lastBlocks, currentDate);
                         for (const b of planned) {
-                          addBlock(currentDate, b.startTime, 60);
+                          addBlockFull(b);
                         }
-                        setTimeout(() => {
-                          const today  = getBlocksForDate(currentDate);
-                          const sorted = [...today].sort((a, b_) => a.startTime.localeCompare(b_.startTime));
-                          const added  = sorted.slice(-planned.length);
-                          batchUpdateBlocks(added.map((b, i) => ({
-                            id: b.id,
-                            changes: {
-                              label:          planned[i].label,
-                              notes:          planned[i].notes,
-                              color:          planned[i].color,
-                              blockType:      planned[i].blockType,
-                              energyRequired: planned[i].energyRequired,
-                              projectId:      planned[i].projectId,
-                              endTime:        planned[i].endTime,
-                            },
-                          })));
-                        }, 100);
                         clearBlocks();
                         setAiPanelOpen(false);
                         setAiContext('');
@@ -1690,6 +1680,18 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
           )}
         </div>
       </div>
+      {focusBlockId && (() => {
+        const fb = dailyBlocks.find(b => b.id === focusBlockId);
+        if (!fb) return null;
+        return (
+          <FocusOverlay
+            block={fb}
+            currentMinutes={currentMinutes}
+            onUpdate={changes => updateBlock(fb.id, changes)}
+            onClose={() => setFocusBlockId(null)}
+          />
+        );
+      })()}
       {focusMode.session && (
         <FocusModeOverlay
           session={focusMode.session}

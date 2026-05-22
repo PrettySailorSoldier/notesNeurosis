@@ -88,6 +88,15 @@ export function usePlanner(pageId: string) {
     }, 400);
   };
 
+  const addBlockFull = useCallback((block: Omit<PlannerBlock, 'id'>) => {
+    const newBlock: PlannerBlock = { id: makeId(), ...block };
+    setBlocks(prev => {
+      const next = [...prev, newBlock];
+      debouncedSave(next);
+      return next;
+    });
+  }, [pageId]);
+
   const addBlock = useCallback((date: string, startTime: string, durationMinutes: number = 60) => {
     const parts = startTime.split(':');
     const hours = parseInt(parts[0] || '0', 10);
@@ -157,6 +166,7 @@ export function usePlanner(pageId: string) {
     blocks,
     ready,
     addBlock,
+    addBlockFull,
     updateBlock,
     batchUpdateBlocks,
     deleteBlock,
