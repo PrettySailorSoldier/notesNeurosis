@@ -95,6 +95,9 @@ export const OptionsModal: React.FC<Props> = ({
   const [editCustomMinutes, setEditCustomMinutes] = useState<string>('');
   const [customHex, setCustomHex] = useState('');
   const hexDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [apiKeySaved, setApiKeySaved] = useState(false);
+  const [localApiKey, setLocalApiKey] = useState(settings.claudeApiKey ?? '');
+  const apiKeyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Live countdown tick every second
   useEffect(() => {
@@ -470,23 +473,6 @@ export const OptionsModal: React.FC<Props> = ({
           {/* ── SETTINGS TAB ── */}
           {tab === 'settings' && (
             <>
-              <div className={styles.sectionTitle}>AI Integration</div>
-              <div className={styles.settingBlock}>
-                <div className={styles.settingRow}>
-                  <span className={styles.settingLabel}>Claude API Key</span>
-                  <input
-                    type="password"
-                    className={styles.accentCustomInput}
-                    placeholder="sk-ant-..."
-                    value={settings.claudeApiKey ?? ''}
-                    onChange={e => onUpdateSettings({ claudeApiKey: e.target.value })}
-                    style={{ flex: 1 }}
-                  />
-                </div>
-                <div className={styles.settingHint}>
-                  Used by the AI scheduler and project planner.
-                </div>
-              </div>
 
               <div className={styles.sectionTitle}>Accent Color</div>
               <div className={styles.accentSection}>
@@ -570,18 +556,28 @@ export const OptionsModal: React.FC<Props> = ({
                 </div>
               </div>
 
-              <div className={styles.sectionTitle}>Claude API Key</div>
+              <div className={styles.sectionTitle}>Claude API Key {apiKeySaved && <span style={{ color: '#7adb78', fontSize: '0.72rem', fontWeight: 400, marginLeft: 6 }}>✓ saved</span>}</div>
               <div className={styles.settingBlock}>
                 <input
                   type="password"
                   className={styles.editInput}
                   placeholder="sk-ant-api03-…"
-                  value={settings.claudeApiKey ?? ''}
-                  onChange={e => onUpdateSettings({ claudeApiKey: e.target.value })}
+                  value={localApiKey}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setLocalApiKey(val);
+                    setApiKeySaved(false);
+                    if (apiKeyDebounceRef.current) clearTimeout(apiKeyDebounceRef.current);
+                    apiKeyDebounceRef.current = setTimeout(() => {
+                      onUpdateSettings({ claudeApiKey: val });
+                      setApiKeySaved(true);
+                      setTimeout(() => setApiKeySaved(false), 2500);
+                    }, 500);
+                  }}
                   style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.78rem' }}
                 />
                 <div className={styles.settingHint}>
-                  Used for AI scheduling, brain dump, and task breakdown.
+                  Used for AI scheduling, brain dump, and task breakdown. Saved automatically.
                 </div>
               </div>
 
