@@ -341,7 +341,7 @@ export const TaskItem: React.FC<Props> = ({
         onCompositionStart={handleCompositionStart}
         onCompositionEnd={handleCompositionEnd}
         data-placeholder={task.type === 'heading' ? 'Heading…' : placeholder}
-        spellCheck={false}
+        spellCheck={true}
       />
 
       {/* Reminder badge */}
