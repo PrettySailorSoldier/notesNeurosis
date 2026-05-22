@@ -185,7 +185,7 @@ html, body {
 
 /* Timeblock: no lateral padding — component handles its own layout */
 .writing-zone--timeblock {
-  padding: 0;
+  padding: 0 80px 0 0;
 }
 
 /* ── Loading indicator ── */
