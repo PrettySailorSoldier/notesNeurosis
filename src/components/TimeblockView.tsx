@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { TimeblockTask, TimeblockSubtask } from '../types';
+import { useSettings } from '../hooks/useSettings';
 
 /* ── helpers ── */
 const uid = () => crypto.randomUUID();
@@ -375,7 +376,7 @@ export function TimeblockView({ data, onChange }: Props) {
 
       {/* ── Mode content ── */}
       {mode === 'gather' ? (
-        <GatherPanel
+        <GatherPanelWrapper
           tasks={tasks}
           onAddTasks={newTasks => { setTasks(prev => [...prev, ...newTasks]); setMode('execute'); }}
         />
@@ -479,9 +480,16 @@ export function TimeblockView({ data, onChange }: Props) {
 interface GatherPanelProps {
   tasks: TimeblockTask[];
   onAddTasks: (tasks: TimeblockTask[]) => void;
+  apiKey: string;
 }
 
-function GatherPanel({ tasks, onAddTasks }: GatherPanelProps) {
+/** Thin wrapper so GatherPanel can read settings without prop-drilling from the outside */
+function GatherPanelWrapper({ tasks, onAddTasks }: Omit<GatherPanelProps, 'apiKey'>) {
+  const { settings } = useSettings();
+  return <GatherPanel tasks={tasks} onAddTasks={onAddTasks} apiKey={settings.claudeApiKey ?? ''} />;
+}
+
+function GatherPanel({ tasks, onAddTasks, apiKey }: GatherPanelProps) {
   const [dump, setDump] = useState('');
   const [loading, setLoading] = useState(false);
   const [parsed, setParsed] = useState<{ name: string; est: string }[] | null>(null);
@@ -490,10 +498,10 @@ function GatherPanel({ tasks, onAddTasks }: GatherPanelProps) {
 
   async function handleOrganize() {
     if (!dump.trim() || loading) return;
+    if (!apiKey.trim()) { setError('No API key — add your Claude key in Settings.'); return; }
     setLoading(true); setParsed(null); setError(null);
     try {
-      const raw = await (window as any).claude.complete({
-        messages: [{ role: 'user', content: `You are a task organizer for a neurodivergent productivity app. The user has written a brain dump below.
+      const prompt = `You are a task organizer for a neurodivergent productivity app. The user has written a brain dump below.
 
 Extract every distinct actionable task from this text. For each task, provide a short clean name and a realistic time estimate.
 
@@ -512,8 +520,30 @@ Rules:
 - est format: "15m", "30m", "1h", "1h30m" — always include a unit
 - Keep task names concise (under 60 chars) but specific
 - Maximum 12 tasks
-- Return ONLY valid JSON array, nothing else` }]
+- Return ONLY valid JSON array, nothing else`;
+
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-5-20251001',
+          max_tokens: 1500,
+          messages: [{ role: 'user', content: prompt }],
+        }),
       });
+
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error((e as any)?.error?.message ?? `API error ${res.status}`);
+      }
+
+      const data = await res.json();
+      const raw: string = data?.content?.[0]?.text ?? '';
       // Strip markdown fences and extract the JSON array
       const cleaned = raw.replace(/```json|```/g, '').trim();
       const match = cleaned.match(/(\[.*\])/s);
@@ -556,7 +586,8 @@ Rules:
           onClick={() => { setDump(''); setParsed(null); setError(null); }}
           disabled={!dump && !parsed && !error}>clear</button>
         <button className={`tb-gather-organize ${loading ? 'loading' : ''}`}
-          onClick={handleOrganize} disabled={!dump.trim() || loading}>
+          onClick={handleOrganize} disabled={!dump.trim() || loading || !apiKey}
+          title={!apiKey ? 'Add your Claude API key in Settings' : ''}>
           {loading ? 'organizing…' : 'Organize ✶'}
         </button>
       </div>
