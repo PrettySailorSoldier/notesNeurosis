@@ -5,6 +5,7 @@ import { usePlannerReminders, makeBlockReminder } from '../hooks/usePlannerRemin
 import { useSettings } from '../hooks/useSettings';
 import type { AccentColor, PlannerBlock, Task, GoalEntry, PlannerSubtype, ReminderSound, BlockType, EnergyLevel } from '../types';
 import { useProjects } from '../hooks/useProjects';
+import { usePages } from '../hooks/usePages';
 import { useFocusMode } from '../hooks/useFocusMode';
 import { useAIScheduler, type AIScheduleBlock } from '../hooks/useAIScheduler';
 import { IntegratedSchedulePanel } from './IntegratedSchedulePanel';
@@ -667,7 +668,27 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
   const { ready, blocks, addBlock, addBlockFull, updateBlock, batchUpdateBlocks, deleteBlock, getBlocksForDate } = usePlanner(pageId);
   const { settings, updateSettings } = useSettings();
   const { projects, getProjectForBlock, getActiveProjects } = useProjects();
+  const { pages } = usePages();
   const activeProjects = projects.filter(p => p.status === 'active');
+
+  const getTaskListSources = () =>
+    pages
+      .filter(p => p.pageType === 'todo' && p.todoSubtype === 'tasklist')
+      .flatMap(p => (p.taskListPages ?? []).map(tl => ({
+        id: tl.id,
+        name: `${p.name}${(p.taskListPages?.length ?? 0) > 1 ? ` / ${tl.name}` : ''}`,
+        items: tl.items.map(item => {
+          const computedMins = item.subtasks.length > 0
+            ? item.subtasks.reduce((s, st) => s + (st.estimatedMinutes ?? 0), 0)
+            : (item.estimatedMinutes ?? 0);
+          return {
+            id: item.id,
+            content: item.content,
+            estimatedMinutes: computedMins > 0 ? computedMins : undefined,
+            completed: item.completed,
+          };
+        }),
+      })));
   const { loading: aiLoading, error: aiError, lastBlocks, generateSchedule, toPlannnerBlocks, clearBlocks, breakdownBlock } = useAIScheduler();
   const focusMode = useFocusMode();
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
@@ -1522,6 +1543,7 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
                   onClick={async () => {
                     await generateSchedule({
                       projects: getActiveProjects(),
+                      taskListPages: getTaskListSources(),
                       freeformContext: aiContext,
                       targetDate: currentDate,
                       energyLevel: settings.dayEnergyLevel,

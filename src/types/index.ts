@@ -1,7 +1,7 @@
 export type TaskType = 'bullet' | 'checkbox' | 'heading' | 'plain';
 
 export type PageType = 'notes' | 'todo' | 'interval' | 'planner' | 'habits' | 'multitodo' | 'timeblock' | 'projects';
-export type TodoSubtype = 'list' | 'board' | 'sequence';
+export type TodoSubtype = 'list' | 'board' | 'sequence' | 'tasklist';
 export type PlannerSubtype = 'schedule' | 'caregiving' | 'goals';
 
 export interface Task {
@@ -90,6 +90,7 @@ export interface Page {
   noteBoards?: NoteBoard[];            // multi-tab note pages
   sequenceBoards?: SequenceBoard[];    // multi-tab sequence pages
   timeblockData?: Record<string, TimeblockTask[]>;  // date string "YYYY-MM-DD" → tasks
+  taskListPages?: TaskListPage[];       // multi-tab hierarchical task lists
 }
 
 // Multi-list to-do board — each TodoList is one column
@@ -130,6 +131,30 @@ export interface SequenceBoard {
   id: string;
   name: string;
   tasks: SequenceTask[];
+  createdAt: number;
+}
+
+export interface TaskListSubtask {
+  id: string;
+  content: string;
+  estimatedMinutes?: number;
+  completed: boolean;
+  createdAt: number;
+}
+
+export interface TaskListItem {
+  id: string;
+  content: string;
+  estimatedMinutes?: number;  // used only when subtasks.length === 0
+  completed: boolean;
+  subtasks: TaskListSubtask[];
+  createdAt: number;
+}
+
+export interface TaskListPage {
+  id: string;
+  name: string;
+  items: TaskListItem[];
   createdAt: number;
 }
 

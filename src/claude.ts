@@ -8,8 +8,8 @@ const client = new Anthropic({
 export const claude = {
   async complete({ messages }: { messages: { role: string; content: string }[] }) {
     const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 512,
+      model: 'claude-3-5-haiku-20241022',
+      max_tokens: 1500,
       messages: messages as any,
     });
     const block = response.content[0];

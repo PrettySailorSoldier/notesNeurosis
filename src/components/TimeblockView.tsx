@@ -485,11 +485,12 @@ function GatherPanel({ tasks, onAddTasks }: GatherPanelProps) {
   const [dump, setDump] = useState('');
   const [loading, setLoading] = useState(false);
   const [parsed, setParsed] = useState<{ name: string; est: string }[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   async function handleOrganize() {
     if (!dump.trim() || loading) return;
-    setLoading(true); setParsed(null);
+    setLoading(true); setParsed(null); setError(null);
     try {
       const raw = await (window as any).claude.complete({
         messages: [{ role: 'user', content: `You are a task organizer for a neurodivergent productivity app. The user has written a brain dump below.
@@ -513,9 +514,19 @@ Rules:
 - Maximum 12 tasks
 - Return ONLY valid JSON array, nothing else` }]
       });
-      setParsed(JSON.parse(raw.replace(/```json|```/g, '').trim()));
-    } catch (e) { console.error('Organize failed:', e); }
-    finally { setLoading(false); }
+      // Strip markdown fences and extract the JSON array
+      const cleaned = raw.replace(/```json|```/g, '').trim();
+      const match = cleaned.match(/(\[.*\])/s);
+      const result = JSON.parse(match ? match[1] : cleaned);
+      if (!Array.isArray(result) || result.length === 0) {
+        setError('No tasks found — try being more specific.');
+      } else {
+        setParsed(result);
+      }
+    } catch (e) {
+      console.error('Organize failed:', e);
+      setError(e instanceof Error ? e.message : 'Something went wrong — check the console.');
+    } finally { setLoading(false); }
   }
 
   function handleLetSGo() {
@@ -542,13 +553,16 @@ Rules:
       />
       <div className="tb-gather-actions">
         <button className="tb-gather-clear"
-          onClick={() => { setDump(''); setParsed(null); }}
-          disabled={!dump && !parsed}>clear</button>
+          onClick={() => { setDump(''); setParsed(null); setError(null); }}
+          disabled={!dump && !parsed && !error}>clear</button>
         <button className={`tb-gather-organize ${loading ? 'loading' : ''}`}
           onClick={handleOrganize} disabled={!dump.trim() || loading}>
           {loading ? 'organizing…' : 'Organize ✶'}
         </button>
       </div>
+      {error && (
+        <div className="tb-gather-error">{error}</div>
+      )}
       {parsed && parsed.length > 0 && (
         <div className="tb-gather-results">
           <div className="tb-gather-results-header">

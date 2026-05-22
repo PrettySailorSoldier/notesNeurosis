@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { load } from '@tauri-apps/plugin-store';
-import type { Page, Task, PageType, PlannerSubtype, TodoList, TodoBoard, TodoSubtype, SequenceTask, TaskListBoard, NoteBoard, SequenceBoard, TimeblockTask } from '../types';
+import type { Page, Task, PageType, PlannerSubtype, TodoList, TodoBoard, TodoSubtype, SequenceTask, TaskListBoard, NoteBoard, SequenceBoard, TimeblockTask, TaskListPage } from '../types';
 
 const STORE_FILE = 'planner.json';
 const PAGES_KEY = 'pages';
@@ -38,6 +38,15 @@ function makeTaskListBoard(name = 'List 1'): TaskListBoard {
 
 function makeNoteBoard(name = 'Note 1'): NoteBoard {
   return { id: crypto.randomUUID(), name, content: '', createdAt: Date.now() };
+}
+
+function makeTaskListPage(name = 'List 1'): TaskListPage {
+  return {
+    id: crypto.randomUUID(),
+    name,
+    items: [],
+    createdAt: Date.now(),
+  };
 }
 
 function makeSequenceBoard(name = 'Sequence 1'): SequenceBoard {
@@ -254,6 +263,7 @@ export function usePages() {
       taskListBoards: pageType === 'todo'  ? [makeTaskListBoard('List 1')]     : undefined,
       noteBoards:     pageType === 'notes' ? [makeNoteBoard('Note 1')]         : undefined,
       sequenceBoards: pageType === 'todo'  ? [makeSequenceBoard('Sequence 1')] : undefined,
+      taskListPages:  pageType === 'todo'  ? [makeTaskListPage('List 1')]      : undefined,
     };
     const nextPages = [...pages, newPage];
     updatePages(nextPages, newPage.id);
@@ -295,6 +305,9 @@ export function usePages() {
         sequenceBoards: pageType === 'todo' && !p.sequenceBoards?.length
           ? [makeSequenceBoard('Sequence 1')]
           : p.sequenceBoards,
+        taskListPages: pageType === 'todo' && !p.taskListPages?.length
+          ? [makeTaskListPage('List 1')]
+          : p.taskListPages,
       };
     });
     updatePages(nextPages);
@@ -372,6 +385,16 @@ export function usePages() {
     updatePages(nextPages);
   }, [pages, updatePages]);
 
+  const updateTaskListPagesForPage = useCallback(
+    (pageId: string, taskListPages: TaskListPage[]) => {
+      const nextPages = pages.map(p =>
+        p.id === pageId ? { ...p, taskListPages } : p
+      );
+      updatePages(nextPages);
+    },
+    [pages, updatePages]
+  );
+
   const updateTimeblockDataForPage = useCallback((pageId: string, timeblockData: Record<string, TimeblockTask[]>) => {
     const nextPages = pages.map(p => p.id === pageId ? { ...p, timeblockData } : p);
     updatePages(nextPages);
@@ -412,6 +435,8 @@ export function usePages() {
     updateTaskListBoardsForPage,
     updateNoteBoardsForPage,
     updateSequenceBoardsForPage,
+    updateTaskListPagesForPage,
     updateTimeblockDataForPage,
   };
 }
+

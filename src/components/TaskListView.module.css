@@ -1,0 +1,238 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  padding: 0 1rem 1rem;
+  box-sizing: border-box;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  flex: 1;
+  padding-top: 8px;
+}
+
+/* ── Top-level item ── */
+.itemWrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.itemRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px 6px 2px;
+  border-radius: 6px;
+  min-height: 34px;
+  transition: background 0.12s;
+  position: relative;
+}
+.itemRow:hover {
+  background: rgba(155, 111, 166, 0.06);
+}
+
+.checkBtn {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: transparent;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+  padding: 0;
+}
+.checkBtn:hover {
+  border-color: var(--plum);
+}
+.checkBtn--done {
+  border-color: var(--plum);
+  background: color-mix(in srgb, var(--plum) 25%, transparent);
+  color: var(--plum);
+}
+
+.itemName {
+  flex: 1;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 15px;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0;
+  min-width: 0;
+  cursor: text;
+}
+.itemName::placeholder {
+  color: var(--text-faint);
+  font-style: italic;
+}
+.itemName--done {
+  text-decoration: line-through;
+  color: var(--text-faint);
+}
+
+.timeBadge {
+  font-family: system-ui, sans-serif;
+  font-size: 10px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+.timeInput {
+  width: 44px;
+  font-family: system-ui, sans-serif;
+  font-size: 10px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 4px;
+  outline: none;
+  text-align: right;
+}
+.timeInput:focus { border-color: var(--plum); }
+
+.addTimeBtn {
+  font-family: system-ui, sans-serif;
+  font-size: 10px;
+  color: var(--text-faint);
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s, border-color 0.12s;
+}
+.itemRow:hover .addTimeBtn { opacity: 1; }
+.addTimeBtn:hover { border-color: var(--plum); color: var(--plum); }
+
+.expandBtn {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
+  font-size: 10px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: color 0.12s;
+}
+.expandBtn:hover { color: var(--plum); }
+
+.addSubBtn {
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 3px;
+  color: var(--text-faint);
+  font-size: 10px;
+  padding: 1px 5px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.itemRow:hover .addSubBtn { opacity: 1; }
+.addSubBtn:hover { border-color: var(--plum); color: var(--plum); }
+
+.deleteItemBtn {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity 0.12s, color 0.12s;
+}
+.itemRow:hover .deleteItemBtn { opacity: 1; }
+.deleteItemBtn:hover { color: var(--rose); }
+
+/* ── Subtask list ── */
+.subtaskList {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 2px 0 4px 24px;
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+}
+
+.subtaskRow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 4px 4px 2px;
+  border-radius: 4px;
+  min-height: 28px;
+  transition: background 0.12s;
+}
+.subtaskRow:hover {
+  background: rgba(155, 111, 166, 0.04);
+}
+
+.subtaskName {
+  flex: 1;
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0;
+  min-width: 0;
+}
+.subtaskName::placeholder { color: var(--text-faint); }
+.subtaskName--done {
+  text-decoration: line-through;
+  color: var(--text-faint);
+}
+
+.deleteSubBtn {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 3px;
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity 0.12s, color 0.12s;
+}
+.subtaskRow:hover .deleteSubBtn { opacity: 1; }
+.deleteSubBtn:hover { color: var(--rose); }
+
+/* ── Footer add button ── */
+.addItemBtn {
+  align-self: flex-start;
+  margin-top: 6px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--text-faint);
+  font-family: system-ui, sans-serif;
+  font-size: 11px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+}
+.addItemBtn:hover {
+  border-color: var(--plum);
+  color: var(--plum);
+}

@@ -11,6 +11,7 @@ import { IntervalView } from './components/IntervalView';
 import { HabitsPage } from './components/HabitsPage';
 import { MultiTodoView } from './components/MultiTodoView';
 import { SequenceView } from './components/SequenceView';
+import { TaskListView } from './components/TaskListView';
 import { TimeblockView } from './components/TimeblockView';
 import { ProjectsView } from './components/ProjectsView';
 import { ContextMenu } from './components/ContextMenu';
@@ -44,9 +45,10 @@ const PLANNER_SUBTYPES: { sub: PlannerSubtype; icon: string; label: string }[] =
 ];
 
 const TODO_SUBTYPES: { sub: TodoSubtype; icon: string; label: string }[] = [
-  { sub: 'list',     icon: '📋', label: 'List'     },
-  { sub: 'board',    icon: '⊞',  label: 'Board'    },
-  { sub: 'sequence', icon: '⬇',  label: 'Sequence' },
+  { sub: 'list',     icon: '📋', label: 'List'      },
+  { sub: 'board',    icon: '⊞',  label: 'Board'     },
+  { sub: 'sequence', icon: '⬇',  label: 'Sequence'  },
+  { sub: 'tasklist', icon: '◈',  label: 'Task List' },
 ];
 
 function pageTypeIcon(type?: PageType, plannerSubtype?: PlannerSubtype, todoSubtype?: TodoSubtype): string {
@@ -106,6 +108,7 @@ export default function App() {
     updateTaskListBoardsForPage,
     updateNoteBoardsForPage,
     updateSequenceBoardsForPage,
+    updateTaskListPagesForPage,
     updateTimeblockDataForPage,
     reorderPages,
   } = usePages();
@@ -538,6 +541,15 @@ export default function App() {
     // Unified todo: list OR board OR sequence subtype
     if (type === 'todo' || type === 'multitodo') {
       const todoSubtype = currentPage.todoSubtype ?? (type === 'multitodo' ? 'board' : 'list');
+
+      if (todoSubtype === 'tasklist') {
+        return (
+          <TaskListView
+            pages={currentPage.taskListPages ?? []}
+            onPagesChange={tl => updateTaskListPagesForPage(currentPage.id, tl)}
+          />
+        );
+      }
 
       if (todoSubtype === 'sequence') {
         return (

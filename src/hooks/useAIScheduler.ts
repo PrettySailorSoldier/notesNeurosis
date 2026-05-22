@@ -13,6 +13,16 @@ const BLOCK_TYPE_TO_COLOR: Record<BlockType, AccentColor> = {
 
 export interface AIScheduleRequest {
   projects: Pick<Project, 'id' | 'name' | 'emoji' | 'description' | 'tasks'>[];
+  taskListPages?: {
+    id: string;
+    name: string;
+    items: {
+      id: string;
+      content: string;
+      estimatedMinutes?: number;
+      completed: boolean;
+    }[];
+  }[];
   freeformContext: string;
   targetDate: string;
   energyLevel?: EnergyLevel;
@@ -42,13 +52,29 @@ function buildSchedulePrompt(req: AIScheduleRequest): string {
     return `PROJECT: ${p.emoji ?? ''} ${p.name}\n  Context: ${p.description || 'none'}\n  Open tasks:\n${taskList || '    (none)'}`;
   }).join('\n\n');
 
+  const taskListSection = req.taskListPages && req.taskListPages.length > 0
+    ? (() => {
+        const taskListSummary = req.taskListPages
+          .map(tl => {
+            const open = tl.items.filter(i => !i.completed);
+            const itemLines = open.map(i => {
+              const est = i.estimatedMinutes ? ` (~${i.estimatedMinutes}m)` : '';
+              return `    - ${i.content}${est}`;
+            }).join('\n');
+            return `TASK LIST: ${tl.name}\n${itemLines || '    (all done)'}`;
+          })
+          .join('\n\n');
+        return `\nTASK LISTS (general to-dos):\n${taskListSummary}\n`;
+      })()
+    : '';
+
   return `You are a scheduling assistant for someone with AuDHD (autism + ADHD).
 They have executive dysfunction, time blindness, and interest-based motivation.
 Build a realistic, humane time-blocked schedule for ${req.targetDate}.
 
 TODAY'S ACTIVE PROJECTS AND TASKS:
 ${projectSummary}
-
+${taskListSection}
 ADDITIONAL CONTEXT:
 ${req.freeformContext || 'none'}
 
@@ -61,6 +87,7 @@ CONSTRAINTS:
 - If energy is low or zero: replace deep_focus with float, add extra buffers, keep day minimal
 - Do not schedule tasks the project says are done or skipped
 - projectId must exactly match one of the project IDs listed above, or be omitted
+- Tasks from TASK LISTS should be scheduled as float or buffer blocks unless they are high-effort (>60m), in which case deep_focus is fine. Do not assign a projectId for task list items.
 
 BLOCK TYPES: deep_focus | float | anchor | buffer | break | urgent | wind_down
 ENERGY LEVELS: high | medium | low | zero
