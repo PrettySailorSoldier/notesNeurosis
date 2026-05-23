@@ -1549,6 +1549,11 @@ export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsC
                 <input type="time" value={aiDayEnd} onChange={e => setAiDayEnd(e.target.value)} />
               </div>
 
+              {!settings.claudeApiKey && (
+                <div className="planner-ai-error" style={{ marginBottom: 4 }}>
+                  No API key — add it in ⚙ Options → Settings
+                </div>
+              )}
               {aiLoading ? (
                 <div className="planner-ai-thinking">✦ thinking…</div>
               ) : (
