@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSettings } from '../hooks/useSettings';
+import { useSettingsContext } from '../hooks/useSettings';
 import { useProjects } from '../hooks/useProjects';
 import { useAIScheduler, type AIScheduleBlock, type BrainDumpResult } from '../hooks/useAIScheduler';
 import type { EnergyLevel } from '../types';
@@ -18,7 +18,7 @@ interface Props {
 }
 
 export function BrainDumpPanel({ currentDate, onScheduleReady }: Props) {
-  const { settings } = useSettings();
+  const { settings } = useSettingsContext();
   const { projects } = useProjects();
   const { loading, error, parseBrainDump, generateSchedule, clearDump } = useAIScheduler();
 

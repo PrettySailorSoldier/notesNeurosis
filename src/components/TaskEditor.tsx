@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { Task, TaskType, ReminderSound, PageType, TaskListBoard } from '../types';
 import { TaskItem } from './TaskItem';
 import { BoardTabStrip } from './BoardTabStrip';
-import { useSettings } from '../hooks/useSettings';
+import { useSettingsContext } from '../hooks/useSettings';
 import { useAITaskBreakdown, suggestionsToTasks } from '../hooks/useAITaskBreakdown';
 import styles from './TaskEditor.module.css';
 
@@ -53,7 +53,7 @@ export const TaskEditor: React.FC<Props> = ({
   const [showCompleted, setShowCompleted] = useState(true);
 
   // AI task breakdown
-  const { settings } = useSettings();
+  const { settings } = useSettingsContext();
   const { breakdownTask: aiBreakdownTask } = useAITaskBreakdown(settings.claudeApiKey ?? '');
   const [breakdownLoadingId, setBreakdownLoadingId] = useState<string | null>(null);
 

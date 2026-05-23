@@ -4,7 +4,7 @@ import { TaskEditor } from './components/TaskEditor';
 import { NoteEditor } from './components/NoteEditor';
 import { usePages } from './hooks/usePages';
 import { useReminders } from './hooks/useReminders';
-import { useSettings } from './hooks/useSettings';
+import { SettingsProvider, useSettingsContext } from './hooks/useSettings';
 import { OptionsModal } from './components/OptionsModal';
 import { PlannerView } from './components/PlannerView';
 import { IntervalView } from './components/IntervalView';
@@ -89,7 +89,7 @@ function ShortcutRow({ keys, label }: { keys: string[]; label: string }) {
   );
 }
 
-export default function App() {
+function AppInner() {
   const {
     pages,
     currentPageId,
@@ -113,7 +113,7 @@ export default function App() {
     reorderPages,
   } = usePages();
 
-  const { settings, addCustomTone, removeCustomTone, setVolume, updateSettings, saveAccentColor } = useSettings();
+  const { settings, addCustomTone, removeCustomTone, setVolume, updateSettings, saveAccentColor } = useSettingsContext();
   const [showOptions, setShowOptions] = useState(false);
   const [tabMenu, setTabMenu] = useState<TabContextMenu | null>(null);
   const draggedTabId = useRef<string | null>(null);
@@ -818,5 +818,13 @@ export default function App() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <SettingsProvider>
+      <AppInner />
+    </SettingsProvider>
   );
 }

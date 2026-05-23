@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { TimeblockTask, TimeblockSubtask } from '../types';
-import { useSettings } from '../hooks/useSettings';
+import { useSettingsContext } from '../hooks/useSettings';
 
 /* ── helpers ── */
 const uid = () => crypto.randomUUID();
@@ -485,7 +485,7 @@ interface GatherPanelProps {
 
 /** Thin wrapper so GatherPanel can read settings without prop-drilling from the outside */
 function GatherPanelWrapper({ tasks, onAddTasks }: Omit<GatherPanelProps, 'apiKey'>) {
-  const { settings } = useSettings();
+  const { settings } = useSettingsContext();
   return <GatherPanel tasks={tasks} onAddTasks={onAddTasks} apiKey={settings.claudeApiKey ?? ''} />;
 }
 

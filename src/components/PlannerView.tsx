@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { load } from '@tauri-apps/plugin-store';
 import { usePlanner } from '../hooks/usePlanner';
 import { usePlannerReminders, makeBlockReminder } from '../hooks/usePlannerReminders';
-import { useSettings } from '../hooks/useSettings';
+import { useSettingsContext } from '../hooks/useSettings';
 import type { AccentColor, PlannerBlock, Task, GoalEntry, PlannerSubtype, ReminderSound, BlockType, EnergyLevel } from '../types';
 import { useProjects } from '../hooks/useProjects';
 import { usePages } from '../hooks/usePages';
@@ -667,7 +667,7 @@ interface Props {
 
 export function PlannerView({ pageId, subtype = 'schedule', goals = [], onGoalsChange }: Props) {
   const { ready, blocks, addBlock, addBlockFull, updateBlock, batchUpdateBlocks, deleteBlock, getBlocksForDate } = usePlanner(pageId);
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings } = useSettingsContext();
   const { projects, getProjectForBlock, getActiveProjects } = useProjects();
   const { pages } = usePages();
   const activeProjects = projects.filter(p => p.status === 'active');

@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import React, { type ReactNode } from 'react';
 import { load } from '@tauri-apps/plugin-store';
 import type { ReminderSound, SavedSequence, EnergyLevel } from '../types';
 
@@ -66,7 +67,10 @@ export function useSettings() {
             await store.set('defaultReminderMinutes', backup.defaultReminderMinutes);
             await store.set('defaultReminderSound', backup.defaultReminderSound);
             await store.set('defaultBlockDuration', backup.defaultBlockDuration);
+            await store.set('savedSequences', backup.savedSequences);
             await store.set('accentColor', backup.accentColor ?? DEFAULT_SETTINGS.accentColor);
+            await store.set('claudeApiKey', backup.claudeApiKey);
+            await store.set('dayEnergyLevel', backup.dayEnergyLevel);
             await store.save();
             return;
           }
@@ -149,4 +153,19 @@ export function useSettings() {
   }, []);
 
   return { settings, addCustomTone, removeCustomTone, setVolume, updateSettings, saveAccentColor };
+}
+
+type SettingsContextValue = ReturnType<typeof useSettings>;
+
+const SettingsContext = createContext<SettingsContextValue | null>(null);
+
+export function SettingsProvider({ children }: { children: ReactNode }) {
+  const value = useSettings();
+  return React.createElement(SettingsContext.Provider, { value }, children);
+}
+
+export function useSettingsContext(): SettingsContextValue {
+  const ctx = useContext(SettingsContext);
+  if (!ctx) throw new Error('useSettingsContext must be used within SettingsProvider');
+  return ctx;
 }

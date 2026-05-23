@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Project, ProjectTask, ProjectTaskStatus, EnergyLevel } from '../types';
 import { useAIProjectAssistant } from '../hooks/useAIProjectAssistant';
-import { useSettings } from '../hooks/useSettings';
+import { useSettingsContext } from '../hooks/useSettings';
 
 interface Props {
   project: Project;
@@ -27,7 +27,7 @@ const ENERGY_COLORS: Record<EnergyLevel, string> = {
 export function ProjectDetailPanel({
   project, onClose, onAddTask, onDeleteTask, onSetTaskStatus,
 }: Props) {
-  const { settings } = useSettings();
+  const { settings } = useSettingsContext();
   const { loading, error, breakdownTask, generateProjectPlan, toProjectTasks } =
     useAIProjectAssistant(settings.claudeApiKey ?? '');
 

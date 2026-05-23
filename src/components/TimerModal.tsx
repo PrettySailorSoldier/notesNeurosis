@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Reminder, ReminderSound } from '../types';
-import { useSettings } from '../hooks/useSettings';
+import { useSettingsContext } from '../hooks/useSettings';
 import { useAudio } from '../hooks/useAudio';
 import { useDraggable } from '../hooks/useDraggable';
 import { onModalMount, onModalUnmount } from '../utils/modalAlwaysOnTop';
@@ -34,7 +34,7 @@ export const TimerModal: React.FC<Props> = ({
   onClear,
   onClose,
 }) => {
-  const { settings } = useSettings();
+  const { settings } = useSettingsContext();
   const { playTone } = useAudio();
   const { dragPos, modalRef, onHandleMouseDown } = useDraggable();
   const [minutes, setMinutes] = useState<number>(existing?.intervalMinutes ?? 30);
