@@ -99,6 +99,11 @@ export const OptionsModal: React.FC<Props> = ({
   const [localApiKey, setLocalApiKey] = useState(settings.claudeApiKey ?? '');
   const apiKeyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Sync settings API key to local state when it loads
+  useEffect(() => {
+    setLocalApiKey(settings.claudeApiKey ?? '');
+  }, [settings.claudeApiKey]);
+
   // Live countdown tick every second
   useEffect(() => {
     const timer = setInterval(() => setTick(t => t + 1), 1000);

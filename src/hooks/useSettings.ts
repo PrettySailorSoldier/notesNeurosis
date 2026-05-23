@@ -31,7 +31,7 @@ const DEFAULT_SETTINGS: Settings = {
   defaultBlockDuration: 60,
   savedSequences: [],
   accentColor: '#9b6fa6',
-  claudeApiKey: '',
+  claudeApiKey: import.meta.env.VITE_ANTHROPIC_API_KEY || '',
   dayEnergyLevel: undefined,
 };
 
@@ -80,7 +80,7 @@ export function useSettings() {
           defaultBlockDuration: defBlock ?? prev.defaultBlockDuration,
           savedSequences: seqs ?? prev.savedSequences,
           accentColor: accent ?? prev.accentColor,
-          claudeApiKey: claudeApiKey ?? prev.claudeApiKey,
+          claudeApiKey: (claudeApiKey && claudeApiKey.trim()) ? claudeApiKey : prev.claudeApiKey,
           dayEnergyLevel: dayEnergyLevel ?? prev.dayEnergyLevel,
         }));
       } catch (err) {
