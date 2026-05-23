@@ -107,7 +107,7 @@ export function useAIPlannerChat({
           'anthropic-dangerous-direct-browser-access': 'true',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5-20251001',
+          model: 'claude-haiku-4-5-20251001',
           max_tokens: 1500,
           system: buildSystemPrompt(blocks, currentDate),
           messages: apiMessages,

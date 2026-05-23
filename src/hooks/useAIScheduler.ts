@@ -133,7 +133,7 @@ export function useAIScheduler() {
           'anthropic-dangerous-direct-browser-access': 'true',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5-20251001',
+          model: 'claude-haiku-4-5-20251001',
           max_tokens: 2000,
           messages: [{ role: 'user', content: prompt }],
         }),
@@ -168,12 +168,12 @@ export function useAIScheduler() {
           'anthropic-dangerous-direct-browser-access': 'true',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5-20251001',
+          model: 'claude-haiku-4-5-20251001',
           max_tokens: 2000,
           messages: [{ role: 'user', content: `Extract tasks from this brain dump:\n${dumpText}\nProjects available:\n${JSON.stringify(activeProjects.map(p => ({ id: p.id, name: p.name })))}\nReturn JSON with { summary: string, parsedTasks: BrainDumpTask[] }` }],
         }),
       });
-      if (!res.ok) throw new Error(`API error ${res.status}`);
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as any)?.error?.message ?? `API error ${res.status}`); }
       const data = await res.json();
       const cleaned = (data?.content?.[0]?.text ?? '').replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
       return JSON.parse(cleaned) as BrainDumpResult;
@@ -196,12 +196,12 @@ export function useAIScheduler() {
           'anthropic-dangerous-direct-browser-access': 'true',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5-20251001',
+          model: 'claude-haiku-4-5-20251001',
           max_tokens: 1000,
           messages: [{ role: 'user', content: `Break this task into subtasks:\nTask: ${label}\nNotes: ${notes}\nProject: ${projDesc}\nDuration: ${durationMins}m\nReturn ONLY a JSON array of strings.` }],
         }),
       });
-      if (!res.ok) throw new Error(`API error ${res.status}`);
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as any)?.error?.message ?? `API error ${res.status}`); }
       const data = await res.json();
       const cleaned = (data?.content?.[0]?.text ?? '').replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
       return JSON.parse(cleaned) as string[];

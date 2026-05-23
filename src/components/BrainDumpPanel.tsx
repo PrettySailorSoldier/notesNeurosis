@@ -102,14 +102,18 @@ export function BrainDumpPanel({ currentDate, onScheduleReady }: Props) {
                 value={dumpText}
                 onChange={e => setDumpText(e.target.value)}
               />
+              {!settings.claudeApiKey && (
+                <div className="brain-dump-error" style={{ marginBottom: 6 }}>
+                  No API key — add it in ⚙ Options → Settings
+                </div>
+              )}
               {loading ? (
                 <div className="brain-dump-thinking">thinking…</div>
               ) : (
-                <button 
+                <button
                   className="brain-dump-extract-btn"
                   onClick={handleExtract}
                   disabled={!dumpText.trim() || !settings.claudeApiKey}
-                  title={!settings.claudeApiKey ? "API Key required in Settings" : ""}
                 >
                   ✦ extract tasks
                 </button>
