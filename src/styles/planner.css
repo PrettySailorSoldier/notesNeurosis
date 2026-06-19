@@ -465,6 +465,34 @@
   border-bottom-color: var(--border);
 }
 
+/* ── Nested subtask breakdown ── */
+.planner-subtask-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.planner-subtask-chevron {
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 16px;
+  opacity: 0.6;
+  font-size: 0.85em;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.planner-subtask-chevron--leaf {
+  cursor: default;
+  opacity: 0.25;
+}
+
+.planner-subtask-children {
+  border-left: 1px solid var(--planner-subtask-rail, rgba(150, 120, 170, 0.25));
+  padding-left: 6px;
+  margin-top: 2px;
+}
+
 /* ── Timeline grid ── */
 .planner-timeline-grid {
   position: relative;

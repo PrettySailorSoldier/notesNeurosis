@@ -290,6 +290,10 @@ function BlockEditor({ block, onUpdate, onClose, allBlocks, onTimeChange, isRing
   const [subtaskInput, setSubtaskInput] = useState('');
   const subtaskInputRef = useRef<HTMLInputElement>(null);
 
+  // Expanded subtask breakdown state
+  const [expandedSubIds, setExpandedSubIds] = useState<Set<string>>(new Set());
+  const [childDrafts, setChildDrafts] = useState<Record<string, string>>({});
+
   // Reminder picker state
   const [showReminderPicker, setShowReminderPicker] = useState(false);
   const [reminderSound, setReminderSound] = useState<ReminderSound>(
@@ -321,29 +325,117 @@ function BlockEditor({ block, onUpdate, onClose, allBlocks, onTimeChange, isRing
     };
   }, []);
 
-  const subtasks = block.tasks ?? [];
+  const rootTasks = block.tasks ?? [];
 
-  const addSubtask = (text: string) => {
+  const makeSub = (content: string): Task => ({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    content,
+    type: 'checkbox',
+    completed: false,
+    createdAt: Date.now(),
+    subtasks: [],
+  });
+
+  // Add a child under parentId (or at root when parentId is null)
+  const addSubtaskUnder = (parentId: string | null, text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
-    const newTask: Task = {
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      content: trimmed,
-      type: 'checkbox',
-      completed: false,
-      createdAt: Date.now(),
-    };
-    onUpdate({ tasks: [...subtasks, newTask] });
-    setSubtaskInput('');
-    subtaskInputRef.current?.focus();
+    const child = makeSub(trimmed);
+    if (parentId === null) {
+      onUpdate({ tasks: [...rootTasks, child] });
+      return;
+    }
+    const insert = (tasks: Task[]): Task[] =>
+      tasks.map(t =>
+        t.id === parentId
+          ? { ...t, subtasks: [...(t.subtasks ?? []), child] }
+          : (t.subtasks?.length ? { ...t, subtasks: insert(t.subtasks) } : t)
+      );
+    onUpdate({ tasks: insert(rootTasks) });
   };
 
   const toggleSubtask = (id: string) => {
-    onUpdate({ tasks: subtasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t) });
+    const flip = (tasks: Task[]): Task[] =>
+      tasks.map(t =>
+        t.id === id
+          ? { ...t, completed: !t.completed }
+          : (t.subtasks?.length ? { ...t, subtasks: flip(t.subtasks) } : t)
+      );
+    onUpdate({ tasks: flip(rootTasks) });
   };
 
   const removeSubtask = (id: string) => {
-    onUpdate({ tasks: subtasks.filter(t => t.id !== id) });
+    const prune = (tasks: Task[]): Task[] =>
+      tasks
+        .filter(t => t.id !== id)
+        .map(t => (t.subtasks?.length ? { ...t, subtasks: prune(t.subtasks) } : t));
+    onUpdate({ tasks: prune(rootTasks) });
+  };
+
+  const toggleExpand = (id: string) =>
+    setExpandedSubIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const renderSubtaskRow = (task: Task, depth: number): React.ReactNode => {
+    const hasChildren = (task.subtasks?.length ?? 0) > 0;
+    const isExpanded = expandedSubIds.has(task.id);
+    const canExpand = depth === 0; // cap visible nesting at one level
+    return (
+      <div key={task.id} className="planner-subtask-group">
+        <div
+          className="planner-subtask-row"
+          style={{ marginLeft: depth * 18 }}
+        >
+          {canExpand ? (
+            <button
+              className="planner-subtask-chevron"
+              onClick={() => toggleExpand(task.id)}
+              title={isExpanded ? 'Collapse' : 'Expand breakdown'}
+            >
+              {hasChildren || isExpanded ? (isExpanded ? '▾' : '▸') : '·'}
+            </button>
+          ) : (
+            <span className="planner-subtask-chevron planner-subtask-chevron--leaf" />
+          )}
+          <button
+            className={`planner-subtask-check ${task.completed ? 'planner-subtask-check--done' : ''}`}
+            onClick={() => toggleSubtask(task.id)}
+          >
+            {task.completed ? '✓' : '○'}
+          </button>
+          <span className={`planner-subtask-text ${task.completed ? 'planner-subtask-text--done' : ''}`}>
+            {task.content}
+          </span>
+          <button className="planner-subtask-remove" onClick={() => removeSubtask(task.id)}>×</button>
+        </div>
+
+        {canExpand && isExpanded && (
+          <div className="planner-subtask-children" style={{ marginLeft: (depth + 1) * 18 }}>
+            {(task.subtasks ?? []).map(child => renderSubtaskRow(child, depth + 1))}
+            <div className="planner-subtask-row planner-subtask-add-row">
+              <span className="planner-subtask-add-bullet">+</span>
+              <input
+                className="planner-subtask-input"
+                placeholder="add step…"
+                value={childDrafts[task.id] ?? ''}
+                onChange={e => setChildDrafts(d => ({ ...d, [task.id]: e.target.value }))}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addSubtaskUnder(task.id, childDrafts[task.id] ?? '');
+                    setChildDrafts(d => ({ ...d, [task.id]: '' }));
+                  }
+                  if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+                }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const parseDurationInput = (raw: string): number | null => {
@@ -538,20 +630,7 @@ function BlockEditor({ block, onUpdate, onClose, allBlocks, onTimeChange, isRing
 
       {/* Row 7: Subtasks */}
       <div className="planner-subtasks">
-        {subtasks.map(task => (
-          <div key={task.id} className="planner-subtask-row">
-            <button
-              className={`planner-subtask-check ${task.completed ? 'planner-subtask-check--done' : ''}`}
-              onClick={() => toggleSubtask(task.id)}
-            >
-              {task.completed ? '✓' : '○'}
-            </button>
-            <span className={`planner-subtask-text ${task.completed ? 'planner-subtask-text--done' : ''}`}>
-              {task.content}
-            </span>
-            <button className="planner-subtask-remove" onClick={() => removeSubtask(task.id)}>×</button>
-          </div>
-        ))}
+        {rootTasks.map(t => renderSubtaskRow(t, 0))}
         <div className="planner-subtask-row planner-subtask-add-row">
           <span className="planner-subtask-add-bullet">+</span>
           <input
@@ -564,7 +643,9 @@ function BlockEditor({ block, onUpdate, onClose, allBlocks, onTimeChange, isRing
             onKeyDown={e => {
               if (e.key === 'Enter' || e.key === 'Tab') {
                 e.preventDefault();
-                addSubtask(subtaskInput);
+                addSubtaskUnder(null, subtaskInput);
+                setSubtaskInput('');
+                subtaskInputRef.current?.focus();
               }
               if (e.key === 'Escape') { e.preventDefault(); onClose(); }
             }}
