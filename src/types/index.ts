@@ -13,6 +13,10 @@ export interface Task {
   indent?: number;   // 0 = top level, 1+ = subtask depth
   reminder?: Reminder;
   color?: AccentColor;
+  // ── NEW: structural breakdown + scheduling link ──
+  subtasks?: Task[];          // nested breakdown (recursive). undefined/absent = leaf task
+  estimatedMinutes?: number;  // optional duration estimate, enables scheduling
+  scheduledBlockId?: string;  // back-ref: id of the PlannerBlock this task is timeblocked into
 }
 
 export interface Reminder {
@@ -211,6 +215,9 @@ export interface PlannerBlock {
   blockType?: BlockType;
   energyRequired?: EnergyLevel;
   projectId?: string;
+  // ── NEW: forward-ref back to the source Task this block was created from ──
+  sourceTaskId?: string;  // id of the Task this block represents
+  sourcePageId?: string;  // id of the Page that task lives on
 }
 
 export type AccentColor = 

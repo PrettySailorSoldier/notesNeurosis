@@ -97,6 +97,32 @@ function migrateTodoSubtype(p: Page): Page {
   return p;
 }
 
+/**
+ * Backfill: ensure every Task across a page has a `subtasks` array.
+ * Recurses so already-nested subtasks are normalised too. Pure, idempotent.
+ * Leaves all other fields untouched.
+ */
+function migrateTaskSubtasks(p: Page): Page {
+  const normalizeTask = (t: Task): Task => ({
+    ...t,
+    subtasks: (t.subtasks ?? []).map(normalizeTask),
+  });
+
+  return {
+    ...p,
+    tasks: p.tasks.map(normalizeTask),
+    todoBoards: p.todoBoards?.map(b => ({
+      ...b,
+      lists: b.lists.map(l => ({ ...l, tasks: l.tasks.map(normalizeTask) })),
+    })),
+    taskListBoards: p.taskListBoards?.map(b => ({
+      ...b,
+      tasks: b.tasks.map(normalizeTask),
+    })),
+    todoLists: p.todoLists?.map(l => ({ ...l, tasks: l.tasks.map(normalizeTask) })),
+  };
+}
+
 const DEFAULT_PAGES: Page[] = [
   {
     id: crypto.randomUUID(),
@@ -143,7 +169,8 @@ export function usePages() {
             const migrated = storedPages
               .map(p => ({ ...p, pageType: p.pageType ?? 'notes' as PageType }))
               .map(migrateTodoBoards)
-              .map(migrateTodoSubtype);
+              .map(migrateTodoSubtype)
+              .map(migrateTaskSubtasks);
             setPages(migrated);
             latestPagesRef.current = migrated;
             const cId = storedPageId && migrated.find(p => p.id === storedPageId) ? storedPageId : migrated[0].id;
@@ -156,7 +183,8 @@ export function usePages() {
               const migrated = backupPages
                 .map(p => ({ ...p, pageType: p.pageType ?? 'notes' as PageType }))
                 .map(migrateTodoBoards)
-                .map(migrateTodoSubtype);
+                .map(migrateTodoSubtype)
+                .map(migrateTaskSubtasks);
               setPages(migrated);
               latestPagesRef.current = migrated;
               const cId = storedPageId && migrated.find(p => p.id === storedPageId) ? storedPageId : migrated[0].id;
